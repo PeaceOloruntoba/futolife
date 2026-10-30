@@ -8,9 +8,9 @@
 #app{position:fixed;inset:0;touch-action:none}canvas#gl{width:100%;height:100%;display:block}
 .g{background:rgba(16,22,30,.78);backdrop-filter:blur(10px);border:1px solid var(--line);border-radius:14px}
 .hud{position:absolute;padding-top:env(safe-area-inset-top,0px);inset:0;pointer-events:none}.hud>*{pointer-events:auto}
-#top{position:absolute;top:calc(10px + env(safe-area-inset-top,0px));left:10px;padding:8px 12px;max-width:58%}
+#top{display:none;position:absolute;top:calc(10px + env(safe-area-inset-top,0px));left:10px;padding:8px 12px;max-width:58%}
 #top small{display:block;color:var(--mut);font-size:10px;letter-spacing:.1em;text-transform:uppercase}
-#rt{position:absolute;top:calc(10px + env(safe-area-inset-top,0px));right:10px;display:flex;flex-direction:column;gap:8px}
+#rt{display:none;position:absolute;top:calc(10px + env(safe-area-inset-top,0px));right:10px;flex-direction:column;gap:8px}
 .ib{width:48px;height:48px;border-radius:14px;display:grid;place-items:center;cursor:pointer;font:600 12px inherit;color:var(--tx);border:1px solid var(--line);background:rgba(16,22,30,.78)}.ib.on{color:var(--acc);border-color:var(--acc)}
 #joy{position:absolute;left:18px;bottom:calc(24px + env(safe-area-inset-bottom,0px));width:128px;height:128px;border-radius:50%;background:rgba(16,22,30,.5);border:1px solid var(--line);touch-action:none}
 #kn{position:absolute;left:42px;top:42px;width:44px;height:44px;border-radius:50%;background:var(--acc);opacity:.92}
@@ -25,10 +25,13 @@
 .nl{position:absolute;transform:translate(-50%,-100%);font-size:11px;padding:2px 7px;border-radius:8px;background:rgba(16,22,30,.72);border:1px solid var(--line);white-space:nowrap;pointer-events:none}
 #fade{position:absolute;inset:0;background:#000;opacity:0;pointer-events:none;transition:opacity .35s}
 #toast{position:absolute;top:calc(70px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);padding:7px 12px;display:none}
-#ban{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);padding:5px 10px;font-size:11px;color:var(--mut);white-space:nowrap}
+#ban{display:none;position:absolute;left:50%;bottom:10px;transform:translateX(-50%);padding:5px 10px;font-size:11px;color:var(--mut);white-space:nowrap}
 #hint{display:none;position:absolute;left:14px;bottom:36px;padding:8px 12px;color:var(--mut);font-size:12px}
 #int{position:absolute;inset:0;background:radial-gradient(circle at 50% 30%,#2a2418,#0b0f14);display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px;gap:8px}
 @media(min-width:900px){#joy{display:none}#hint{display:block}#panel{left:auto;right:12px;bottom:12px;top:12px;width:360px;max-height:none;border-radius:16px;border:1px solid var(--line);transform:translateX(110%)}#panel.show{transform:none}}
+</style><style>
+@media(min-width:900px){#panel{top:70px;max-height:calc(100% - 82px)}#hint{display:none!important}}
+@media(max-width:899px){#joy{bottom:calc(238px + env(safe-area-inset-bottom,0px))}#act{bottom:calc(246px + env(safe-area-inset-bottom,0px))}#prompt{bottom:calc(355px + env(safe-area-inset-bottom,0px))}#hint{display:none!important}}
 </style></head><body>
 <div id="app"><canvas id="gl"></canvas>
 <div id="labels"></div>
@@ -368,7 +371,7 @@ $('cam').onclick=()=>{first=!first;$('cam').textContent=first?'1st':'3rd';$('cam
 // UI
 const pn=$('panel');function show(h){pn.innerHTML=h;pn.classList.add('show')}window.cl=()=>pn.classList.remove('show');
 function walkTo(x,z){P.tx=x;P.tz=z;cl();toast('Walking…')}window.walkTo=walkTo;
-addEventListener('message',e=>{if(e.source!==parent||!e.data||typeof e.data!=='object')return;if(e.data.type==='futo:walk-to'&&Number.isFinite(e.data.x)&&Number.isFinite(e.data.z)){if(Math.abs(e.data.x)<700&&Math.abs(e.data.z)<700)walkTo(e.data.x,e.data.z)}else if(e.data.type==='futo:open-map')$('mapb').onclick()});
+addEventListener('message',e=>{if(e.source!==parent||!e.data||typeof e.data!=='object')return;if(e.data.type==='futo:walk-to'&&Number.isFinite(e.data.x)&&Number.isFinite(e.data.z)){if(Math.abs(e.data.x)<700&&Math.abs(e.data.z)<700)walkTo(e.data.x,e.data.z)}else if(e.data.type==='futo:camera')$('cam').onclick();else if(e.data.type==='futo:map')$('mapb').onclick();else if(e.data.type==='futo:near')$('ppl').onclick();else if(e.data.type==='futo:data')$('datab').onclick()});
 $('mapb').onclick=()=>{if(pn.classList.contains('show')&&pn.dataset.k=='m'){cl();return}pn.dataset.k='m';show('<h3 style="margin:0">Campus map</h3><div style="color:var(--mut);font-size:12px">Placeholder layout. Tap Walk to travel; the world keeps running.</div><div class="li"><div class="av" style="background:var(--acc2)">⌂</div><div><b>Central Entrance</b> <span class="tag ok">Verified start</span></div><button class="btn" onclick="walkTo(0,6)">Walk</button></div>'+B.map(b=>`<div class="li"><div class="av" style="background:var(--warn)">?</div><div><b>${b.n}</b> <span class="tag">${b.tag||'Placeholder'}</span></div><button class="btn" onclick="walkTo(${b.door[0]},${b.door[1]+1})">Walk</button></div>`).join('')+'<div class="row"><button class="btn" onclick="cl()">Close</button></div>')};
 $('ppl').onclick=()=>{if(pn.classList.contains('show')&&pn.dataset.k=='p'){cl();return}pn.dataset.k='p';show('<h3 style="margin:0">Nearby students <span class="tag demo">DEMO DATA</span></h3><div style="color:var(--mut);font-size:12px">Simulated avatars for layout only. No real people or networking.</div>'+bots.map((b,i)=>`<div class="li"><div class="av" style="background:#${b.c.toString(16).padStart(6,'0')}">${b.n[0]}</div><div><b>${b.n}</b><div style="color:var(--mut);font-size:12px">${Math.round(Math.hypot(b.x-P.x,b.z-P.z))} m away</div></div><button class="btn" onclick="wave(${i})">Wave</button></div>`).join('')+'<div class="row"><button class="btn" onclick="cl()">Close</button></div>')};
 window.wave=i=>{toast('Demo: you waved at '+bots[i].n)};

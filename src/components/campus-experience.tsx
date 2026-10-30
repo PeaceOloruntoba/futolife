@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { locations, type CampusLocation } from "@/lib/locations";
 import { createClient } from "@/lib/supabase/browser";
 
@@ -11,6 +11,7 @@ export default function CampusExperience() {
   const worldFrame = useRef<HTMLIFrameElement>(null);
   const [campusLocations, setCampusLocations] = useState<CampusLocation[]>(locations);
   const [query, setQuery] = useState("");
+  const [directoryOpen, setDirectoryOpen] = useState(true);
   const [selected, setSelected] = useState<CampusLocation | null>(null);
   const [accountOpen, setAccountOpen] = useState(false);
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -28,8 +29,9 @@ export default function CampusExperience() {
     }
   }
 
-  function openWorldMap() {
-    worldFrame.current?.contentWindow?.postMessage({ type: "futo:open-map" }, window.location.origin);
+  function runWorldControl(control: "camera" | "map" | "near" | "data") {
+    if (control !== "camera" && window.matchMedia("(max-width: 760px)").matches) setDirectoryOpen(false);
+    worldFrame.current?.contentWindow?.postMessage({ type: `futo:${control}` }, window.location.origin);
   }
 
   useEffect(() => {
@@ -67,17 +69,21 @@ export default function CampusExperience() {
     <header className="topbar">
       <div className="brand"><div className="brand-mark">F</div><div><div className="brand-title">FUTO LIFE</div><div className="brand-sub">Explore your campus. Find your people.</div></div></div>
       <div className="top-actions">
-        <button className="glass" onClick={() => setSelected(null)} title="Explore the 3D campus">Explore</button>
-        <button className="glass" onClick={openWorldMap} title="Open the campus map">Map</button>
-        <button className="glass user-chip" onClick={() => setAccountOpen(true)}><span className="avatar-dot">{profile?.display_name?.[0]?.toUpperCase() ?? "●"}</span>{profile?.display_name ?? (email ? "Finish profile" : "Sign in")}</button>
+        <IconButton label="Switch camera view" onClick={() => runWorldControl("camera")}><path d="M3 7.5h3l1.5-2h5l1.5 2h3v9H3z"/><circle cx="10" cy="12" r="3"/></IconButton>
+        <IconButton label="Open campus map" onClick={() => runWorldControl("map")}><path d="m3 6 5-2 5 2 4-2v12l-4 2-5-2-5 2z"/><path d="M8 4v12m5-10v12"/></IconButton>
+        <IconButton label="Nearby campus activity" onClick={() => runWorldControl("near")}><circle cx="8" cy="8" r="2.5"/><circle cx="14.5" cy="9" r="2"/><path d="M3.5 17c.5-2.4 2-3.5 4.5-3.5s4 1.1 4.5 3.5m.3-3.3c2.2-.4 4.1.6 4.7 2.8"/></IconButton>
+        <IconButton label="Campus data tools" onClick={() => runWorldControl("data")}><ellipse cx="10" cy="5" rx="6.5" ry="2.5"/><path d="M3.5 5v5c0 1.4 2.9 2.5 6.5 2.5 1.7 0 3.2-.3 4.5-.8M3.5 10v5c0 1.4 2.9 2.5 6.5 2.5 1.1 0 2.1-.1 3-.4"/><path d="M14 13v6m-3-3h6"/></IconButton>
+        <button className="glass user-chip" onClick={() => setAccountOpen(true)} aria-label={profile?.display_name ?? (email ? "Finish profile" : "Sign in")} title={profile?.display_name ?? (email ? "Finish profile" : "Sign in")}><span className="avatar-dot">{profile?.display_name?.[0]?.toUpperCase() ?? "♙"}</span></button>
       </div>
     </header>
-    <aside className="locations panel">
+    {!directoryOpen && <button className="places-toggle glass" onClick={() => setDirectoryOpen(true)} aria-label="Show places directory" title="Show places directory"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M10 18s6-5.2 6-10a6 6 0 1 0-12 0c0 4.8 6 10 6 10Z"/><circle cx="10" cy="8" r="2"/></svg><span>Places</span></button>}
+    <aside className={`locations panel${directoryOpen ? "" : " is-closed"}`}>
       <div className="panel-head">
         <div className="eyebrow">Campus directory</div><div className="panel-title">Find a place</div>
         <div className="panel-copy">Explore the campus prototype and browse the current location inventory. Estimated positions are labelled.</div>
         <input className="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search buildings, halls, facilities…" aria-label="Search campus locations" />
       </div>
+      {selected && <div className="selected-place"><div className="selected-place-title">{selected.name}</div><div className="loc-meta">{selected.category.replaceAll("-", " ")} · {selected.position_status === "provisional" ? "Estimated position" : selected.position_status === "verified" ? "Verified" : "Unverified"}</div><div className="selected-place-copy">{selected.description || selected.notes || "Details and map position need confirmation."}</div><button className="clear-place" onClick={() => setSelected(null)}>Clear selection</button></div>}
       <div className="location-list" aria-live="polite">
         {visibleLocations.map((place) => <button className="location-row" key={place.id} onClick={() => chooseLocation(place)}>
           <span className="loc-icon">{place.category === "lecture" ? "⌂" : place.category === "entrance" ? "↗" : "•"}</span>
@@ -86,11 +92,14 @@ export default function CampusExperience() {
         {visibleLocations.length === 0 && <p className="panel-copy" style={{ padding: 10 }}>No locations match that search.</p>}
       </div>
       {profile && <div className="profile-card"><div className="profile-name">{profile.display_name}</div><div className="profile-email">{[profile.department, profile.year_of_study ? `Year ${profile.year_of_study}` : null].filter(Boolean).join(" · ") || email}</div></div>}
+      <div className="locations-note"><span className="note-mark">i</span><span>Map positions are provisional until verified against reliable FUTO sources.</span></div>
     </aside>
-    {selected && <section className="status panel" role="status"><button className="glass" style={{ float: "right", padding: "4px 8px" }} onClick={() => setSelected(null)} aria-label="Close location details">×</button><strong>{selected.name}</strong><br/>{selected.category.replaceAll("-", " ")} · <span style={{ color: "#f1c46f" }}>{selected.position_status === "provisional" ? "Estimated position" : selected.position_status === "verified" ? "Verified" : "Unverified"}</span><br/><span style={{ color: "#a5ab9f" }}>{selected.description || selected.notes || selected.implementation || "Details and map position need confirmation."}</span></section>}
-    <div className="status panel"><strong>Early access prototype</strong><br/>Map positions and several campus details are provisional. Help us verify FUTO as we build.</div>
     {accountOpen && <AccountDialog email={email} onClose={() => setAccountOpen(false)} onSignedIn={(userEmail, savedProfile) => { setEmail(userEmail); setProfile(savedProfile); setAccountOpen(false); }} />}
   </main>;
+}
+
+function IconButton({ label, onClick, children }: { label: string; onClick: () => void; children: ReactNode }) {
+  return <button className="icon-button" onClick={onClick} aria-label={label} title={label} type="button"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{children}</svg><span className="sr-only">{label}</span></button>;
 }
 
 function AccountDialog({ email: currentEmail, onClose, onSignedIn }: { email: string | null; onClose: () => void; onSignedIn: (email: string, profile: Profile | null) => void }) {
