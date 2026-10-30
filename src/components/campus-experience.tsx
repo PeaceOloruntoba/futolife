@@ -94,7 +94,7 @@ export default function CampusExperience() {
       {profile && <div className="profile-card"><div className="profile-name">{profile.display_name}</div><div className="profile-email">{[profile.department, profile.year_of_study ? `Year ${profile.year_of_study}` : null].filter(Boolean).join(" · ") || email}</div></div>}
       <div className="locations-note"><span className="note-mark">i</span><span>Map positions are provisional until verified against reliable FUTO sources.</span></div>
     </aside>
-    {accountOpen && <AccountDialog email={email} onClose={() => setAccountOpen(false)} onSignedIn={(userEmail, savedProfile) => { setEmail(userEmail); setProfile(savedProfile); setAccountOpen(false); }} />}
+    {accountOpen && <AccountDialog email={email} profile={profile} onClose={() => setAccountOpen(false)} onSignedIn={(userEmail, savedProfile) => { setEmail(userEmail); setProfile(savedProfile); setAccountOpen(false); }} />}
   </main>;
 }
 
@@ -102,18 +102,25 @@ function IconButton({ label, onClick, children }: { label: string; onClick: () =
   return <button className="icon-button" onClick={onClick} aria-label={label} title={label} type="button"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{children}</svg><span className="sr-only">{label}</span></button>;
 }
 
-function AccountDialog({ email: currentEmail, onClose, onSignedIn }: { email: string | null; onClose: () => void; onSignedIn: (email: string, profile: Profile | null) => void }) {
+function AccountDialog({ email: currentEmail, profile, onClose, onSignedIn }: { email: string | null; profile: Profile | null; onClose: () => void; onSignedIn: (email: string, profile: Profile | null) => void }) {
   const supabase = useMemo(() => createClient(), []);
   const [mode, setMode] = useState<AuthMode>(currentEmail ? "signup" : "signin");
   const [email, setEmail] = useState(currentEmail ?? "");
   const [password, setPassword] = useState("");
   const [authenticated, setAuthenticated] = useState(Boolean(currentEmail));
-  const [name, setName] = useState("");
-  const [department, setDepartment] = useState("");
-  const [year, setYear] = useState("");
+  const [name, setName] = useState(profile?.display_name ?? "");
+  const [department, setDepartment] = useState(profile?.department ?? "");
+  const [year, setYear] = useState(profile?.year_of_study ? String(profile.year_of_study) : "");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const hasSession = authenticated || Boolean(currentEmail);
+
+  useEffect(() => {
+    if (!profile) return;
+    setName(profile.display_name);
+    setDepartment(profile.department ?? "");
+    setYear(profile.year_of_study ? String(profile.year_of_study) : "");
+  }, [profile]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -135,7 +142,7 @@ function AccountDialog({ email: currentEmail, onClose, onSignedIn }: { email: st
       }
       const existing = await fetch("/api/profile", { cache: "no-store" });
       const existingData = await existing.json();
-      if (existing.ok && existingData.profile?.display_name) { onSignedIn(email, existingData.profile); return; }
+      if (existing.ok && existingData.profile?.display_name && !currentEmail) { onSignedIn(email, existingData.profile); return; }
       if (mode === "signin" && !name.trim()) {
         setMode("signup");
         setMessage("You’re signed in. Add a display name to finish setting up your profile.");
@@ -155,7 +162,7 @@ function AccountDialog({ email: currentEmail, onClose, onSignedIn }: { email: st
   }
 
   return <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}><section className="modal panel" role="dialog" aria-modal="true" aria-labelledby="account-title">
-    <div className="eyebrow">Your FUTO Life account</div><h2 id="account-title">{currentEmail ? "Set up your profile" : mode === "signin" ? "Welcome back" : "Join FUTO Life"}</h2>
+    <div className="eyebrow">Your FUTO Life account</div><h2 id="account-title">{currentEmail ? (profile ? "Edit your profile" : "Set up your profile") : mode === "signin" ? "Welcome back" : "Join FUTO Life"}</h2>
     <p>Save your profile and make your campus experience yours. Social features will arrive in later releases.</p>
     {!supabase && <p className="error">Supabase credentials are not configured yet. Guest campus exploration is available.</p>}
     <form className="form" onSubmit={submit}>
