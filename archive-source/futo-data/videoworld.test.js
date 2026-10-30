@@ -1,0 +1,13 @@
+const T=require('three'),V=require('./videoworld'),F=require('./foliage'),cfg=require('./video-route.json');let n=0,f=0;const ck=(c,m)=>{n++;if(!c){f++;console.log('FAIL',m)}};
+const stub=()=>new Proxy({},{get:(t,k)=>k=='createLinearGradient'||k=='createRadialGradient'?()=>({addColorStop(){}}):()=>{},set:()=>true}),labels=[],palms=[];
+const r=V.build({THREE:T,tex:()=>new T.Texture(),cv:()=>({getContext:stub}),mobile:false,foliage:F,label:(a,b,x,y,z)=>labels.push([a,b,x,z]),palm:(x,z)=>palms.push([x,z])},cfg);
+const hit=(x,z)=>r.colliders.some(w=>x>w.x0&&x<w.x1&&z>w.z0&&z<w.z1);
+ck(Math.abs(r.Z(176)-(-(176-12)*1.3))<1e-9,'route position = (t - depart) x speed');
+ck(hit(-36,r.Z(176)),'SOES-area building solid at its video position');ck(!hit(0,r.Z(176)),'road centre free at that point');
+ck(hit(10,r.Z(85))&&hit(-10,r.Z(85)),'valley beside the bridge is blocked');ck(!hit(0,r.Z(85)),'bridge deck is walkable');
+let ok=true;for(let z=0;z>=r.Z(437);z-=.25)if(hit(0,z)){ok=false;break}ck(ok,'centre line walkable from the gate to the end of the video route');
+const names=labels.map(l=>l[0]);['DIRECTORATE OF GENERAL STUDIES (DGS)','SCHOOL OF ENVIRONMENTAL SCIENCES (SOES)','COLLEGE OF MEDICINE','CENTRE FOR NUCLEAR ENERGY STUDIES AND TRAINING'].forEach(k=>ck(names.includes(k),'sign '+k));
+ck(labels.every(l=>l[1].startsWith('Unverified')),'every label carries the unverified tag');ck(palms.length==8,'8 palms on the open ground');
+const nm=[];r.group.traverse(o=>nm.push(o.name));['vans','bridge-posts','stream','norfolk-pine','poles','wires','lamp-posts','cypress'].forEach(k=>ck(nm.includes(k),'has '+k));let dc=0;r.group.traverse(o=>{if(o.isMesh)dc++});console.log('draw calls',dc);ck(dc<260,'draw calls < 260');
+ck(hit(-7,r.Z(34)),'Norfolk pine trunk is solid at its video position');
+console.log(n+' checks, '+f+' failed');process.exit(f?1:0);

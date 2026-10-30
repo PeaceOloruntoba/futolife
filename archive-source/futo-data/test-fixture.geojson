@@ -1,0 +1,6 @@
+{"type":"FeatureCollection","note":"SYNTHETIC TEST FIXTURE near lat/lng 0,0. NOT FUTO DATA.","features":[
+{"type":"Feature","properties":{"id":"main-gate","name":"TEST gate point","role":"spawn","verification":"unverified"},"geometry":{"type":"Point","coordinates":[0,0]}},
+{"type":"Feature","properties":{"id":"road-a","highway":"tertiary","verification":"unverified"},"geometry":{"type":"LineString","coordinates":[[0,0],[0,0.0012],[0.0006,0.0018]]}},
+{"type":"Feature","properties":{"id":"path-a","highway":"footway","verification":"unverified"},"geometry":{"type":"LineString","coordinates":[[-0.0006,0.0006],[0.0006,0.0006]]}},
+{"type":"Feature","properties":{"id":"bldg-a","name":"TEST building A","floors":3,"verification":"unverified"},"geometry":{"type":"Polygon","coordinates":[[[0.0003,0.0003],[0.0006,0.0003],[0.0006,0.0005],[0.0003,0.0005],[0.0003,0.0003]]]}},
+{"type":"Feature","properties":{"id":"bldg-b","name":"TEST building B (diamond)","height":7,"verification":"unverified"},"geometry":{"type":"Polygon","coordinates":[[[-0.0005,0.0008],[-0.0003,0.001],[-0.0005,0.0012],[-0.0007,0.001],[-0.0005,0.0008]]]}}]}

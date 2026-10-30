@@ -1,0 +1,10 @@
+{"note":"PROTOTYPE layout from the user's tour video. Distance = walking seconds x speed. Video time is NOT reliable (jump cuts, unknown pace) so every distance is a placeholder. Set minutesFromGate on any landmark to override with a real walking time; bearingDeg is assumed (0 = north = -z).",
+"speedMps":1.3,"compression":1.0,"departSec":12,"bearingDeg":0,
+"landmarks":[
+{"id":"statue","type":"statue","label":"Statue on plinth (subject unidentified)","videoSec":56,"offset":11},
+{"id":"river-bridge","type":"river","label":"Stream and bridge (name unknown)","videoSec":86,"width":16},
+{"id":"health-tech-sign","type":"sign","label":"SCHOOL OF HEALTH TECHNOLOGY (partly legible)","videoSec":112,"offset":7},
+{"id":"urp-sign","type":"sign","label":"URBAN AND REGIONAL PLANNING (SOES sign)","videoSec":162,"offset":7},
+{"id":"soes-sign","type":"sign","label":"SCHOOL OF ENVIRONMENTAL SCIENCES (SOES)","videoSec":175,"offset":-7},
+{"id":"fisheries-sign","type":"sign","label":"FISHERIES... (partly legible)","videoSec":200,"offset":-7},
+{"id":"nuclear-sign","type":"sign","label":"CENTRE FOR NUCLEAR ENERGY STUDIES AND TRAINING (partly legible)","videoSec":207,"offset":7}]}

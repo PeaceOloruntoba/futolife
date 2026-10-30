@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>FUTO Life – UX Prototype</title>
+<style>
+:root{color-scheme:dark;--bg:#0b0f14;--surf:#141b24;--surf2:#1c2632;--line:#2a3746;--tx:#e8eef5;--mut:#8b9bad;--acc:#f2b84b;--acc2:#4cc9a6;--warn:#e8765a;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+*{box-sizing:border-box}html,body{height:100%;margin:0;background:var(--bg);color:var(--tx);font:14px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
+body{display:flex;flex-direction:column}
+nav.tabs{display:flex;gap:4px;padding:8px;border-bottom:1px solid var(--line);background:var(--surf)}
+nav.tabs button{flex:1;background:none;border:0;color:var(--mut);padding:9px;border-radius:8px;font:600 13px inherit;cursor:pointer}
+nav.tabs button.on{background:var(--surf2);color:var(--acc)}
+section{display:none;flex:1;min-height:0}section.on{display:flex}
+#stage{position:relative;flex:1;overflow:hidden;background:#0d141b;touch-action:none}
+canvas{width:100%;height:100%;display:block}
+.hud{position:absolute;pointer-events:none;inset:0}
+.hud>*{pointer-events:auto}
+.glass{background:rgba(20,27,36,.78);backdrop-filter:blur(10px);border:1px solid var(--line);border-radius:14px}
+#loc{position:absolute;top:10px;left:10px;padding:8px 12px;max-width:60%}
+#loc small{color:var(--mut);display:block;font-size:11px;letter-spacing:.08em;text-transform:uppercase}
+#rt{position:absolute;top:10px;right:10px;display:flex;flex-direction:column;gap:8px}
+.ib{width:46px;height:46px;border-radius:14px;display:grid;place-items:center;color:var(--tx);cursor:pointer;font:600 12px inherit;border:1px solid var(--line);background:rgba(20,27,36,.78)}
+.ib.on{color:var(--acc);border-color:var(--acc)}
+#joy{position:absolute;left:18px;bottom:22px;width:120px;height:120px;border-radius:50%;background:rgba(20,27,36,.55);border:1px solid var(--line)}
+#knob{position:absolute;left:38px;top:38px;width:44px;height:44px;border-radius:50%;background:var(--acc);opacity:.9}
+#act{position:absolute;right:18px;bottom:30px;width:84px;height:84px;border-radius:50%;border:2px solid var(--acc);background:rgba(242,184,75,.14);color:var(--acc);font:700 13px inherit;cursor:pointer;display:none}
+#act.show{display:block}
+#prompt{position:absolute;left:50%;bottom:160px;transform:translateX(-50%);padding:10px 14px;text-align:center;display:none;min-width:200px}
+#prompt.show{display:block}
+.tag{display:inline-block;font-size:10px;padding:1px 6px;border-radius:6px;background:rgba(232,118,90,.18);color:var(--warn);margin-left:4px}
+.tag.ok{background:rgba(76,201,166,.18);color:var(--acc2)}
+.sheet{position:absolute;left:0;right:0;bottom:0;max-height:70%;overflow:auto;padding:16px;border-radius:18px 18px 0 0;transform:translateY(105%);transition:transform .3s;background:var(--surf);border-top:1px solid var(--line)}
+.sheet.show{transform:none}
+.sheet h3{margin:0 0 4px}.sheet .row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.btn{background:var(--surf2);border:1px solid var(--line);color:var(--tx);padding:9px 14px;border-radius:10px;cursor:pointer;font:600 13px inherit}
+.btn.pri{background:var(--acc);color:#1a1405;border-color:var(--acc)}
+#fade{position:absolute;inset:0;background:#000;opacity:0;pointer-events:none;transition:opacity .35s}
+#toast{position:absolute;top:64px;left:50%;transform:translateX(-50%);padding:7px 12px;display:none}
+#intro{position:absolute;inset:0;background:rgba(11,15,20,.94);display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:24px;gap:10px;z-index:5}
+#intro h1{margin:0;font-size:30px;letter-spacing:.02em}#intro h1 b{color:var(--acc)}
+#intro p{max-width:360px;color:var(--mut);margin:0}
+.steps{display:flex;gap:6px;margin:6px}.steps i{width:22px;height:4px;border-radius:2px;background:var(--line)}.steps i.on{background:var(--acc)}
+.player{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line)}
+.av{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font-weight:700;color:#10151b}
+.doc{flex:1;overflow:auto;padding:16px;max-width:860px;margin:0 auto;display:block}
+.doc h2{color:var(--acc);margin:22px 0 6px;font-size:17px}.doc h3{margin:14px 0 4px;font-size:14px}
+.doc table{border-collapse:collapse;width:100%;display:block;overflow-x:auto}.doc td,.doc th{border:1px solid var(--line);padding:6px 8px;text-align:left;font-size:13px;vertical-align:top}
+.doc code{background:var(--surf2);padding:1px 5px;border-radius:4px;font-size:12px}
+.sw{display:inline-block;width:14px;height:14px;border-radius:4px;vertical-align:middle;margin-right:6px;border:1px solid var(--line)}
+.assume{border-left:3px solid var(--warn);padding:6px 12px;background:var(--surf)}
+@media(min-width:900px){#joy{display:none}#act{right:30px}#hint{display:block!important}}
+#hint{display:none;position:absolute;left:14px;bottom:14px;padding:8px 12px;color:var(--mut);font-size:12px}
+</style></head><body>
+<nav class="tabs"><button class="on" data-t="p">Prototype</button><button data-t="a">Architecture</button><button data-t="d">Design system</button></nav>
+
+<section id="p" class="on"><div id="stage">
+<canvas id="cv"></canvas>
+<div class="hud">
+ <div id="loc" class="glass"><small>You are at</small><b id="locn">Central Entrance</b><span class="tag ok">Verified origin</span></div>
+ <div id="rt">
+  <div class="ib" id="cam" title="Camera">3rd</div>
+  <div class="ib" id="mapb">Map</div>
+  <div class="ib" id="soc">People</div>
+ </div>
+ <div id="toast" class="glass"></div>
+ <div id="prompt" class="glass"><b id="pn"></b><div id="pd" style="color:var(--mut);font-size:12px"></div></div>
+ <div id="joy"><div id="knob"></div></div>
+ <button id="act">Enter</button>
+ <div id="hint" class="glass">WASD / arrows move · E interact · C camera · Tap map to walk</div>
+ <div id="sheet" class="sheet"></div>
+ <div id="fade"></div>
+</div>
+<div id="intro">
+ <div class="steps"><i class="on"></i><i></i><i></i></div>
+ <h1>FUTO <b>Life</b></h1>
+ <p id="ip">Walk the campus together. You will start at the central entrance, the one location we treat as verified.</p>
+ <button class="btn pri" id="ib">Continue</button>
+</div></div></section>
+
+<section id="a"><div class="doc">
+<h2>1. Product architecture</h2>
+<p>One persistent world, with everything else as overlays on it. The 3D scene never unmounts; panels are sheets (mobile) or side drawers (desktop). Switching tabs must not drop the socket or reload assets.</p>
+<table><tr><th>Layer</th><th>Contents</th></tr>
+<tr><td>World (always on)</td><td>Scene, avatar, camera, other players, proximity detection</td></tr>
+<tr><td>HUD</td><td>Location chip, camera toggle, map, people, joystick, context action button</td></tr>
+<tr><td>Sheets</td><td>Map, People, Building, Profile, Emotes, Settings</td></tr>
+<tr><td>Interiors</td><td>Separate scene chunk loaded on entry, same HUD with reduced controls</td></tr></table>
+<p>Routes (for the engineer): <code>/</code> world · <code>/?poi=id</code> deep link to a place · <code>/b/:id</code> interior · <code>/u/:id</code> profile. Overlays use query state so the back button closes them.</p>
+<h2>2. First-time journey (3 steps, under 30 seconds)</h2>
+<p>Welcome → controls tutorial (joystick, camera, interact) learned by doing, not reading → spawn at the central entrance with one guided prompt toward the nearest place. Sign-in is deferred: guests can walk; social features ask for sign-in at first use. Show a download-size and quality choice (Low/Med/High) before the first asset load, defaulting by device.</p>
+<h2>3. Exploration interface</h2>
+<table><tr><th>Element</th><th>Decision</th></tr>
+<tr><td>Movement</td><td>Left-thumb floating joystick, tap-to-move with a ground marker, WASD on desktop. Run when pushed to the rim.</td></tr>
+<tr><td>Camera</td><td>Toggle 1st/3rd. Third is default (spatial awareness plus seeing your avatar). Look by dragging the right half of the screen. Auto-switch to first person indoors in tight spaces.</td></tr>
+<tr><td>Discovery</td><td>Places reveal a soft label within about 40 m, a full prompt within about 8 m. Map shows only visited and verified places by default.</td></tr>
+<tr><td>Interaction</td><td>One contextual action button (right thumb). It changes label: Enter, Talk, Wave, Sit. Never more than one primary action at a time.</td></tr></table>
+<h2>4. Approaching and entering buildings</h2>
+<p>Distance states: <b>far</b> (label fades in) → <b>near</b> (door glows, prompt card) → <b>at door</b> (action button becomes Enter) → <b>transition</b> (0.35 s fade, no loading bar if the interior is preloaded on "near") → <b>interior</b> with a sheet showing real information and who is inside. Leaving returns you to the same door.</p>
+<h2>5. Multiplayer and social</h2>
+<p>Presence first, chat second. Nearby players are shown as avatars with name plates. Tap a person: Wave, Follow, Invite to walk together, Message. Quick emotes via a radial menu. Proximity text bubbles, not a permanent chat log. Privacy: visibility modes (Everyone, Friends, Ghost), mute and report on every profile, no precise real-world location sharing.</p>
+<h2>6. Layouts</h2>
+<table><tr><th>Mobile (primary)</th><th>Desktop</th></tr>
+<tr><td>Full-bleed scene, thumb zones for joystick (left) and action (right), bottom sheets</td><td>Same scene, keyboard and mouse, joystick hidden, People and Map become a right-hand drawer (360 px), hint strip bottom-left</td></tr></table>
+<h2>Assumptions and open items</h2>
+<div class="assume">
+<p>No FUTO building names, layouts, or coordinates were invented. Apart from the central entrance (verified by you), all places in the prototype are labelled <b>Placeholder</b>. The prototype is a top-down UX blockout, not the 3D scene; camera toggle only changes the framing to demonstrate the interaction.</p>
+<p>Needed before build: verified POI list with coordinates and photos, permission to use campus imagery, moderation policy for a student community, a decision on identity (school email verification vs guest), server and concurrency targets, and an asset budget for low-end Android devices.</p></div>
+<h2>Engineer notes</h2>
+<p>Suggested split: a scene module (Three.js or Babylon, render loop, camera rig), an input module (joystick, keys, tap-to-move), a presence module (WebSocket, interpolated remote players at 10 Hz), and a UI module in the framework of choice. POI data should be one JSON file: <code>{id, name, verified, lat, lng, doorPos, interiorId, info}</code> so unverified items can be shown differently by the <code>verified</code> flag.</p>
+</div></section>
+
+<section id="d"><div class="doc">
+<h2>Visual direction</h2>
+<p>Dusk-lit, cinematic, and grounded: dark UI that gets out of the way of a realistic scene, with warm gold for action and a teal for social presence. Glass surfaces with a thin line, no heavy shadows, no dashboard cards.</p>
+<h3>Colour tokens</h3>
+<p><span class="sw" style="background:#0b0f14"></span><code>--bg #0b0f14</code> <span class="sw" style="background:#141b24"></span><code>--surf #141b24</code> <span class="sw" style="background:#1c2632"></span><code>--surf2 #1c2632</code> <span class="sw" style="background:#2a3746"></span><code>--line #2a3746</code></p>
+<p><span class="sw" style="background:#f2b84b"></span><code>--acc #f2b84b</code> primary action and place · <span class="sw" style="background:#4cc9a6"></span><code>--acc2 #4cc9a6</code> people, verified · <span class="sw" style="background:#e8765a"></span><code>--warn #e8765a</code> unverified, report</p>
+<h3>Type and shape</h3>
+<p>System UI stack for now. Suggest a licensed display face for titles later. Labels 11 px caps, body 14 px, titles 17–30 px. Radii 14 px (controls), 18 px (sheets), full circle for joystick and action. Touch targets at least 44 px.</p>
+<h3>Motion</h3>
+<p>Sheets 300 ms ease. Door transitions 350 ms fade. Prompt cards fade 150 ms. Respect <code>prefers-reduced-motion</code>: replace slides with fades.</p>
+<h3>Components</h3>
+<p>Location chip · camera toggle · icon button · joystick · context action · proximity prompt · bottom sheet · player row · name plate · verified/placeholder tag. Each is a single reusable component driven by tokens above.</p>
+<h3>Accessibility</h3>
+<p>Joystick size and left/right handedness configurable, optional auto-walk to a selected place, captions for any future voice chat, contrast of at least 4.5:1 on all HUD text.</p>
+</div></section>
+
+<script>
+const $=id=>document.getElementById(id);
+document.querySelectorAll('nav.tabs button').forEach(b=>b.onclick=()=>{document.querySelectorAll('nav.tabs button').forEach(x=>x.classList.toggle('on',x===b));document.querySelectorAll('section').forEach(s=>s.classList.toggle('on',s.id===b.dataset.t))});
+const cv=$('cv'),cx=cv.getContext('2d');let W,H;
+function rs(){const r=cv.getBoundingClientRect();W=cv.width=r.width*devicePixelRatio;H=cv.height=r.height*devicePixelRatio}
+addEventListener('resize',rs);setTimeout(rs,50);
+const P=[
+ {id:'gate',n:'Central Entrance',x:0,y:0,w:0,h:0,v:1,d:'Verified starting point. Spawn location.',gate:1},
+ {id:'a',n:'Placeholder Building A',x:-260,y:-210,w:150,h:90,v:0,d:'Replace with a verified FUTO location.'},
+ {id:'b',n:'Placeholder Building B',x:170,y:-260,w:130,h:110,v:0,d:'Replace with a verified FUTO location.'},
+ {id:'c',n:'Placeholder Building C',x:240,y:-60,w:120,h:80,v:0,d:'Replace with a verified FUTO location.'}
+];
+const me={x:0,y:40,vx:0,vy:0,tx:null,ty:null};
+const bots=[['Ada','#f2b84b'],['Chidi','#4cc9a6'],['Ife','#9aa8ff'],['Tobi','#e8765a']].map((b,i)=>({n:b[0],c:b[1],x:-120+i*80,y:-60-i*50,a:Math.random()*6,msg:''}));
+let cam3=true,keys={},near=null,inside=null,ju={x:0,y:0};
+function toast(t){const e=$('toast');e.textContent=t;e.style.display='block';clearTimeout(toast.t);toast.t=setTimeout(()=>e.style.display='none',1800)}
+function w2s(x,y){const z=cam3?1:1.6;return[W/2+(x-me.x)*z*devicePixelRatio,H/2+(y-me.y)*z*devicePixelRatio]}
+function draw(){
+ cx.clearRect(0,0,W,H);const d=devicePixelRatio,z=cam3?1:1.6;
+ cx.fillStyle='#0f1820';cx.fillRect(0,0,W,H);
+ cx.strokeStyle='#1a2733';cx.lineWidth=1;
+ for(let g=-800;g<=800;g+=40){let [sx,sy]=w2s(g,g);cx.beginPath();cx.moveTo(sx,0);cx.lineTo(sx,H);cx.moveTo(0,sy);cx.lineTo(W,sy);cx.stroke()}
+ let [ax,ay]=w2s(0,0);cx.fillStyle='#16222d';cx.fillRect(ax-30*z*d,ay-300*z*d,60*z*d,600*z*d);
+ P.forEach(p=>{let [sx,sy]=w2s(p.x,p.y);
+  if(p.gate){cx.strokeStyle='#4cc9a6';cx.lineWidth=3*d;cx.strokeRect(sx-34*z*d,sy-6*z*d,68*z*d,12*z*d);cx.fillStyle='#4cc9a6';cx.font=11*d+'px system-ui';cx.textAlign='center';cx.fillText('ENTRANCE',sx,sy+24*z*d);return}
+  cx.fillStyle=near===p?'#2b3b4d':'#1c2632';cx.strokeStyle=near===p?'#f2b84b':'#e8765a';cx.setLineDash([6*d,4*d]);cx.lineWidth=2*d;
+  cx.fillRect(sx,sy,p.w*z*d,p.h*z*d);cx.strokeRect(sx,sy,p.w*z*d,p.h*z*d);cx.setLineDash([]);
+  cx.fillStyle='#8b9bad';cx.font=11*d+'px system-ui';cx.textAlign='center';cx.fillText(p.n,sx+p.w*z*d/2,sy-6*d);
+  cx.fillStyle='#f2b84b';cx.fillRect(sx+p.w*z*d/2-6*d,sy+p.h*z*d-3*d,12*d,6*d)});
+ bots.forEach(b=>{let [sx,sy]=w2s(b.x,b.y);cx.fillStyle=b.c;cx.beginPath();cx.arc(sx,sy,8*z*d,0,7);cx.fill();cx.fillStyle='#e8eef5';cx.font=10*d+'px system-ui';cx.textAlign='center';cx.fillText(b.n,sx,sy-14*z*d);
+  if(b.msg){cx.fillStyle='#e8eef5';cx.fillText('💬 '+b.msg,sx,sy-28*z*d)}});
+ cx.save();cx.translate(W/2,H/2);if(!cam3){cx.fillStyle='rgba(242,184,75,.10)';cx.beginPath();cx.moveTo(0,0);cx.arc(0,0,170*d,-2.2,-.9);cx.closePath();cx.fill()}
+ cx.fillStyle='#f2b84b';cx.beginPath();cx.arc(0,0,(cam3?9:5)*z*d,0,7);cx.fill();cx.restore();
+ if(me.tx!=null){let [sx,sy]=w2s(me.tx,me.ty);cx.strokeStyle='#f2b84b';cx.lineWidth=2*d;cx.beginPath();cx.arc(sx,sy,10*d,0,7);cx.stroke()}
+}
+function tick(){
+ if(!inside){let ix=ju.x,iy=ju.y;if(keys.ArrowLeft||keys.a)ix-=1;if(keys.ArrowRight||keys.d)ix+=1;if(keys.ArrowUp||keys.w)iy-=1;if(keys.ArrowDown||keys.s)iy+=1;
+ if(ix||iy){me.tx=null}else if(me.tx!=null){let dx=me.tx-me.x,dy=me.ty-me.y,l=Math.hypot(dx,dy);if(l<4)me.tx=null;else{ix=dx/l;iy=dy/l}}
+ const l=Math.hypot(ix,iy)||1,s=Math.min(1,l)*2.4;me.x+=ix/l*s*(ix||iy?1:0);me.y+=iy/l*s*(ix||iy?1:0);
+ let nn=null,bd=1e9;P.forEach(p=>{if(p.gate)return;const dx=Math.max(p.x-me.x,0,me.x-(p.x+p.w)),dy=Math.max(p.y-me.y,0,me.y-(p.y+p.h)),dd=Math.hypot(dx,dy);if(dd<46&&dd<bd){bd=dd;nn=p}});
+ if(nn!==near){near=nn;const pr=$('prompt');if(near){$('pn').innerHTML=near.n+' <span class="tag">Placeholder</span>';$('pd').textContent='Door nearby';pr.classList.add('show');$('act').classList.add('show')}else{pr.classList.remove('show');$('act').classList.remove('show')}}
+ bots.forEach(b=>{b.a+=(Math.random()-.5)*.2;b.x+=Math.cos(b.a)*.4;b.y+=Math.sin(b.a)*.4});
+ const g=Math.hypot(me.x,me.y)<70;$('locn').textContent=g?'Central Entrance':'Campus grounds';}
+ draw();requestAnimationFrame(tick)}
+tick();
+addEventListener('keydown',e=>{keys[e.key.length>1?e.key:e.key.toLowerCase()]=1;if(e.key==='e')act();if(e.key==='c')$('cam').click()});
+addEventListener('keyup',e=>keys[e.key.length>1?e.key:e.key.toLowerCase()]=0);
+cv.addEventListener('pointerdown',e=>{if(inside)return;const r=cv.getBoundingClientRect(),z=cam3?1:1.6;me.tx=me.x+(e.clientX-r.left-r.width/2)/z;me.ty=me.y+(e.clientY-r.top-r.height/2)/z});
+const joy=$('joy'),kn=$('knob');let jp=null;
+joy.addEventListener('pointerdown',e=>{jp=e.pointerId;joy.setPointerCapture(jp);mv(e)});
+joy.addEventListener('pointermove',e=>{if(e.pointerId===jp)mv(e)});
+joy.addEventListener('pointerup',()=>{jp=null;ju={x:0,y:0};kn.style.left=kn.style.top='38px'});
+function mv(e){const r=joy.getBoundingClientRect();let dx=e.clientX-r.left-60,dy=e.clientY-r.top-60;const l=Math.hypot(dx,dy),m=48;if(l>m){dx*=m/l;dy*=m/l}ju={x:dx/m,y:dy/m};kn.style.left=38+dx+'px';kn.style.top=38+dy+'px'}
+$('cam').onclick=()=>{cam3=!cam3;$('cam').textContent=cam3?'3rd':'1st';$('cam').classList.toggle('on',!cam3);toast(cam3?'Third person':'First person')};
+const sh=$('sheet');
+function sheet(h){sh.innerHTML=h;sh.classList.add('show')}
+function close(){sh.classList.remove('show')}
+window.cl=close;
+function act(){if(inside){leave();return}if(!near)return;const f=$('fade');f.style.opacity=1;setTimeout(()=>{inside=near;f.style.opacity=0;$('locn').textContent='Inside: '+inside.n;$('prompt').classList.remove('show');$('act').textContent='Leave';
+ sheet(`<h3>${inside.n} <span class="tag">Placeholder</span></h3><div style="color:var(--mut)">${inside.d} Real opening hours, departments and photos would appear here once verified.</div>
+ <div class="row"><span class="tag ok">3 people inside</span></div><div class="row"><button class="btn pri" onclick="leave()">Leave building</button><button class="btn" onclick="cl()">Look around</button></div>`)},350)}
+window.leave=()=>{const f=$('fade');f.style.opacity=1;setTimeout(()=>{inside=null;near=null;$('act').textContent='Enter';f.style.opacity=0;close();$('act').classList.remove('show')},350)};
+$('act').onclick=act;
+$('mapb').onclick=()=>sheet('<h3>Campus map</h3><div style="color:var(--mut)">Only verified places are drawn solid. Placeholders are dashed until confirmed.</div>'+P.map(p=>`<div class="player"><div class="av" style="background:${p.v?'var(--acc2)':'var(--warn)'}">${p.gate?'⌂':'?'}</div><div style="flex:1"><b>${p.n}</b><div style="color:var(--mut);font-size:12px">${p.v?'Verified':'Placeholder'}</div></div><button class="btn" onclick="go('${p.id}')">Walk</button></div>`).join('')+'<div class="row"><button class="btn" onclick="cl()">Close</button></div>');
+window.go=id=>{const p=P.find(q=>q.id===id);me.tx=p.gate?0:p.x+p.w/2;me.ty=p.gate?20:p.y+p.h+20;close();toast('Walking to '+p.n)};
+$('soc').onclick=()=>sheet('<h3>Nearby · '+bots.length+'</h3><div style="color:var(--mut)">Simulated players for layout only.</div>'+bots.map((b,i)=>`<div class="player"><div class="av" style="background:${b.c}">${b.n[0]}</div><div style="flex:1"><b>${b.n}</b><div style="color:var(--mut);font-size:12px">Nearby</div></div><button class="btn" onclick="prof(${i})">View</button></div>`).join('')+'<div class="row"><button class="btn" onclick="cl()">Close</button></div>');
+window.prof=i=>{const b=bots[i];sheet(`<div class="player" style="border:0"><div class="av" style="background:${b.c}">${b.n[0]}</div><div><h3 style="margin:0">${b.n}</h3><span class="tag ok">Online</span></div></div><div class="row"><button class="btn pri" onclick="em(${i},'👋 Hi!')">Wave</button><button class="btn" onclick="em(${i},'🚶 Walk with me?')">Walk together</button><button class="btn" onclick="toast('Friend request sent')">Add friend</button></div><div class="row"><button class="btn" onclick="toast('Muted')">Mute</button><button class="btn" onclick="toast('Report flow opens')">Report</button><button class="btn" onclick="$('soc').click()">Back</button></div>`)};
+window.toast=toast;window.em=(i,t)=>{close();bots[i].msg=t;toast('Sent to '+bots[i].n);setTimeout(()=>bots[i].msg='',3000)};
+const steps=[['Welcome','Walk the campus together. You will start at the central entrance, the one location we treat as verified.'],['Move','Drag the left pad to walk, or tap the ground. On desktop use WASD.'],['Look and act','Switch camera with the top-right button. When a door glows, the gold button lets you enter.']];
+let si=0;$('ib').onclick=()=>{si++;if(si>=3){$('intro').style.display='none';toast('Try walking to a glowing door');return}$('ip').textContent=steps[si][1];document.querySelectorAll('.steps i').forEach((e,i)=>e.classList.toggle('on',i<=si));if(si==2)$('ib').textContent='Start exploring'};
+</script></body></html>
