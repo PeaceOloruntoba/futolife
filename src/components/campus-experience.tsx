@@ -10,8 +10,11 @@ type AuthMode = "signin" | "signup";
 export default function CampusExperience() {
   const worldFrame = useRef<HTMLIFrameElement>(null);
   const [campusLocations, setCampusLocations] = useState<CampusLocation[]>(locations);
+  const [locationSource, setLocationSource] = useState<"bundled" | "supabase">("bundled");
+  const [locationLoadError, setLocationLoadError] = useState(false);
   const [query, setQuery] = useState("");
   const [directoryOpen, setDirectoryOpen] = useState(true);
+  const [mapOpen, setMapOpen] = useState(false);
   const [selected, setSelected] = useState<CampusLocation | null>(null);
   const [accountOpen, setAccountOpen] = useState(false);
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -24,6 +27,20 @@ export default function CampusExperience() {
     return campusLocations.filter((item) => !term || `${item.name} ${item.category}`.toLowerCase().includes(term));
   }, [campusLocations, query]);
 
+  const plottedLocations = useMemo(() => {
+    const positioned = campusLocations.filter((place) => typeof place.local_x === "number" && Number.isFinite(place.local_x) && typeof place.local_z === "number" && Number.isFinite(place.local_z));
+    if (!positioned.length) return [];
+    const xs = positioned.map((place) => place.local_x as number);
+    const zs = positioned.map((place) => place.local_z as number);
+    const minX = Math.min(...xs), maxX = Math.max(...xs), minZ = Math.min(...zs), maxZ = Math.max(...zs);
+    const spanX = maxX - minX || 1, spanZ = maxZ - minZ || 1;
+    return positioned.map((place) => ({
+      place,
+      left: 10 + (((place.local_x as number) - minX) / spanX) * 80,
+      top: 10 + (((place.local_z as number) - minZ) / spanZ) * 80,
+    }));
+  }, [campusLocations]);
+
   function chooseLocation(place: CampusLocation) {
     setSelected(place);
     if (typeof place.local_x === "number" && typeof place.local_z === "number") {
@@ -31,16 +48,31 @@ export default function CampusExperience() {
     }
   }
 
-  function runWorldControl(control: "camera" | "map" | "near" | "data") {
+  function runWorldControl(control: "camera" | "map" | "directory" | "data") {
+    if (control === "map") {
+      setMapOpen((open) => !open);
+      if (window.matchMedia("(max-width: 760px)").matches) setDirectoryOpen(false);
+      return;
+    }
+    if (control === "directory") {
+      setDirectoryOpen((open) => !open);
+      return;
+    }
     if (control !== "camera" && window.matchMedia("(max-width: 760px)").matches) setDirectoryOpen(false);
     worldFrame.current?.contentWindow?.postMessage({ type: `futo:${control}` }, window.location.origin);
   }
 
   useEffect(() => {
     let active = true;
-    void fetch("/api/locations", { cache: "no-store" }).then((response) => response.json()).then((result) => {
-      if (active && Array.isArray(result.locations)) setCampusLocations(result.locations);
-    }).catch(() => undefined);
+    void fetch("/api/locations", { cache: "no-store" }).then(async (response) => {
+      if (!response.ok) throw new Error("Location inventory request failed.");
+      return response.json();
+    }).then((result) => {
+      if (!active || !Array.isArray(result.locations)) return;
+      setCampusLocations(result.locations);
+      setLocationSource(result.source === "supabase" ? "supabase" : "bundled");
+      setLocationLoadError(false);
+    }).catch(() => { if (active) setLocationLoadError(true); });
     return () => { active = false; };
   }, []);
 
@@ -52,6 +84,26 @@ export default function CampusExperience() {
       window.history.replaceState({}, "", window.location.pathname);
     }
   }, []);
+
+  useEffect(() => {
+    function receiveWorldMessage(event: MessageEvent<unknown>) {
+      if (event.origin !== window.location.origin || event.source !== worldFrame.current?.contentWindow) return;
+      if (!event.data || typeof event.data !== "object" || !("type" in event.data) || event.data.type !== "futo:open-map") return;
+      setMapOpen(true);
+      if (window.matchMedia("(max-width: 760px)").matches) setDirectoryOpen(false);
+    }
+    window.addEventListener("message", receiveWorldMessage);
+    return () => window.removeEventListener("message", receiveWorldMessage);
+  }, []);
+
+  useEffect(() => {
+    if (!accountOpen && !mapOpen) return;
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") { setAccountOpen(false); setMapOpen(false); }
+    }
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [accountOpen, mapOpen]);
 
   useEffect(() => {
     const supabase = createClient();
@@ -84,7 +136,7 @@ export default function CampusExperience() {
       <div className="top-actions">
         <IconButton label="Switch camera view" onClick={() => runWorldControl("camera")}><path d="M3 7.5h3l1.5-2h5l1.5 2h3v9H3z"/><circle cx="10" cy="12" r="3"/></IconButton>
         <IconButton label="Open campus map" onClick={() => runWorldControl("map")}><path d="m3 6 5-2 5 2 4-2v12l-4 2-5-2-5 2z"/><path d="M8 4v12m5-10v12"/></IconButton>
-        <IconButton label="Nearby campus activity" onClick={() => runWorldControl("near")}><circle cx="8" cy="8" r="2.5"/><circle cx="14.5" cy="9" r="2"/><path d="M3.5 17c.5-2.4 2-3.5 4.5-3.5s4 1.1 4.5 3.5m.3-3.3c2.2-.4 4.1.6 4.7 2.8"/></IconButton>
+        <IconButton label="Toggle places directory" onClick={() => runWorldControl("directory")}><path d="M10 18s6-5.2 6-10a6 6 0 1 0-12 0c0 4.8 6 10 6 10Z"/><circle cx="10" cy="8" r="2"/></IconButton>
         <IconButton label="Campus data tools" onClick={() => runWorldControl("data")}><ellipse cx="10" cy="5" rx="6.5" ry="2.5"/><path d="M3.5 5v5c0 1.4 2.9 2.5 6.5 2.5 1.7 0 3.2-.3 4.5-.8M3.5 10v5c0 1.4 2.9 2.5 6.5 2.5 1.1 0 2.1-.1 3-.4"/><path d="M14 13v6m-3-3h6"/></IconButton>
         <button className="glass user-chip" onClick={() => setAccountOpen(true)} aria-label={profile?.display_name ?? (email ? "Finish profile" : "Sign in")} title={profile?.display_name ?? (email ? "Finish profile" : "Sign in")}><span className="avatar-dot">{profile?.display_name?.[0]?.toUpperCase() ?? "♙"}</span></button>
       </div>
@@ -105,8 +157,18 @@ export default function CampusExperience() {
         {visibleLocations.length === 0 && <p className="panel-copy" style={{ padding: 10 }}>No locations match that search.</p>}
       </div>
       {profile && <div className="profile-card"><div className="profile-name">{profile.display_name}</div><div className="profile-email">{[profile.department, profile.year_of_study ? `Year ${profile.year_of_study}` : null].filter(Boolean).join(" · ") || email}</div></div>}
-      <div className="locations-note"><span className="note-mark">i</span><span>Map positions are provisional until verified against reliable FUTO sources.</span></div>
+      <div className="locations-note"><span className="note-mark">i</span><span>{locationLoadError ? "Live inventory is unavailable; showing the bundled location list. " : locationSource === "supabase" ? "Live location inventory connected. " : "Showing the bundled location list. "}Map positions are provisional until verified against reliable FUTO sources.</span></div>
     </aside>
+    {mapOpen && <div className="map-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setMapOpen(false); }}><section className="map-dialog panel" role="dialog" aria-modal="true" aria-labelledby="map-title">
+      <header className="map-header"><div><div className="eyebrow">Campus map</div><h2 id="map-title">Places with saved positions</h2></div><button className="secondary map-close" onClick={() => setMapOpen(false)} aria-label="Close campus map">×</button></header>
+      <div className="schematic-map" role="img" aria-label="Schematic map showing campus locations that have saved local positions">
+        <span className="north-marker" aria-hidden="true">N ↑</span>
+        {plottedLocations.map(({ place, left, top }) => <button key={place.id} className={`map-marker status-${place.position_status ?? "unverified"}`} style={{ left: `${left}%`, top: `${top}%` }} onClick={() => { chooseLocation(place); setMapOpen(false); setDirectoryOpen(true); }} aria-label={`${place.name}, ${place.position_status === "provisional" ? "estimated position" : place.position_status === "verified" ? "verified position" : "unverified position"}`} title={place.name}><span className="map-marker-dot"/><span className="map-marker-name">{place.name}</span></button>)}
+        {!plottedLocations.length && <p className="empty-map">No campus places have map positions yet.</p>}
+      </div>
+      <p className="map-caveat">Schematic positions only. This view does not imply surveyed roads, boundaries, building footprints, or verified directions.</p>
+      {campusLocations.some((place) => typeof place.local_x !== "number" || !Number.isFinite(place.local_x) || typeof place.local_z !== "number" || !Number.isFinite(place.local_z)) && <div className="unmapped-section"><h3>Not placed on this map yet</h3><div className="unmapped-list">{campusLocations.filter((place) => typeof place.local_x !== "number" || !Number.isFinite(place.local_x) || typeof place.local_z !== "number" || !Number.isFinite(place.local_z)).map((place) => <button key={place.id} className="unmapped-place" onClick={() => { chooseLocation(place); setMapOpen(false); setDirectoryOpen(true); }}><span>{place.name}</span><span className="loc-meta">Position needed</span></button>)}</div></div>}
+    </section></div>}
     {accountOpen && <AccountDialog email={email} profile={profile} initialName={profileNameDraft} initialMessage={authNotice} onClose={() => setAccountOpen(false)} onSignedIn={(userEmail, savedProfile) => { setEmail(userEmail); setProfile(savedProfile); setProfileNameDraft(""); setAuthNotice(""); setAccountOpen(false); }} />}
   </main>;
 }
@@ -127,6 +189,7 @@ function AccountDialog({ email: currentEmail, profile, initialName, initialMessa
   const [message, setMessage] = useState(initialMessage);
   const [busy, setBusy] = useState(false);
   const [resendBusy, setResendBusy] = useState(false);
+  const [canResendConfirmation, setCanResendConfirmation] = useState(initialMessage.startsWith("We couldn’t confirm"));
   const hasSession = authenticated || Boolean(currentEmail);
   const showProfileFields = mode === "signup" || Boolean(currentEmail) || authenticated;
 
@@ -150,7 +213,7 @@ function AccountDialog({ email: currentEmail, profile, initialName, initialMessa
         if (!currentUser) {
           const { data, error } = await supabase.auth.signUp({ email, password, options: { data: { display_name: name.trim() }, emailRedirectTo: `${window.location.origin}/auth/callback` } });
           if (error) throw error;
-          if (!data.session) { setMessage("Check your email to confirm your account. Your display name is saved; you can finish your profile after confirmation."); return; }
+          if (!data.session) { setCanResendConfirmation(true); setMessage("Check your email to confirm your account. Your display name is saved; you can finish your profile after confirmation."); return; }
         }
       } else if (!currentUser) {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
@@ -181,9 +244,12 @@ function AccountDialog({ email: currentEmail, profile, initialName, initialMessa
   async function resendConfirmation() {
     if (!supabase || !email.trim()) { setMessage("Enter the email address you used to sign up."); return; }
     setResendBusy(true); setMessage("");
-    const { error } = await supabase.auth.resend({ type: "signup", email: email.trim(), options: { emailRedirectTo: `${window.location.origin}/auth/callback` } });
-    setMessage(error ? error.message : "Confirmation email sent. Check your inbox and spam folder.");
-    setResendBusy(false);
+    try {
+      const { error } = await supabase.auth.resend({ type: "signup", email: email.trim(), options: { emailRedirectTo: `${window.location.origin}/auth/callback` } });
+      if (error) throw error;
+      setMessage("Confirmation email sent. Check your inbox and spam folder.");
+    } catch (error) { setMessage(error instanceof Error ? error.message : "Unable to resend the confirmation email."); }
+    finally { setResendBusy(false); }
   }
 
   return <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}><section className="modal panel" role="dialog" aria-modal="true" aria-labelledby="account-title">
@@ -200,7 +266,7 @@ function AccountDialog({ email: currentEmail, profile, initialName, initialMessa
       </>}
       {message && <p className={message.startsWith("Check your email") || message.startsWith("Confirmation email sent") ? "panel-copy" : "error"} role="status">{message}</p>}
       <button className="primary" disabled={busy || !supabase}>{busy ? "Please wait…" : hasSession ? "Save profile" : mode === "signin" ? "Sign in" : "Create account"}</button>
-      {(message.startsWith("We couldn’t confirm") || message.startsWith("Check your email")) && <button className="secondary" type="button" disabled={resendBusy || !supabase} onClick={() => void resendConfirmation()}>{resendBusy ? "Sending…" : "Resend confirmation email"}</button>}
+      {canResendConfirmation && <button className="secondary" type="button" disabled={resendBusy || !supabase} onClick={() => void resendConfirmation()}>{resendBusy ? "Sending…" : "Resend confirmation email"}</button>}
     </form>
     {!hasSession && <div className="actions-row"><button className="secondary" onClick={() => { setMode(mode === "signin" ? "signup" : "signin"); setMessage(""); }}>{mode === "signin" ? "Create an account" : "I already have an account"}</button><button className="secondary" onClick={onClose}>Explore as guest</button></div>}
     {hasSession && <div className="actions-row"><button className="secondary" onClick={signOut}>Sign out</button><button className="secondary" onClick={onClose}>Close</button></div>}

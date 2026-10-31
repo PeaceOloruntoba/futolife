@@ -43,9 +43,9 @@
  <div id="joy"><div id="kn"></div></div>
  <button id="act">Enter</button>
  <div id="hint" class="g">WASD move · Shift run · Drag to look · E enter · C camera · M map</div>
- <div id="ban" class="g" data-x="1">Placeholder environment · not an accurate FUTO reconstruction · simulated players are demo data</div>
+ <div id="ban" class="g" data-x="1">FUTO Life 3D preview · campus layout and building models need current verification · avatars are synthetic</div>
  <div id="panel"></div><div id="fade"></div>
- <div id="int"><h2 id="it" style="margin:0"></h2><div style="color:var(--mut);max-width:340px">Placeholder interior. Verified FUTO information, photos and floor plans would appear here. Nobody is really inside.</div><button class="btn pri" id="lv">Leave building</button></div>
+ <div id="int"><h2 id="it" style="margin:0"></h2><div style="color:var(--mut);max-width:340px">Interior preview. Room layouts and facilities have not been supplied or verified.</div><button class="btn pri" id="lv">Leave building</button></div>
 </div></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
@@ -83,7 +83,7 @@ const defs=[['Placeholder Building A',-24,-22,14,10,9,0xd8cdb8],['Placeholder Bu
  for(let r=0;r<Math.floor(h/3.2);r++)for(let i=0;i<Math.floor(w/3.4);i++){const wx=x-w/2+2+i*3.4;if(Math.abs(wx-x)<1.3&&r==0)continue;box(1.6,1.6,.15,wm,wx,2.2+r*3.2,z+dp/2+.05)}
  box(2.4,3.2,.2,M(0x3b2f26),x,1.6,z+dp/2+.1);
  const glow=new THREE.Mesh(new THREE.PlaneGeometry(3,.3),new THREE.MeshBasicMaterial({color:0xf2b84b}));glow.rotation.x=-Math.PI/2;glow.position.set(x,.05,z+dp/2+1.8);S.add(glow);
- label(n,'Placeholder · unverified',x,h+3,z+dp/2,'#e8765a');
+ label(n,'Unverified massing · identity unknown',x,h+3,z+dp/2,'#e8765a');
  B.push({n,x,z,w,d:dp,door:[x,z+dp/2+2.2]});walls.push({x0:x-w/2-.8,x1:x+w/2+.8,z0:z-dp/2-.8,z1:z+dp/2+.8})});
 function facade(col){const c=document.createElement('canvas');c.width=c.height=256;const g=c.getContext('2d');g.fillStyle=col;g.fillRect(0,0,256,256);{const gg=g.createLinearGradient(0,0,0,256);gg.addColorStop(0,'rgba(0,0,0,0)');gg.addColorStop(1,'rgba(60,40,25,.2)');g.fillStyle=gg;g.fillRect(0,0,256,256)}for(let i=0;i<900;i++){g.fillStyle=`rgba(${Math.random()<.5?0:255},${Math.random()<.5?0:255},${Math.random()<.5?0:255},.035)`;g.fillRect(Math.random()*256,Math.random()*256,3,3)}for(let i=0;i<14;i++){g.fillStyle='rgba(40,35,30,.07)';g.fillRect(40+Math.random()*180,150,2+Math.random()*4,106)}g.fillStyle='#d9d8d2';g.fillRect(52,52,152,160);const gd=g.createLinearGradient(60,60,196,200);gd.addColorStop(0,'#8fb0c6');gd.addColorStop(.5,'#3d5568');gd.addColorStop(1,'#6f92a8');g.fillStyle=gd;g.fillRect(60,60,136,132);g.fillStyle='#d9d8d2';g.fillRect(126,60,4,132);g.fillRect(60,120,136,4);g.fillStyle='rgba(255,255,255,.18)';g.beginPath();g.moveTo(64,64);g.lineTo(110,64);g.lineTo(70,120);g.fill();g.fillStyle='#bdbcb4';g.fillRect(44,204,168,10);g.fillStyle='rgba(0,0,0,.18)';g.fillRect(44,214,168,6);g.fillStyle='rgba(0,0,0,.12)';g.fillRect(52,46,152,6);const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.anisotropy=4;t.encoding=THREE.sRGBEncoding;return t}
 const roofM=new THREE.MeshStandardMaterial({map:tex(64,64,(g,w,h)=>{g.fillStyle='#9c4b36';g.fillRect(0,0,w,h);g.fillStyle='rgba(0,0,0,.2)';for(let y=0;y<h;y+=8)g.fillRect(0,y,w,2)},6,4),roughness:.8});
@@ -95,7 +95,7 @@ box(5.6,.3,3.4,cc,x,3.3,zf+1.7);[-2.5,2.5].forEach(s=>box(.35,3.2,.35,cc,x+s,1.6
 const hw=w/2-3.4,hm=M(0x2f5d2a);[-1,1].forEach(s=>box(hw,.8,.9,hm,x+s*(3.2+hw/2),.4,zf+1));
 if(hip){const rh=3.2,r=(w/2+.9)/.7071,g=new THREE.CylinderGeometry(0,r,rh,4,1);g.rotateY(Math.PI/4);g.scale(1,1,(dp/2+.9)/(w/2+.9));const rf=new THREE.Mesh(g,roofM);rf.position.set(x,h+rh/2+.1,z);rf.castShadow=true;S.add(rf)}else{box(w,.1,dp,M(0x55585b),x,h+.05,z);[[w+.3,.25,0,dp/2],[w+.3,.25,0,-dp/2]].forEach(a=>box(a[0],.7,a[1],cc,x,h+.35,z+a[3]));[-1,1].forEach(s=>box(.25,.7,dp,cc,x+s*w/2,h+.35,z));box(w*.3,2.2,dp*.35,M(0xbdbab2),x+w*.15,h+1.1,z-dp*.1);const tk=new THREE.Mesh(new THREE.CylinderGeometry(.8,.8,1.6,12),M(0x8c9aa3));tk.position.set(x-w*.25,h+.9,z);tk.castShadow=true;S.add(tk)}
 const gl=new THREE.Mesh(new THREE.PlaneGeometry(3,.3),new THREE.MeshBasicMaterial({color:0xf2b84b}));gl.rotation.x=-Math.PI/2;gl.position.set(x,.06,zf+3.3);S.add(gl);
-label(n,'Visual placeholder · unverified',x,h+(hip?7:5),zf,'#e8765a');walls.push({x0:x-w/2-.9,x1:x+w/2+.9,z0:z-dp/2-.9,z1:zf+.9});B.push({n,x,z,w,d:dp,door:[x,zf+2.8]})}
+label(n,'Unverified massing · identity unknown',x,h+(hip?7:5),zf,'#e8765a');walls.push({x0:x-w/2-.9,x1:x+w/2+.9,z0:z-dp/2-.9,z1:zf+.9});B.push({n,x,z,w,d:dp,door:[x,zf+2.8]})}
 [['Placeholder Building A',-24,-22,16,10,10.8,'#b8a88e',0],['Placeholder Building B',24,-22,18,10,14.4,'#9fa8a6',0],['Placeholder Building C',-24,-44,16,10,10.8,'#c2a98a',1],['Placeholder Building D',24,-44,20,10,10.8,'#a9a59a',1]].forEach(a=>bld(...a));
 // trees
 let sd=7;const rnd=()=>(sd=(sd*16807)%2147483647)/2147483647;
@@ -372,7 +372,7 @@ $('cam').onclick=()=>{first=!first;$('cam').textContent=first?'1st':'3rd';$('cam
 const pn=$('panel');function show(h){pn.innerHTML=h;pn.classList.add('show')}window.cl=()=>pn.classList.remove('show');
 function walkTo(x,z){P.tx=x;P.tz=z;cl();toast('Walking…')}window.walkTo=walkTo;
 addEventListener('message',e=>{if(e.source!==parent||!e.data||typeof e.data!=='object')return;if(e.data.type==='futo:walk-to'&&Number.isFinite(e.data.x)&&Number.isFinite(e.data.z)){if(Math.abs(e.data.x)<700&&Math.abs(e.data.z)<700)walkTo(e.data.x,e.data.z)}else if(e.data.type==='futo:camera')$('cam').onclick();else if(e.data.type==='futo:map')$('mapb').onclick();else if(e.data.type==='futo:near')$('ppl').onclick();else if(e.data.type==='futo:data')$('datab').onclick()});
-$('mapb').onclick=()=>{if(pn.classList.contains('show')&&pn.dataset.k=='m'){cl();return}pn.dataset.k='m';show('<h3 style="margin:0">Campus map</h3><div style="color:var(--mut);font-size:12px">Placeholder layout. Tap Walk to travel; the world keeps running.</div><div class="li"><div class="av" style="background:var(--acc2)">⌂</div><div><b>Central Entrance</b> <span class="tag ok">Verified start</span></div><button class="btn" onclick="walkTo(0,6)">Walk</button></div>'+B.map(b=>`<div class="li"><div class="av" style="background:var(--warn)">?</div><div><b>${b.n}</b> <span class="tag">${b.tag||'Placeholder'}</span></div><button class="btn" onclick="walkTo(${b.door[0]},${b.door[1]+1})">Walk</button></div>`).join('')+'<div class="row"><button class="btn" onclick="cl()">Close</button></div>')};
+$('mapb').onclick=()=>parent.postMessage({type:'futo:open-map'},location.origin);
 $('ppl').onclick=()=>{if(pn.classList.contains('show')&&pn.dataset.k=='p'){cl();return}pn.dataset.k='p';show('<h3 style="margin:0">Nearby students <span class="tag demo">DEMO DATA</span></h3><div style="color:var(--mut);font-size:12px">Simulated avatars for layout only. No real people or networking.</div>'+bots.map((b,i)=>`<div class="li"><div class="av" style="background:#${b.c.toString(16).padStart(6,'0')}">${b.n[0]}</div><div><b>${b.n}</b><div style="color:var(--mut);font-size:12px">${Math.round(Math.hypot(b.x-P.x,b.z-P.z))} m away</div></div><button class="btn" onclick="wave(${i})">Wave</button></div>`).join('')+'<div class="row"><button class="btn" onclick="cl()">Close</button></div>')};
 window.wave=i=>{toast('Demo: you waved at '+bots[i].n)};
 function act(){if(inside||!near)return;P.tx=null;P.vx=P.vz=0;const f=$('fade');f.style.opacity=1;setTimeout(()=>{inside=true;$('it').textContent=near.n;$('int').style.display='flex';cl();f.style.opacity=0},350)}
@@ -393,7 +393,7 @@ function parseGeoJSON(g,o){const out={buildings:[],roads:[],points:[],warnings:[
 if(!o||!isFinite(o.lat)||!isFinite(o.lng)){w('No origin set');return out}
 if(!g||g.type!=='FeatureCollection'||!Array.isArray(g.features)){w('Not a FeatureCollection');return out}
 g.features.forEach((f,i)=>{const p=f.properties||{},id=String(p.id||f.id||'feature-'+i),geo=f.geometry;if(!geo){w(id+': no geometry');return}
-const v=p.verification==='verified'?'verified':'unverified';
+const v='unverified';
 const conv=c=>{if(!okLL(c))throw new Error('bad coordinate');const q=toWorld(c[1],c[0],o);return[q.x,q.z]};
 try{
 if(geo.type==='Point'){const q=conv(geo.coordinates);out.points.push({id,name:p.name||id,x:q[0],z:q[1],role:p.role||null,verification:v,props:p})}
@@ -416,7 +416,7 @@ if(typeof module!=='undefined')module.exports=API;else root.GeoZone=API})(typeof
 
 const FIXTURE={"type":"FeatureCollection","note":"SYNTHETIC TEST FIXTURE near lat/lng 0,0. NOT FUTO DATA.","features":[{"type":"Feature","properties":{"id":"main-gate","name":"TEST gate point","role":"spawn","verification":"unverified"},"geometry":{"type":"Point","coordinates":[0,0]}},{"type":"Feature","properties":{"id":"road-a","highway":"tertiary","verification":"unverified"},"geometry":{"type":"LineString","coordinates":[[0,0],[0,0.0012],[0.0006,0.0018]]}},{"type":"Feature","properties":{"id":"path-a","highway":"footway","verification":"unverified"},"geometry":{"type":"LineString","coordinates":[[-0.0006,0.0006],[0.0006,0.0006]]}},{"type":"Feature","properties":{"id":"bldg-a","name":"TEST building A","floors":3,"verification":"unverified"},"geometry":{"type":"Polygon","coordinates":[[[0.0003,0.0003],[0.0006,0.0003],[0.0006,0.0005],[0.0003,0.0005],[0.0003,0.0003]]]}},{"type":"Feature","properties":{"id":"bldg-b","name":"TEST building B (diamond)","height":7,"verification":"unverified"},"geometry":{"type":"Polygon","coordinates":[[[-0.0005,0.0008],[-0.0003,0.001],[-0.0005,0.0012],[-0.0007,0.001],[-0.0005,0.0008]]]}}]};
 let zoneG=null,zoneLabel='';
-function findGate(gj){const f=(gj.features||[]).find(f=>f.geometry&&f.geometry.type==='Point'&&(f.properties||{}).id==='main-gate'&&(f.properties||{}).verification==='verified');return f?{lat:f.geometry.coordinates[1],lng:f.geometry.coordinates[0]}:null}
+function findGate(gj){const f=(gj.features||[]).find(f=>f.geometry&&f.geometry.type==='Point'&&(f.properties||{}).id==='main-gate');return f?{lat:f.geometry.coordinates[1],lng:f.geometry.coordinates[0]}:null}
 function loadZone(gj,o,name,test){const z=GeoZone.parseGeoJSON(gj,o);if(!z.buildings.length&&!z.roads.length&&!z.points.length){toast(z.warnings[0]||'No usable features');return}
 for(let i=N0;i<N1;i++)S.children[i].visible=false;if(zoneG)S.remove(zoneG);
 const bz=GeoZone.buildZone(THREE,z);zoneG=bz.group;S.add(zoneG);walls.length=0;bz.colliders.forEach(c=>walls.push(c));B.length=0;
@@ -425,9 +425,9 @@ z.buildings.forEach(b=>label(b.name,b.verification==='verified'?'Footprint verif
 const sp=z.points.find(p=>p.role==='spawn'||p.id==='main-gate');if(sp)label(sp.name,sp.verification==='verified'?'Spawn \u00b7 coordinates verified':'Spawn \u00b7 unverified',sp.x,3.5,sp.z,okc(sp.verification));
 S.children.slice(n0).forEach(c=>zoneG.add(c));
 Object.assign(P,{x:sp?sp.x:0,z:sp?sp.z+4:4,vx:0,vz:0,tx:null,yaw:0});zoneLabel=(test?'TEST ZONE (not FUTO): ':'')+name;
-$('ban').textContent=test?'Synthetic test fixture \u00b7 not FUTO data \u00b7 unverified':'Imported GeoJSON \u00b7 only features marked verified are verified \u00b7 buildings are neutral massing, not reconstructions';
+$('ban').textContent=test?'Synthetic test fixture \u00b7 not FUTO data \u00b7 unverified':'GeoJSON preview \u00b7 imported features unverified \u00b7 temporary in this browser session';
 cl();toast(z.buildings.length+' buildings, '+z.roads.length+' roads'+(z.warnings.length?', '+z.warnings.length+' warnings':''));return z}
-$('datab').onclick=()=>{show('<h3 style="margin:0">Geographic data</h3><div style="color:var(--mut);font-size:12px">Load GeoJSON (buildings, roads, points). Origin = verified Main Gate. Nothing here is FUTO data until you supply it. Flat terrain only.</div><div class="row"><input id="olat" placeholder="Origin lat" style="width:46%"><input id="olng" placeholder="Origin lng" style="width:46%"></div><div class="row"><input type="file" id="gf" accept=".geojson,.json"></div><div class="row"><button class="btn" onclick="loadFixture()">Load synthetic test zone</button><button class="btn" onclick="location.reload()">Reset scene</button><button class="btn" onclick="cl()">Close</button></div>');
+$('datab').onclick=()=>{show('<h3 style="margin:0">Preview map data</h3><div style="color:var(--mut);font-size:12px">Load GeoJSON for a temporary preview. Set the origin coordinates or include a Main Gate point. Imports are not saved to FUTO Life, and every imported feature is labelled unverified until its source is reviewed separately.</div><div class="row"><input id="olat" placeholder="Origin latitude" style="width:46%"><input id="olng" placeholder="Origin longitude" style="width:46%"></div><div class="row"><input type="file" id="gf" accept=".geojson,.json"></div><div class="row"><button class="btn" onclick="loadFixture()">Load synthetic test zone</button><button class="btn" onclick="location.reload()">Reset scene</button><button class="btn" onclick="cl()">Close</button></div>');
 $('gf').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const gj=JSON.parse(r.result);let o=findGate(gj);const la=parseFloat($('olat').value),lo=parseFloat($('olng').value);if(isFinite(la)&&isFinite(lo))o={lat:la,lng:lo};if(!o){toast('Set origin lat/lng, or include a verified main-gate point');return}loadZone(gj,o,f.name)}catch(x){toast('Invalid GeoJSON: '+x.message)}};r.readAsText(f)}};
 window.loadFixture=()=>loadZone(FIXTURE,{lat:0,lng:0},'synthetic fixture',true);
 // loop
@@ -451,7 +451,7 @@ function loop(){requestAnimationFrame(loop);const dt=Math.min(clk.getDelta(),.05
   v3.set(b.x,2.4,b.z).project(C);const vis=v3.z<1&&Math.hypot(b.x-P.x,b.z-P.z)<35;b.el.style.display=vis&&!inside?'block':'none';b.el.style.left=(v3.x*.5+.5)*app.clientWidth+'px';b.el.style.top=(-v3.y*.5+.5)*app.clientHeight+'px'});
  let nb=null,bd=7;B.forEach(b=>{const dd=Math.hypot(P.x-b.door[0],P.z-b.door[1]);if(dd<bd){bd=dd;nb=b}});
  if(nb!==near){near=nb;$('prompt').style.display=near?'block':'none';$('act').style.display=near?'block':'none';if(near){$('pn').innerHTML=near.n+' <span class="tag">'+(near.tag||'Placeholder')+'</span>';$('pd').textContent='Entrance ahead · tap Enter'}}
- $('loc').textContent=near?near.n:(zoneLabel||(Math.hypot(P.x,P.z)<14?'Central Entrance':'Campus grounds (placeholder)'));
+ $('loc').textContent=near?near.n:(zoneLabel||(Math.hypot(P.x,P.z)<14?'Central Entrance':'Campus grounds · area label unverified'));
  sun.target.position.set(P.x,0,P.z);sun.position.set(P.x-45,38,P.z+35);if(P.tx!=null){mk.visible=true;mk.position.set(P.tx,.08,P.tz);mk.scale.setScalar(1+.12*Math.sin(performance.now()*.008))}else mk.visible=false;
  fps(dt);R.render(S,C)}
 loop();

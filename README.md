@@ -31,11 +31,12 @@ Mobile-first virtual FUTO campus. The Next.js application wraps the supplied Thr
 ## First release scope
 
 - 3D campus prototype at `/campus/index.html`, embedded in the Next.js campus shell.
+- Schematic map plots saved local positions and lists locations without positions; it does not draw roads or claim geographic accuracy.
 - Searchable location directory served from Supabase Postgres, seeded from the supplied inventory; the bundled JSON is the no-credentials fallback.
-- Email/password sign-in, account creation and editable basic student profile when Supabase is configured.
+- Email/password sign-in with confirmation, profile setup after confirmation, confirmation resend, profile editing, and sign-out.
 - Guest campus exploration remains available.
 
-Chat, group creation, multiplayer presence, events and missions are later releases. Many positions in the supplied inventory are null or explicitly provisional. Directory items carry an unverified label until the project has trustworthy evidence. The prototype's map/walk controls use local estimated positions and are not a verified geographic map.
+Chat, group creation, multiplayer presence, events and missions are later releases. Many positions in the supplied inventory are null or explicitly provisional. Directory items carry an unverified label until the project has trustworthy evidence. GeoJSON imports are temporary visual previews and never mark features verified or save to the database. A current, georeferenced campus source is still required for a real navigable map.
 
 ## Supabase configuration
 
