@@ -1,0 +1,61 @@
+FUTO LIFE — CAMPUS LOCATION DATA SUBMISSION
+
+IMPORTANT
+- These are data-entry templates, not verified FUTO coordinates.
+- Use WGS84 / EPSG:4326 for geographic coordinates.
+- GeoJSON coordinate order is [longitude, latitude] (east/west first).
+- Include the source and date for each point. Do not estimate coordinates from memory.
+- Keep positions marked unverified until reviewed against reliable evidence.
+- The current in-app GeoJSON tool is a temporary preview. Submitted data must be reviewed and imported into Supabase before it becomes part of the live map.
+
+MAP SOURCE
+Map/dataset title:
+Source organization or author:
+Source URL or file name:
+Source date / map edition:
+Date collected:
+Coordinate system / projection:
+Usage or attribution terms:
+
+CONTROL POINTS
+Collect at least three well-spread points if the source map is an image and needs georeferencing.
+
+1) FUTO Main Gate
+   Longitude:
+   Latitude:
+   GPS accuracy (metres):
+   Collection date:
+   Source / evidence:
+
+2) Senate Building
+   Longitude:
+   Latitude:
+   GPS accuracy (metres):
+   Collection date:
+   Source / evidence:
+
+3) Another recognizable landmark (name):
+   Longitude:
+   Latitude:
+   GPS accuracy (metres):
+   Collection date:
+   Source / evidence:
+
+PLACES
+Repeat this block for every place. Use a stable lowercase id with hyphens.
+
+ID:
+Name:
+Category (entrance, landmark, lecture, academic, student-life, navigation, other):
+Geometry (point, building footprint, or road/path):
+Longitude / latitude or coordinate list:
+Local landmark description:
+Source / evidence:
+Collection date:
+GPS accuracy (metres):
+Notes:
+
+OPTIONAL FILES
+- GeoJSON features for points, roads/paths, and building footprints.
+- A clear scan/photo of a paper map including its legend, north arrow, scale bar, and coordinate labels.
+- Current photos of building fronts, sides, and entrances, with permission/usage terms.

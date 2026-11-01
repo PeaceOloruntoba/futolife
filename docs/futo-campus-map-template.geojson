@@ -1,0 +1,73 @@
+{
+  "type": "FeatureCollection",
+  "metadata": {
+    "campus": "Federal University of Technology Owerri (FUTO)",
+    "title": "FUTO campus map data",
+    "source_name": "REPLACE WITH MAP, SURVEY, OR DATASET NAME",
+    "source_url": "REPLACE WITH SOURCE URL OR LEAVE EMPTY",
+    "source_date": "YYYY-MM-DD",
+    "survey_date": "YYYY-MM-DD",
+    "crs": "WGS84 / EPSG:4326",
+    "coordinate_order": "[longitude, latitude]",
+    "notes": "Remove this note after replacing every placeholder with evidence-backed values."
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "id": "main-gate",
+      "properties": {
+        "id": "main-gate",
+        "name": "FUTO Main Gate",
+        "category": "entrance",
+        "role": "control-point",
+        "verification": "unverified",
+        "source_name": "REPLACE WITH THE SOURCE FOR THIS POINT",
+        "surveyed_at": "YYYY-MM-DD",
+        "accuracy_m": "REPLACE WITH ESTIMATED GPS ACCURACY IN METRES",
+        "notes": "Use this as the map origin only after its coordinates have been checked."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": ["REPLACE_WITH_LONGITUDE", "REPLACE_WITH_LATITUDE"]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "senate-building",
+      "properties": {
+        "id": "senate-building",
+        "name": "Senate Building",
+        "category": "landmark",
+        "role": "control-point",
+        "verification": "unverified",
+        "source_name": "REPLACE WITH THE SOURCE FOR THIS POINT",
+        "surveyed_at": "YYYY-MM-DD",
+        "accuracy_m": "REPLACE WITH ESTIMATED GPS ACCURACY IN METRES",
+        "notes": "Replace this example with the actual surveyed point."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": ["REPLACE_WITH_LONGITUDE", "REPLACE_WITH_LATITUDE"]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "replace-with-location-id",
+      "properties": {
+        "id": "replace-with-location-id",
+        "name": "REPLACE WITH PLACE NAME",
+        "category": "academic",
+        "role": "place",
+        "verification": "unverified",
+        "source_name": "REPLACE WITH THE SOURCE FOR THIS PLACE",
+        "surveyed_at": "YYYY-MM-DD",
+        "accuracy_m": "REPLACE WITH ESTIMATED GPS ACCURACY IN METRES",
+        "notes": "Optional context, landmark description, or evidence reference."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": ["REPLACE_WITH_LONGITUDE", "REPLACE_WITH_LATITUDE"]
+      }
+    }
+  ]
+}
