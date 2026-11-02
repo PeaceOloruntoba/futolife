@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { locations, type CampusLocation } from "@/lib/locations";
 import { createClient } from "@/lib/supabase/browser";
+import SocialHub from "@/components/social-hub";
 
 type Profile = { id: string; display_name: string; department: string | null; year_of_study: number | null; avatar_url: string | null };
 type AuthMode = "signin" | "signup";
@@ -17,6 +18,7 @@ export default function CampusExperience() {
   const [mapOpen, setMapOpen] = useState(false);
   const [selected, setSelected] = useState<CampusLocation | null>(null);
   const [accountOpen, setAccountOpen] = useState(false);
+  const [socialOpen, setSocialOpen] = useState(false);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [email, setEmail] = useState<string | null>(null);
   const [profileNameDraft, setProfileNameDraft] = useState("");
@@ -97,13 +99,13 @@ export default function CampusExperience() {
   }, []);
 
   useEffect(() => {
-    if (!accountOpen && !mapOpen) return;
+    if (!accountOpen && !mapOpen && !socialOpen) return;
     function closeOnEscape(event: KeyboardEvent) {
-      if (event.key === "Escape") { setAccountOpen(false); setMapOpen(false); }
+      if (event.key === "Escape") { setAccountOpen(false); setMapOpen(false); setSocialOpen(false); }
     }
     window.addEventListener("keydown", closeOnEscape);
     return () => window.removeEventListener("keydown", closeOnEscape);
-  }, [accountOpen, mapOpen]);
+  }, [accountOpen, mapOpen, socialOpen]);
 
   useEffect(() => {
     const supabase = createClient();
@@ -138,7 +140,8 @@ export default function CampusExperience() {
         <IconButton label="Open campus map" onClick={() => runWorldControl("map")}><path d="m3 6 5-2 5 2 4-2v12l-4 2-5-2-5 2z"/><path d="M8 4v12m5-10v12"/></IconButton>
         <IconButton label="Toggle places directory" onClick={() => runWorldControl("directory")}><path d="M10 18s6-5.2 6-10a6 6 0 1 0-12 0c0 4.8 6 10 6 10Z"/><circle cx="10" cy="8" r="2"/></IconButton>
         <IconButton label="Campus data tools" onClick={() => runWorldControl("data")}><ellipse cx="10" cy="5" rx="6.5" ry="2.5"/><path d="M3.5 5v5c0 1.4 2.9 2.5 6.5 2.5 1.7 0 3.2-.3 4.5-.8M3.5 10v5c0 1.4 2.9 2.5 6.5 2.5 1.1 0 2.1-.1 3-.4"/><path d="M14 13v6m-3-3h6"/></IconButton>
-        <button className="glass user-chip" onClick={() => setAccountOpen(true)} aria-label={profile?.display_name ?? (email ? "Finish profile" : "Sign in")} title={profile?.display_name ?? (email ? "Finish profile" : "Sign in")}><span className="avatar-dot">{profile?.display_name?.[0]?.toUpperCase() ?? "♙"}</span></button>
+        <IconButton label="Friends, feed and messages" onClick={() => setSocialOpen(true)}><circle cx="7" cy="7" r="3"/><path d="M1.5 17v-1.2A4.8 4.8 0 0 1 6.3 11h1.4a4.8 4.8 0 0 1 4.8 4.8V17zM13 4.3a3 3 0 0 1 0 5.8m1.3 1.2a4.5 4.5 0 0 1 4.2 4.5V17h-3"/></IconButton>
+        <button className="glass user-chip" onClick={() => setAccountOpen(true)} aria-label={profile?.display_name ?? (email ? "Finish profile" : "Sign in")} title={profile?.display_name ?? (email ? "Finish profile" : "Sign in")}>{profile?.avatar_url ? <img src={profile.avatar_url} alt=""/> : <span className="avatar-dot">{profile?.display_name?.[0]?.toUpperCase() ?? "♙"}</span>}</button>
       </div>
     </header>
     {!directoryOpen && <button className="places-toggle glass" onClick={() => setDirectoryOpen(true)} aria-label="Show places directory" title="Show places directory"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M10 18s6-5.2 6-10a6 6 0 1 0-12 0c0 4.8 6 10 6 10Z"/><circle cx="10" cy="8" r="2"/></svg><span>Places</span></button>}
@@ -169,6 +172,7 @@ export default function CampusExperience() {
       <p className="map-caveat">Schematic positions only. This view does not imply surveyed roads, boundaries, building footprints, or verified directions.</p>
       {campusLocations.some((place) => typeof place.local_x !== "number" || !Number.isFinite(place.local_x) || typeof place.local_z !== "number" || !Number.isFinite(place.local_z)) && <div className="unmapped-section"><h3>Not placed on this map yet</h3><div className="unmapped-list">{campusLocations.filter((place) => typeof place.local_x !== "number" || !Number.isFinite(place.local_x) || typeof place.local_z !== "number" || !Number.isFinite(place.local_z)).map((place) => <button key={place.id} className="unmapped-place" onClick={() => { chooseLocation(place); setMapOpen(false); setDirectoryOpen(true); }}><span>{place.name}</span><span className="loc-meta">Position needed</span></button>)}</div></div>}
     </section></div>}
+    {socialOpen && <SocialHub onClose={() => setSocialOpen(false)} />}
     {accountOpen && <AccountDialog email={email} profile={profile} initialName={profileNameDraft} initialMessage={authNotice} onClose={() => setAccountOpen(false)} onSignedIn={(userEmail, savedProfile) => { setEmail(userEmail); setProfile(savedProfile); setProfileNameDraft(""); setAuthNotice(""); setAccountOpen(false); }} />}
   </main>;
 }
@@ -254,7 +258,7 @@ function AccountDialog({ email: currentEmail, profile, initialName, initialMessa
 
   return <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}><section className="modal panel" role="dialog" aria-modal="true" aria-labelledby="account-title">
     <div className="eyebrow">Your FUTO Life account</div><h2 id="account-title">{hasSession ? (profile ? "Edit your profile" : "Complete your profile") : mode === "signin" ? "Welcome back" : "Join FUTO Life"}</h2>
-    <p>Save your profile and make your campus experience yours. Social features will arrive in later releases.</p>
+    <p>Save your profile and make your campus experience yours. Connect with classmates through FUTO Life.</p>
     {!supabase && <p className="error">Supabase credentials are not configured yet. Guest campus exploration is available.</p>}
     <form className="form" onSubmit={submit}>
       <label className="field">Email<input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" readOnly={hasSession} /></label>
