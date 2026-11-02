@@ -11,6 +11,7 @@
 #top{display:none;position:absolute;top:calc(10px + env(safe-area-inset-top,0px));left:10px;padding:8px 12px;max-width:58%}
 #top small{display:block;color:var(--mut);font-size:10px;letter-spacing:.1em;text-transform:uppercase}
 #rt{display:none;position:absolute;top:calc(10px + env(safe-area-inset-top,0px));right:10px;flex-direction:column;gap:8px}
+#datab{display:none!important}
 .ib{width:48px;height:48px;border-radius:14px;display:grid;place-items:center;cursor:pointer;font:600 12px inherit;color:var(--tx);border:1px solid var(--line);background:rgba(16,22,30,.78)}.ib.on{color:var(--acc);border-color:var(--acc)}
 #joy{position:absolute;left:18px;bottom:calc(24px + env(safe-area-inset-bottom,0px));width:128px;height:128px;border-radius:50%;background:rgba(16,22,30,.5);border:1px solid var(--line);touch-action:none}
 #kn{position:absolute;left:42px;top:42px;width:44px;height:44px;border-radius:50%;background:var(--acc);opacity:.92}
@@ -371,7 +372,7 @@ $('cam').onclick=()=>{first=!first;$('cam').textContent=first?'1st':'3rd';$('cam
 // UI
 const pn=$('panel');function show(h){pn.innerHTML=h;pn.classList.add('show')}window.cl=()=>pn.classList.remove('show');
 function walkTo(x,z){P.tx=x;P.tz=z;cl();toast('Walking…')}window.walkTo=walkTo;
-addEventListener('message',e=>{if(e.source!==parent||!e.data||typeof e.data!=='object')return;if(e.data.type==='futo:walk-to'&&Number.isFinite(e.data.x)&&Number.isFinite(e.data.z)){if(Math.abs(e.data.x)<700&&Math.abs(e.data.z)<700)walkTo(e.data.x,e.data.z)}else if(e.data.type==='futo:camera')$('cam').onclick();else if(e.data.type==='futo:map')$('mapb').onclick();else if(e.data.type==='futo:near')$('ppl').onclick();else if(e.data.type==='futo:data')$('datab').onclick()});
+addEventListener('message',e=>{if(e.source!==parent||!e.data||typeof e.data!=='object')return;if(e.data.type==='futo:walk-to'&&Number.isFinite(e.data.x)&&Number.isFinite(e.data.z)){if(Math.abs(e.data.x)<700&&Math.abs(e.data.z)<700)walkTo(e.data.x,e.data.z)}else if(e.data.type==='futo:camera')$('cam').onclick();else if(e.data.type==='futo:map')$('mapb').onclick();else if(e.data.type==='futo:near')$('ppl').onclick()});
 $('mapb').onclick=()=>parent.postMessage({type:'futo:open-map'},location.origin);
 $('ppl').onclick=()=>{if(pn.classList.contains('show')&&pn.dataset.k=='p'){cl();return}pn.dataset.k='p';show('<h3 style="margin:0">Nearby students <span class="tag demo">DEMO DATA</span></h3><div style="color:var(--mut);font-size:12px">Simulated avatars for layout only. No real people or networking.</div>'+bots.map((b,i)=>`<div class="li"><div class="av" style="background:#${b.c.toString(16).padStart(6,'0')}">${b.n[0]}</div><div><b>${b.n}</b><div style="color:var(--mut);font-size:12px">${Math.round(Math.hypot(b.x-P.x,b.z-P.z))} m away</div></div><button class="btn" onclick="wave(${i})">Wave</button></div>`).join('')+'<div class="row"><button class="btn" onclick="cl()">Close</button></div>')};
 window.wave=i=>{toast('Demo: you waved at '+bots[i].n)};

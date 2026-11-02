@@ -4,8 +4,13 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import { createClient } from "@/lib/supabase/browser";
 
-type Place = { id: string; name: string; category: string; description: string | null; position_status: "verified" | "provisional" | "unverified"; latitude: number | null; longitude: number | null; local_x: number | null; local_z: number | null; evidence: { type?: string; note?: string; url?: string }[]; image_url: string | null };
+type Place = { id: string; name: string; category: string; description: string | null; position_status: "verified" | "provisional" | "unverified"; latitude: number | null; longitude: number | null; local_x: number | null; local_z: number | null; evidence: unknown; image_url: string | null };
 type Draft = Omit<Place,"evidence"> & { evidenceText: string };
+type ConfirmAction = { title: string; body: string; label: string; reason?: boolean; run: (reason: string) => Promise<void> };
+type AdminUser = { id:string;display_name:string;department:string|null;year_of_study:number|null;avatar_url:string|null;is_suspended:boolean;suspension_reason:string|null;suspended_at:string|null;created_at:string;referral_code:string };
+type PostReport = {id:string;post_id:string|null;post_key:string;post_author_id:string|null;post_snapshot:string;reporter_id:string|null;reason:string;details:string|null;status:string;created_at:string};
+type AdminPost = {id:string;author_id:string;body:string;created_at:string};
+type ReferralEdge = {id:string;referrer_id:string;referred_id:string;created_at:string};
 const EMPTY: Draft = { id:"",name:"",category:"landmark",description:"",position_status:"unverified",latitude:null,longitude:null,local_x:null,local_z:null,evidenceText:"",image_url:null };
 
 export default function AdminDashboard({ adminEmail }: { adminEmail: string }) {
@@ -17,6 +22,14 @@ export default function AdminDashboard({ adminEmail }: { adminEmail: string }) {
   const [message,setMessage] = useState("");
   const [importSummary,setImportSummary] = useState("");
   const [savedId,setSavedId] = useState<string|null>(null);
+  const [confirmation,setConfirmation] = useState<ConfirmAction|null>(null);
+  const [confirmationReason,setConfirmationReason] = useState("");
+  const [section,setSection] = useState<"places"|"users"|"posts"|"referrals">("places");
+  const [users,setUsers] = useState<AdminUser[]>([]);
+  const [userSearch,setUserSearch] = useState("");
+  const [reports,setReports] = useState<PostReport[]>([]);
+  const [allPosts,setAllPosts] = useState<AdminPost[]>([]);
+  const [referrals,setReferrals] = useState<ReferralEdge[]>([]);
 
   const load = useCallback(async () => {
     if (!supabase) return;
@@ -26,10 +39,28 @@ export default function AdminDashboard({ adminEmail }: { adminEmail: string }) {
   },[supabase]);
   useEffect(()=>{void load();},[load]);
 
+  const loadUsers=useCallback(async()=>{if(!supabase)return;const {data,error}=await supabase.from("profiles").select("id,display_name,department,year_of_study,avatar_url,is_suspended,suspension_reason,suspended_at,created_at,referral_code").order("created_at",{ascending:false});if(error)setMessage(`Could not load users: ${error.message}`);else setUsers((data??[]) as AdminUser[]);},[supabase]);
+  const loadReports=useCallback(async()=>{if(!supabase)return;const {data,error}=await supabase.from("post_reports").select("id,post_id,post_key,post_author_id,post_snapshot,reporter_id,reason,details,status,created_at").order("created_at",{ascending:false});if(error)setMessage(`Could not load post reports: ${error.message}`);else setReports((data??[]) as PostReport[]);},[supabase]);
+  const loadPosts=useCallback(async()=>{if(!supabase)return;const {data,error}=await supabase.from("posts").select("id,author_id,body,created_at").order("created_at",{ascending:false}).limit(500);if(error)setMessage(`Could not load posts: ${error.message}`);else setAllPosts((data??[]) as AdminPost[]);},[supabase]);
+  const loadReferrals=useCallback(async()=>{if(!supabase)return;const {data,error}=await supabase.from("referrals").select("id,referrer_id,referred_id,created_at").order("created_at",{ascending:false});if(error)setMessage(`Could not load referrals: ${error.message}`);else setReferrals((data??[]) as ReferralEdge[]);},[supabase]);
+  useEffect(()=>{void loadUsers();void loadReports();void loadPosts();void loadReferrals();},[loadUsers,loadReports,loadPosts,loadReferrals]);
+
   const filtered = places.filter(p => `${p.name} ${p.category}`.toLowerCase().includes(search.toLowerCase()));
+  const filteredUsers=users.filter(u=>`${u.display_name} ${u.department??""} ${u.id}`.toLowerCase().includes(userSearch.toLowerCase()));
+  const userById=new Map(users.map(user=>[user.id,user]));
+  const groupedReports=Array.from(reports.reduce((groups,report)=>{const key=report.post_key;const group=groups.get(key)??{postId:report.post_id,body:report.post_snapshot,authorId:report.post_author_id,reports:[] as PostReport[]};group.reports.push(report);groups.set(key,group);return groups;},new Map<string,{postId:string|null;body:string;authorId:string|null;reports:PostReport[]}>()).values());
+  function edgeDepth(edge:ReferralEdge){let depth=1;let current=edge.referrer_id;const visited=new Set<string>();while(!visited.has(current)){visited.add(current);const parent=referrals.find(item=>item.referred_id===current);if(!parent)break;depth+=1;current=parent.referrer_id;}return depth;}
+  function formatEvidence(value:unknown):string {
+    if(Array.isArray(value))return value.map(item=>{const row=asRecord(item)??{};return `${String(row.type??"admin_note")} | ${String(row.url??row.note??JSON.stringify(row))}`;}).join("\n");
+    const record=asRecord(value);if(!record)return "";
+    const lines:string[]=[];if(typeof record.verification==="string")lines.push(`verification | ${record.verification}`);
+    if(Array.isArray(record.references))for(const ref of record.references){const row=asRecord(ref)??{};lines.push(`${String(row.type??"reference")} | ${JSON.stringify(row)}`);}
+    for(const [key,item] of Object.entries(record))if(key!=="verification"&&key!=="references")lines.push(`${key} | ${typeof item==="string"?item:JSON.stringify(item)}`);
+    return lines.join("\n");
+  }
   function edit(place: Place) {
     setSavedId(place.id);
-    setDraft({...place, evidenceText:place.evidence.map(e=>`${e.type??"admin_note"} | ${e.url??e.note??""}`).join("\n")});
+    setDraft({id:place.id,name:place.name,category:place.category,description:place.description??"",position_status:place.position_status,latitude:place.latitude,longitude:place.longitude,local_x:place.local_x,local_z:place.local_z,image_url:place.image_url??null,evidenceText:formatEvidence(place.evidence)});
     setMessage("");
     window.scrollTo({top:0,behavior:"smooth"});
   }
@@ -44,6 +75,7 @@ export default function AdminDashboard({ adminEmail }: { adminEmail: string }) {
     if((draft.latitude===null)!==(draft.longitude===null)){setMessage("Enter both latitude and longitude, or leave both blank.");return;}
     if((draft.local_x===null)!==(draft.local_z===null)){setMessage("Enter both local map coordinates, or leave both blank.");return;}
     if(draft.position_status==="verified"&&!evidence.length){setMessage("Add at least one evidence source before marking a place verified.");return;}
+    if(draft.position_status==="verified"&&draft.latitude===null&&draft.local_x===null){setMessage("Add verified geographic coordinates or local map coordinates before marking this place verified.");return;}
     if(draft.latitude!==null&&(!Number.isFinite(draft.latitude)||draft.latitude < -90||draft.latitude>90)){setMessage("Latitude must be between −90 and 90.");return;}
     if(draft.longitude!==null&&(!Number.isFinite(draft.longitude)||draft.longitude < -180||draft.longitude>180)){setMessage("Longitude must be between −180 and 180.");return;}
     if([draft.local_x,draft.local_z].some(v=>v!==null&&!Number.isFinite(v))){setMessage("Local coordinates must be valid numbers.");return;}
@@ -55,9 +87,37 @@ export default function AdminDashboard({ adminEmail }: { adminEmail: string }) {
     setMessage(savedId?"Campus place updated.":"Campus place added.");setSavedId(id);await load();
   }
   async function remove(place:Place){
-    if(!supabase||!window.confirm(`Remove “${place.name}” from the campus directory?`))return;
-    const {error}=await supabase.from("campus_locations").delete().eq("id",place.id);
-    if(error)setMessage(`Delete failed: ${error.message}`);else{setMessage(`${place.name} removed.`);if(savedId===place.id)clearDraft();await load();}
+    if(!supabase)return;
+    setConfirmation({title:"Remove campus place?",body:`“${place.name}” will be removed from the live campus directory.`,label:"Remove place",run:async()=>{
+      const {error}=await supabase.from("campus_locations").delete().eq("id",place.id);
+      if(error)setMessage(`Delete failed: ${error.message}`);else{setMessage(`${place.name} removed.`);if(savedId===place.id)clearDraft();await load();}
+    }});
+  }
+  function suspendUser(user:AdminUser){
+    if(!supabase)return;
+    const suspending=!user.is_suspended;
+    setConfirmation({title:suspending?"Suspend this account?":"Restore this account?",body:suspending?`${user.display_name} will lose access to posting, friend requests, and messaging. Their profile and referral history will remain.`:`${user.display_name} will regain access to social features.`,label:suspending?"Suspend account":"Restore account",reason:suspending,run:async reason=>{
+      const {data:{user:admin}}=await supabase.auth.getUser();if(!admin){setMessage("Your admin session expired.");return;}
+      const {error}=await supabase.from("profiles").update({is_suspended:suspending,suspension_reason:suspending?reason.trim()||"Suspended by an administrator":null,suspended_at:suspending?new Date().toISOString():null,suspended_by:suspending?admin.id:null}).eq("id",user.id);
+      if(error)setMessage(`User update failed: ${error.message}`);else{setMessage(`${user.display_name} ${suspending?"suspended":"restored"}.`);await loadUsers();}
+    }});
+  }
+  function deleteReportedPost(postId:string|null,count:number){
+    if(!supabase||!postId||count<5)return;
+    setConfirmation({title:"Delete reported post?",body:`This post has ${count} distinct reports. Deleting removes it from feeds; report snapshots remain in the moderation log.`,label:"Delete post",run:async()=>{
+      const {error}=await supabase.from("posts").delete().eq("id",postId);
+      if(error)setMessage(`Post deletion failed: ${error.message}`);else{setMessage("Reported post deleted.");await Promise.all([loadReports(),loadPosts()]);}
+    }});
+  }
+  async function reviewReports(postId:string|null){
+    if(!supabase||!postId)return;
+    const {error}=await supabase.from("post_reports").update({status:"reviewed",reviewed_at:new Date().toISOString()}).eq("post_id",postId).eq("status","pending");
+    if(error)setMessage(`Unable to update reports: ${error.message}`);else{setMessage("Reports marked reviewed.");await loadReports();}
+  }
+  async function dismissReport(report:PostReport){
+    if(!supabase)return;
+    const {error}=await supabase.from("post_reports").update({status:"dismissed",reviewed_at:new Date().toISOString()}).eq("id",report.id);
+    if(error)setMessage(`Unable to dismiss report: ${error.message}`);else await loadReports();
   }
   async function uploadPhoto(file?:File){
     if(!supabase||!file)return;
@@ -104,8 +164,9 @@ export default function AdminDashboard({ adminEmail }: { adminEmail: string }) {
   }
 
   return <main className="admin-page"><header className="admin-top"><Link className="admin-back" href="/">← Return to campus</Link><div className="admin-user">Signed in as <b>{adminEmail}</b></div></header><div className="admin-main">
-    <div className="admin-heading"><div><div className="eyebrow">FUTO LIFE · ADMIN</div><h1>Campus data dashboard</h1><p>Manage the location directory, map coordinates, evidence and photos.</p></div><div className="admin-count">{places.length}<small>campus places</small></div></div>
-    <div className="admin-layout"><section className="admin-form-card"><h2>{savedId?"Edit campus place":"Add a campus place"}</h2><p>Precise WGS84 coordinates use latitude/longitude. Local map coordinates place items in the current 3D scene.</p>
+    <div className="admin-heading"><div><div className="eyebrow">FUTO LIFE · ADMIN</div><h1>Admin dashboard</h1><p>Manage campus data, student accounts, posts and referrals.</p></div><div className="admin-count">{places.length}<small>campus places</small></div></div>
+    <nav className="admin-tabs">{(["places","users","posts","referrals"] as const).map(item=><button key={item} className={section===item?"active":""} onClick={()=>setSection(item)}>{item==="places"?"Places & map":item==="users"?`Users · ${users.length}`:item==="posts"?`Post reports · ${reports.filter(r=>r.status==="pending").length}`:`Referrals · ${referrals.length}`}</button>)}</nav>
+    {section==="places"&&<div className="admin-layout"><section className="admin-form-card"><h2>{savedId?"Edit campus place":"Add a campus place"}</h2><p>Precise WGS84 coordinates use latitude/longitude. Local map coordinates place items in the current 3D scene.</p>
       <form className="admin-form" onSubmit={e=>void save(e)}>
         <label className="field">Place name<input required maxLength={120} value={draft.name} onChange={e=>setDraft({...draft,name:e.target.value,...(!savedId?{id:draftId(e.target.value)}:{})})} placeholder="e.g. School of Engineering"/></label>
         <label className="field">Place ID<input maxLength={80} value={draft.id} onChange={e=>setDraft({...draft,id:e.target.value})} placeholder="Generated from name"/></label>
@@ -122,7 +183,10 @@ export default function AdminDashboard({ adminEmail }: { adminEmail: string }) {
     </section>
     <section className="admin-list-card"><div className="admin-list-head"><div><h2>Campus locations</h2><p>Updates are saved to the live Supabase directory.</p></div><input className="admin-search" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search places…"/></div><div className="admin-location-list">{filtered.map(place=><article className="admin-place" key={place.id}><div className="admin-place-image">{place.image_url?<img src={place.image_url} alt=""/>:<span>⌖</span>}</div><div className="admin-place-info"><b>{place.name}</b><small>{place.category} · <span className={`admin-status status-${place.position_status}`}>{place.position_status}</span></small><small>{place.latitude!==null&&place.longitude!==null?`${place.latitude}, ${place.longitude}`:"GPS not set"}</small></div><button className="secondary compact" onClick={()=>edit(place)}>Edit</button><button className="admin-delete" onClick={()=>void remove(place)} aria-label={`Delete ${place.name}`} title="Delete place">×</button></article>)}{!filtered.length&&<div className="admin-empty">No places match this search.</div>}</div>
       <div className="geojson-import"><div><h3>Import a GeoJSON file</h3><p>Point coordinates are read as [longitude, latitude]. Imported items are never marked verified and existing IDs are skipped.</p></div><label className="secondary admin-upload">Choose .geojson<input type="file" accept=".json,.geojson,application/geo+json,application/json" onChange={e=>{importGeoJson(e.currentTarget.files?.[0]);e.currentTarget.value=""}}/></label>{importSummary&&<p role="status">{importSummary}</p>}</div>
-    </section></div>
-    <p className="admin-security-note">Only the confirmed admin account can change campus records. Keep your account password private; do not share it or commit it to the project.</p>
-  </div></main>;
+    </section></div>}
+    {section==="users"&&<section className="admin-list-card admin-manage-card"><div className="admin-list-head"><div><h2>Student accounts</h2><p>Suspend social access while retaining the account and referral history.</p></div><input className="admin-search" value={userSearch} onChange={e=>setUserSearch(e.target.value)} placeholder="Search name, department, ID…"/></div><div className="admin-location-list">{filteredUsers.map(user=><article className="admin-place admin-user-row" key={user.id}><div className="admin-place-image">{user.avatar_url?<img src={user.avatar_url} alt=""/>:<span>{user.display_name.slice(0,1).toUpperCase()}</span>}</div><div className="admin-place-info"><b>{user.display_name}</b><small>{[user.department,user.year_of_study?`Year ${user.year_of_study}`:null].filter(Boolean).join(" · ")||"Department not set"}</small><small title={user.id}>ID · {user.id.slice(0,8)}… · Joined {new Date(user.created_at).toLocaleDateString()}</small>{user.is_suspended&&<small className="admin-suspended-reason">Suspended: {user.suspension_reason||"No reason recorded"}</small>}</div><button className={user.is_suspended?"secondary compact":"admin-warn-button"} onClick={()=>suspendUser(user)}>{user.is_suspended?"Restore":"Suspend"}</button></article>)}{!filteredUsers.length&&<div className="admin-empty">No student accounts match.</div>}</div></section>}
+    {section==="posts"&&<><section className="admin-list-card admin-manage-card"><div className="admin-list-head"><div><h2>Post reports</h2><p>Each student may report a post once. Admin deletion is available after five distinct reports.</p></div><button className="secondary compact" onClick={()=>{void loadReports();void loadPosts();}}>Refresh</button></div><div className="admin-report-list">{groupedReports.map(group=><article className="admin-report" key={group.reports[0].post_key}><div className="admin-report-head"><span className="report-count">{group.reports.length} report{group.reports.length===1?"":"s"}</span><span>{group.postId?`Post by ${userById.get(group.authorId??"")?.display_name??"student"}`:"Post removed; report retained"}</span><span className="report-id">{group.reports[0].status}</span></div><blockquote>{group.body}</blockquote><div className="admin-report-reasons">{group.reports.map(report=><div className="admin-report-reason" key={report.id}><b>{report.reason.replaceAll("_"," ")}</b>{report.details&&<span> — {report.details}</span>}<small>{userById.get(report.reporter_id??"")?.display_name??"Student"} · {new Date(report.created_at).toLocaleString()} · {report.status}</small></div>)}</div><div className="admin-report-actions">{group.postId&&<button className="secondary compact" onClick={()=>void reviewReports(group.postId)}>Mark pending reports reviewed</button>}{group.reports.some(r=>r.status==="pending")&&<button className="secondary compact" onClick={()=>void dismissReport(group.reports.find(r=>r.status==="pending")!)}>Dismiss a report</button>}{group.postId&&group.reports.length>=5&&<button className="admin-warn-button" onClick={()=>deleteReportedPost(group.postId,group.reports.length)}>Delete post · 5+ reports</button>}</div></article>)}{!groupedReports.length&&<div className="admin-empty">No post reports yet.</div>}</div></section><section className="admin-list-card admin-manage-card"><div className="admin-list-head"><div><h2>All posts</h2><p>Posts can be deleted here only when at least five distinct reports have been filed.</p></div><span>{allPosts.length} shown</span></div><div className="admin-report-list">{allPosts.map(post=>{const count=reports.filter(report=>report.post_key===post.id).length;return <article className="admin-report" key={post.id}><div className="admin-report-head"><b>{userById.get(post.author_id)?.display_name??"Student"}</b><span>{new Date(post.created_at).toLocaleString()}</span><span className="report-count">{count} reports</span></div><blockquote>{post.body}</blockquote>{count>=5&&<button className="admin-warn-button" onClick={()=>deleteReportedPost(post.id,count)}>Delete post · 5+ reports</button>}</article>;})}{!allPosts.length&&<div className="admin-empty">No posts have been created.</div>}</div></section></>}
+    {section==="referrals"&&<section className="admin-list-card admin-manage-card"><div className="admin-list-head"><div><h2>Referral history</h2><p>Referral edges are stored without rewards. Depth shows each user’s position below the original referrer.</p></div><button className="secondary compact" onClick={()=>void loadReferrals()}>Refresh</button></div><div className="admin-location-list">{referrals.map(edge=><article className="admin-place" key={edge.id}><div className="referral-depth">L{edgeDepth(edge)}</div><div className="admin-place-info"><b>{userById.get(edge.referred_id)?.display_name??"Referred account"}</b><small>Referred by {userById.get(edge.referrer_id)?.display_name??"Student"} · Level {edgeDepth(edge)}</small><small>{new Date(edge.created_at).toLocaleString()}</small></div></article>)}{!referrals.length&&<div className="admin-empty">No referrals have been recorded yet.</div>}</div></section>}
+    <p className="admin-security-note">Only the confirmed admin account can manage users, posts and campus records. Suspended accounts and referral records are retained.</p>
+  </div>{confirmation&&<div className="confirm-backdrop" role="presentation"><section className="confirm-dialog panel" role="dialog" aria-modal="true" aria-labelledby="confirm-title"><div className="eyebrow">Please confirm</div><h2 id="confirm-title">{confirmation.title}</h2><p>{confirmation.body}</p>{confirmation.reason&&<label className="field">Reason<textarea value={confirmationReason} onChange={e=>setConfirmationReason(e.target.value)} maxLength={500} placeholder="Add a short reason"/></label>}<div className="confirm-actions"><button className="secondary" onClick={()=>{setConfirmation(null);setConfirmationReason("");}}>Cancel</button><button className="primary" onClick={()=>{const action=confirmation;setConfirmation(null);void action.run(confirmationReason).finally(()=>setConfirmationReason(""));}}>{confirmation.label}</button></div></section></div>}</main>;
 }

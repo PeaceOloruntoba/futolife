@@ -25,6 +25,7 @@ export default function CampusExperience() {
   const [email, setEmail] = useState<string | null>(null);
   const [profileNameDraft, setProfileNameDraft] = useState("");
   const [authNotice, setAuthNotice] = useState("");
+  const [initialReferralCode,setInitialReferralCode] = useState("");
 
   const visibleLocations = useMemo(() => {
     const term = query.trim().toLowerCase();
@@ -52,7 +53,7 @@ export default function CampusExperience() {
     }
   }
 
-  function runWorldControl(control: "camera" | "map" | "directory" | "data") {
+  function runWorldControl(control: "camera" | "map" | "directory") {
     if (control === "map") {
       setMapOpen((open) => !open);
       if (window.matchMedia("(max-width: 760px)").matches) setDirectoryOpen(false);
@@ -82,7 +83,11 @@ export default function CampusExperience() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    if (params.get("auth") === "signin") {
+    if (params.get("ref")) {
+      setInitialReferralCode(params.get("ref") ?? "");
+      setAccountOpen(true);
+      window.history.replaceState({}, "", window.location.pathname);
+    } else if (params.get("auth") === "signin") {
       setAccountOpen(true);
       window.history.replaceState({}, "", window.location.pathname);
     } else if (params.get("auth") === "confirmation-error") {
@@ -148,7 +153,6 @@ export default function CampusExperience() {
         <IconButton label="Switch camera view" onClick={() => runWorldControl("camera")}><path d="M3 7.5h3l1.5-2h5l1.5 2h3v9H3z"/><circle cx="10" cy="12" r="3"/></IconButton>
         <IconButton label="Open campus map" onClick={() => runWorldControl("map")}><path d="m3 6 5-2 5 2 4-2v12l-4 2-5-2-5 2z"/><path d="M8 4v12m5-10v12"/></IconButton>
         <IconButton label="Toggle places directory" onClick={() => runWorldControl("directory")}><path d="M10 18s6-5.2 6-10a6 6 0 1 0-12 0c0 4.8 6 10 6 10Z"/><circle cx="10" cy="8" r="2"/></IconButton>
-        <IconButton label="Campus data tools" onClick={() => runWorldControl("data")}><ellipse cx="10" cy="5" rx="6.5" ry="2.5"/><path d="M3.5 5v5c0 1.4 2.9 2.5 6.5 2.5 1.7 0 3.2-.3 4.5-.8M3.5 10v5c0 1.4 2.9 2.5 6.5 2.5 1.1 0 2.1-.1 3-.4"/><path d="M14 13v6m-3-3h6"/></IconButton>
         <IconButton label="Friends, feed and messages" onClick={() => setSocialOpen(true)}><circle cx="7" cy="7" r="3"/><path d="M1.5 17v-1.2A4.8 4.8 0 0 1 6.3 11h1.4a4.8 4.8 0 0 1 4.8 4.8V17zM13 4.3a3 3 0 0 1 0 5.8m1.3 1.2a4.5 4.5 0 0 1 4.2 4.5V17h-3"/></IconButton>
         <button className="glass user-chip" onClick={() => setAccountOpen(true)} aria-label={profile?.display_name ?? (email ? "Finish profile" : "Sign in")} title={profile?.display_name ?? (email ? "Finish profile" : "Sign in")}>{profile?.avatar_url ? <img src={profile.avatar_url} alt=""/> : <span className="avatar-dot">{profile?.display_name?.[0]?.toUpperCase() ?? "♙"}</span>}</button>
       </div>
@@ -182,7 +186,7 @@ export default function CampusExperience() {
       {campusLocations.some((place) => typeof place.local_x !== "number" || !Number.isFinite(place.local_x) || typeof place.local_z !== "number" || !Number.isFinite(place.local_z)) && <div className="unmapped-section"><h3>Not placed on this map yet</h3><div className="unmapped-list">{campusLocations.filter((place) => typeof place.local_x !== "number" || !Number.isFinite(place.local_x) || typeof place.local_z !== "number" || !Number.isFinite(place.local_z)).map((place) => <button key={place.id} className="unmapped-place" onClick={() => { chooseLocation(place); setMapOpen(false); setDirectoryOpen(true); }}><span>{place.name}</span><span className="loc-meta">Position needed</span></button>)}</div></div>}
     </section></div>}
     {socialOpen && <SocialHub onClose={() => setSocialOpen(false)} onSignIn={() => { setSocialOpen(false); setAccountOpen(true); }} onProfileChange={(updated) => setProfile(updated)} />}
-    {accountOpen && <AccountDialog email={email} profile={profile} initialName={profileNameDraft} initialMessage={authNotice} onClose={() => setAccountOpen(false)} onSignedIn={(userEmail, savedProfile) => { setEmail(userEmail); setProfile(savedProfile); setProfileNameDraft(""); setAuthNotice(""); setAccountOpen(false); }} />}
+    {accountOpen && <AccountDialog email={email} profile={profile} initialName={profileNameDraft} initialMessage={authNotice} initialReferralCode={initialReferralCode} onClose={() => setAccountOpen(false)} onSignedIn={(userEmail, savedProfile) => { setEmail(userEmail); setProfile(savedProfile); setProfileNameDraft(""); setAuthNotice(""); setInitialReferralCode(""); setAccountOpen(false); }} />}
   </main>;
 }
 
@@ -190,11 +194,12 @@ function IconButton({ label, onClick, children }: { label: string; onClick: () =
   return <button className="icon-button" onClick={onClick} aria-label={label} title={label} type="button"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{children}</svg><span className="sr-only">{label}</span></button>;
 }
 
-function AccountDialog({ email: currentEmail, profile, initialName, initialMessage, onClose, onSignedIn }: { email: string | null; profile: Profile | null; initialName: string; initialMessage: string; onClose: () => void; onSignedIn: (email: string, profile: Profile | null) => void }) {
+function AccountDialog({ email: currentEmail, profile, initialName, initialMessage, initialReferralCode, onClose, onSignedIn }: { email: string | null; profile: Profile | null; initialName: string; initialMessage: string; initialReferralCode: string; onClose: () => void; onSignedIn: (email: string, profile: Profile | null) => void }) {
   const supabase = useMemo(() => createClient(), []);
-  const [mode, setMode] = useState<AuthMode>(currentEmail ? "signup" : "signin");
+  const [mode, setMode] = useState<AuthMode>(currentEmail || initialReferralCode ? "signup" : "signin");
   const [email, setEmail] = useState(currentEmail ?? "");
   const [password, setPassword] = useState("");
+  const [referralCode,setReferralCode] = useState(initialReferralCode);
   const [authenticated, setAuthenticated] = useState(Boolean(currentEmail));
   const [name, setName] = useState(profile?.display_name ?? initialName);
   const [department, setDepartment] = useState(profile?.department ?? "");
@@ -224,7 +229,7 @@ function AccountDialog({ email: currentEmail, profile, initialName, initialMessa
       if (currentUser) setAuthenticated(true);
       if (mode === "signup") {
         if (!currentUser) {
-          const { data, error } = await supabase.auth.signUp({ email, password, options: { data: { display_name: name.trim() }, emailRedirectTo: `${window.location.origin}/auth/callback` } });
+          const { data, error } = await supabase.auth.signUp({ email, password, options: { data: { display_name: name.trim(), referral_code: referralCode.trim().toLowerCase() || null }, emailRedirectTo: `${window.location.origin}/auth/callback` } });
           if (error) throw error;
           if (!data.session) { setCanResendConfirmation(true); setMessage("Check your email to confirm your account. Your display name is saved; you can finish your profile after confirmation."); return; }
         }
@@ -272,6 +277,7 @@ function AccountDialog({ email: currentEmail, profile, initialName, initialMessa
     <form className="form" onSubmit={submit}>
       <label className="field">Email<input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" readOnly={hasSession} /></label>
       {!hasSession && <label className="field">Password<input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} autoComplete={mode === "signin" ? "current-password" : "new-password"} /></label>}
+      {!hasSession && mode === "signup" && <label className="field">Referral code (optional)<input value={referralCode} onChange={e=>setReferralCode(e.target.value.trim())} maxLength={40} autoComplete="off" placeholder="Enter a classmate’s referral code"/></label>}
       {showProfileFields && <>
         <label className="field">Display name<input value={name} onChange={(e) => setName(e.target.value)} minLength={2} maxLength={48} required /></label>
         <label className="field">Department (optional)<input value={department} onChange={(e) => setDepartment(e.target.value)} maxLength={80} placeholder="e.g. Computer Science" /></label>

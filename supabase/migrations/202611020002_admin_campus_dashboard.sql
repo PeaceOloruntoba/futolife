@@ -57,6 +57,10 @@ do $$ begin
     alter table public.campus_locations add constraint campus_locations_verified_has_evidence
       check (position_status <> 'verified' or (jsonb_typeof(evidence)='array' and jsonb_array_length(evidence)>0));
   end if;
+  if not exists(select 1 from pg_constraint where conname='campus_locations_verified_has_position' and conrelid='public.campus_locations'::regclass) then
+    alter table public.campus_locations add constraint campus_locations_verified_has_position
+      check (position_status <> 'verified' or ((latitude is not null and longitude is not null) or (local_x is not null and local_z is not null)));
+  end if;
 end $$;
 
 insert into storage.buckets(id,name,public,file_size_limit,allowed_mime_types)
