@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/browser";
 
@@ -34,7 +34,9 @@ export default function SocialHub({ onClose = () => {}, onSignIn, onProfileChang
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
   const [draftPost, setDraftPost] = useState("");
-  const [tagIds, setTagIds] = useState<string[]>([]);
+  const postInputRef=useRef<HTMLTextAreaElement>(null);
+  const [mentionQuery,setMentionQuery]=useState<string|null>(null);
+  const [mentionStart,setMentionStart]=useState<number|null>(null);
   const [draftMessage, setDraftMessage] = useState("");
   const [profileDraft, setProfileDraft] = useState({ display_name: "", department: "", year: "", bio: "" });
 
@@ -114,6 +116,26 @@ export default function SocialHub({ onClose = () => {}, onSignIn, onProfileChang
   const filteredPeople = people.filter((p) => `${p.display_name} ${p.department ?? ""}`.toLowerCase().includes(search.toLowerCase()));
   const currentChat = chats.find((chat) => chat.id === activeChat);
   const otherPerson = (id: string) => people.find((p) => p.id === id) ?? (me?.id === id ? me : null);
+  const mentionSuggestions=mentionQuery===null?[]:friends.filter(friend=>friend.display_name.toLocaleLowerCase().includes(mentionQuery.toLocaleLowerCase())).slice(0,7);
+
+  function onPostDraftChange(value:string,cursor:number){
+    setDraftPost(value);
+    const match=value.slice(0,cursor).match(/(^|\s)@([\p{L}\p{N}_.-]*)$/u);
+    if(match){setMentionQuery(match[2]);setMentionStart(cursor-match[0].length+match[1].length);}
+    else{setMentionQuery(null);setMentionStart(null);}
+  }
+  function insertMention(person:Person){
+    if(mentionStart===null)return;
+    const cursor=postInputRef.current?.selectionStart??draftPost.length;
+    const insertion=`@${person.display_name} `;
+    const next=`${draftPost.slice(0,mentionStart)}${insertion}${draftPost.slice(cursor)}`;
+    const nextCursor=mentionStart+insertion.length;
+    setDraftPost(next);setMentionQuery(null);setMentionStart(null);
+    requestAnimationFrame(()=>{postInputRef.current?.focus();postInputRef.current?.setSelectionRange(nextCursor,nextCursor);});
+  }
+  function mentionedFriendIds(text:string){
+    return friends.filter(friend=>new RegExp(`(^|\\s)@${friend.display_name.replace(/[.*+?^${}()|[\\]\\]/g,"\\$&")}(?=$|[\\s.,!?])`,"i").test(text)).map(friend=>friend.id);
+  }
 
   async function sendRequest(person: Person) {
     if (!supabase || !me) return;
@@ -137,11 +159,12 @@ export default function SocialHub({ onClose = () => {}, onSignIn, onProfileChang
     event.preventDefault(); if (!supabase || !me || !draftPost.trim()) return;
     setBusy(true);
     const { data, error } = await supabase.from("posts").insert({ author_id: me.id, body: draftPost.trim() }).select("id").single();
-    if (!error && data && tagIds.length) {
-      const result = await supabase.from("post_tags").insert(tagIds.map(profile_id => ({ post_id: data.id, profile_id })));
+    const friendIds=mentionedFriendIds(draftPost.trim());
+    if (!error && data && friendIds.length) {
+      const result = await supabase.from("post_tags").insert(friendIds.map(profile_id => ({ post_id: data.id, profile_id })));
       if (result.error) setNotice(result.error.message);
     }
-    if (error) setNotice(error.message); else { setDraftPost(""); setTagIds([]); await load(); }
+    if (error) setNotice(error.message); else { setDraftPost(""); await load(); }
     setBusy(false);
   }
   async function likePost(post: Post) {
@@ -206,13 +229,13 @@ export default function SocialHub({ onClose = () => {}, onSignIn, onProfileChang
 
   return <div className={`social-backdrop${standalone?" social-standalone":""}`} onMouseDown={e => {if(!standalone&&e.target===e.currentTarget)onClose();}}><section className={`social-window panel${standalone?" social-page-window":""}`} role={standalone?"main":"dialog"} aria-modal={standalone?undefined:true} aria-label="FUTO Life social">
     <header className="social-header"><div className="social-brand"><div className="eyebrow">FUTO LIFE · COMMUNITY</div><h2>Connect on campus</h2></div>{standalone?<Link className="secondary social-close-link" href="/explore">← Campus</Link>:<button className="secondary social-close" onClick={onClose} aria-label="Close social">×</button>}</header>
-    {!me ? <div className="social-empty">{notice || "Sign in and complete your profile to use the student community."}<br/>{standalone?<Link className="primary social-signin" href="/explore?auth=signin">Sign in / create account</Link>:<button className="primary social-signin" onClick={onSignIn}>Sign in / create account</button>}</div> : <>
+    {!me ? <div className="social-empty">{notice || "Sign in and complete your profile to use the student community."}<br/>{standalone?<Link className="primary social-signin" href="/explore?auth=signin&next=%2Fcommunity">Sign in / create account</Link>:<button className="primary social-signin" onClick={onSignIn}>Sign in / create account</button>}</div> : <>
       <nav className="social-tabs">{(["feed","friends","messages","profile"] as const).map(item => <button key={item} className={tab===item?"active":""} onClick={()=>setTab(item)}>{item === "feed" ? "Feed" : item === "friends" ? `Friends${friends.length?` · ${friends.length}`:""}` : item === "messages" ? "Messages" : "My profile"}</button>)}</nav>
       {notice && <p className="social-notice" role="status">{notice}</p>}
       <div className="social-content">
         {tab === "feed" && <div className="feed-column">
-          <form className="post-composer social-card" onSubmit={publishPost}><div className="composer-row"><Avatar person={me}/><textarea value={draftPost} onChange={e=>setDraftPost(e.target.value)} maxLength={2000} placeholder="Share something with your FUTO friends…" aria-label="Write a post"/></div><div className="composer-footer"><label className="tag-select">Tag friends<select multiple value={tagIds} onChange={e=>setTagIds(Array.from(e.target.selectedOptions,o=>o.value))} aria-label="Tag friends">{friends.map(f=><option key={f.id} value={f.id}>{f.display_name}</option>)}</select></label><button className="primary" disabled={busy||!draftPost.trim()}>{busy?"Posting…":"Post"}</button></div><small>Hold Ctrl (Windows) or ⌘ (Mac) to tag more than one friend.</small></form>
-          {posts.map(post=>{const author=otherPerson(post.author_id); const postComments=comments[post.id]??[]; return <article className="social-card feed-post" key={post.id}><div className="post-author"><Avatar person={author}/><div><strong>{author?.display_name??"FUTO student"}</strong><small>{author?.department??"FUTO Life"} · {new Date(post.created_at).toLocaleString()}</small></div></div><p className="post-body">{post.body}</p>{(tags[post.id]?.length??0)>0&&<div className="post-tags">with {(tags[post.id]??[]).map(id=>otherPerson(id)?.display_name).filter(Boolean).join(", ")}</div>}<div className="post-actions"><button onClick={()=>void likePost(post)}>{(likes[post.id]??[]).includes(me.id)?"♥":"♡"} {(likes[post.id]??[]).length} · Like</button><span>▢ {postComments.length} comments</span>{post.author_id!==me.id&&(myReportedPosts.includes(post.id)?<span className="reported-label">Reported</span>:<button onClick={()=>{setReportTarget(post);setReportReason("spam");setReportDetails("");}}>Report</button>)}</div><div className="comment-list">{postComments.map(comment=><p key={comment.id}><b>{otherPerson(comment.author_id)?.display_name??"Student"}</b> {comment.body}</p>)}</div><form className="comment-form" onSubmit={e=>void addComment(e,post.id)}><Avatar person={me} small/><input name="comment" maxLength={1000} placeholder="Write a comment…" aria-label="Write a comment"/><button aria-label="Send comment">↗</button></form></article>;})}
+          <form className="post-composer social-card" onSubmit={publishPost}><div className="composer-row"><Avatar person={me}/><div className="composer-input-wrap"><textarea ref={postInputRef} value={draftPost} onChange={e=>onPostDraftChange(e.target.value,e.target.selectionStart)} onClick={e=>onPostDraftChange(e.currentTarget.value,e.currentTarget.selectionStart)} maxLength={2000} placeholder="Share something with your FUTO friends…" aria-label="Write a post"/>{mentionSuggestions.length>0&&<div className="mention-suggestions" role="listbox" aria-label="Mention a friend">{mentionSuggestions.map(friend=><button type="button" key={friend.id} role="option" onMouseDown={e=>e.preventDefault()} onClick={()=>insertMention(friend)}><Avatar person={friend} small/><span><b>{friend.display_name}</b><small>{friend.department??"FUTO student"}</small></span></button>)}</div>}</div></div><div className="composer-footer"><span className="composer-hint">Type <b>@</b> to mention friends · add <b>#hashtags</b> to label your post</span><button className="primary" disabled={busy||!draftPost.trim()}>{busy?"Posting…":"Post"}</button></div></form>
+          {posts.map(post=>{const author=otherPerson(post.author_id); const postComments=comments[post.id]??[]; return <article className="social-card feed-post" key={post.id}><div className="post-author"><Avatar person={author}/><div><strong>{author?.display_name??"FUTO student"}</strong><small>{author?.department??"FUTO Life"} · {new Date(post.created_at).toLocaleString()}</small></div></div><p className="post-body">{renderPostBody(post.body)}</p>{(tags[post.id]?.length??0)>0&&<div className="post-tags">with {(tags[post.id]??[]).map(id=>otherPerson(id)?.display_name).filter(Boolean).join(", ")}</div>}<div className="post-actions"><button onClick={()=>void likePost(post)}>{(likes[post.id]??[]).includes(me.id)?"♥":"♡"} {(likes[post.id]??[]).length} · Like</button><span>▢ {postComments.length} comments</span>{post.author_id!==me.id&&(myReportedPosts.includes(post.id)?<span className="reported-label">Reported</span>:<button onClick={()=>{setReportTarget(post);setReportReason("spam");setReportDetails("");}}>Report</button>)}</div><div className="comment-list">{postComments.map(comment=><p key={comment.id}><b>{otherPerson(comment.author_id)?.display_name??"Student"}</b> {comment.body}</p>)}</div><form className="comment-form" onSubmit={e=>void addComment(e,post.id)}><Avatar person={me} small/><input name="comment" maxLength={1000} placeholder="Write a comment…" aria-label="Write a comment"/><button aria-label="Send comment">↗</button></form></article>;})}
           {!posts.length&&<div className="social-card social-empty">No posts yet. Share a hello to start the FUTO community feed.</div>}
         </div>}
         {tab === "friends" && <div className="friends-layout"><div className="social-card requests-card"><h3>Friend requests <span>{pendingIn.length}</span></h3>{pendingIn.length?pendingIn.map(request=>{const person=otherPerson(request.requester_id);return <div className="person-row" key={request.id}><Avatar person={person}/><div className="person-info"><b>{person?.display_name??"FUTO student"}</b><small>{person?.department??""}</small></div><button className="primary compact" onClick={()=>void respond(request,"accepted")}>Accept</button><button className="secondary compact" onClick={()=>void respond(request,"declined")}>Decline</button></div>;}):<p className="muted">No pending requests.</p>}{pendingOut.length>0&&<p className="muted">{pendingOut.length} request{pendingOut.length===1?"":"s"} awaiting a reply.</p>}</div><div className="social-card people-card"><h3>Find students</h3><input className="social-search" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search name or department…"/>{filteredPeople.filter(p=>!accepted.includes(p.id)).slice(0,100).map(person=>{const sent=pendingOut.some(r=>r.addressee_id===person.id);return <div className="person-row" key={person.id}><Avatar person={person}/><div className="person-info"><b>{person.display_name}</b><small>{[person.department,person.year_of_study?`Year ${person.year_of_study}`:""].filter(Boolean).join(" · ")}</small></div>{sent?<span className="pending-label">Requested</span>:<button className="secondary compact" disabled={busy} onClick={()=>void sendRequest(person)}>＋ Add friend</button>}</div>;})}</div><div className="social-card people-card"><h3>Your friends <span>{friends.length}</span></h3>{friends.length?friends.map(person=><div className="person-row" key={person.id}><Avatar person={person}/><div className="person-info"><b>{person.display_name}</b><small>{person.department??"FUTO student"}</small></div><button className="secondary compact" onClick={()=>void openDirect(person)}>Message</button><button className="text-action" onClick={()=>void removeFriend(person.id)}>Remove</button></div>):<p className="muted">Accept a request or find classmates above. You need an accepted friendship to chat.</p>}</div></div>}
@@ -226,4 +249,8 @@ export default function SocialHub({ onClose = () => {}, onSignIn, onProfileChang
 
 function Avatar({person,small=false,large=false}:{person:Person|null|undefined;small?:boolean;large?:boolean}) {
   return <span className={`social-avatar${small?" small":""}${large?" large":""}`}>{person?.avatar_url?<img src={person.avatar_url} alt=""/>:person?.display_name?.slice(0,1).toUpperCase()??"F"}</span>;
+}
+
+function renderPostBody(body:string){
+  return body.split(/(#[\p{L}\p{N}_]{1,32})/gu).map((part,index)=>part.startsWith("#")?<span className="post-hashtag" key={`${part}-${index}`}>{part}</span>:part);
 }

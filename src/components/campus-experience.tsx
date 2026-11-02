@@ -1,10 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { locations, type CampusLocation } from "@/lib/locations";
 import { createClient } from "@/lib/supabase/browser";
-import SocialHub from "@/components/social-hub";
 
 type Profile = { id: string; display_name: string; department: string | null; year_of_study: number | null; avatar_url: string | null };
 type AuthMode = "signin" | "signup";
@@ -15,17 +14,18 @@ export default function CampusExperience() {
   const [locationSource, setLocationSource] = useState<"bundled" | "supabase">("bundled");
   const [locationLoadError, setLocationLoadError] = useState(false);
   const [query, setQuery] = useState("");
-  const [directoryOpen, setDirectoryOpen] = useState(true);
+  const [directoryOpen, setDirectoryOpen] = useState(false);
+  const [menuOpen,setMenuOpen] = useState(false);
   const [mapOpen, setMapOpen] = useState(false);
   const [selected, setSelected] = useState<CampusLocation | null>(null);
   const [accountOpen, setAccountOpen] = useState(false);
-  const [socialOpen, setSocialOpen] = useState(false);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [email, setEmail] = useState<string | null>(null);
   const [profileNameDraft, setProfileNameDraft] = useState("");
   const [authNotice, setAuthNotice] = useState("");
   const [initialReferralCode,setInitialReferralCode] = useState("");
+  const [authReturnTo,setAuthReturnTo] = useState("");
 
   const visibleLocations = useMemo(() => {
     const term = query.trim().toLowerCase();
@@ -56,14 +56,12 @@ export default function CampusExperience() {
   function runWorldControl(control: "camera" | "map" | "directory") {
     if (control === "map") {
       setMapOpen((open) => !open);
-      if (window.matchMedia("(max-width: 760px)").matches) setDirectoryOpen(false);
       return;
     }
     if (control === "directory") {
       setDirectoryOpen((open) => !open);
       return;
     }
-    if (control !== "camera" && window.matchMedia("(max-width: 760px)").matches) setDirectoryOpen(false);
     worldFrame.current?.contentWindow?.postMessage({ type: `futo:${control}` }, window.location.origin);
   }
 
@@ -88,9 +86,11 @@ export default function CampusExperience() {
       setAccountOpen(true);
       window.history.replaceState({}, "", window.location.pathname);
     } else if (params.get("auth") === "signin") {
+      const next=params.get("next")??"";if(next.startsWith("/")&&!next.startsWith("//"))setAuthReturnTo(next);
       setAccountOpen(true);
       window.history.replaceState({}, "", window.location.pathname);
     } else if (params.get("auth") === "confirmation-error") {
+      const next=params.get("next")??"";if(next.startsWith("/")&&!next.startsWith("//"))setAuthReturnTo(next);
       setAuthNotice("We couldn’t confirm that email link. It may have expired; enter your email and resend the confirmation.");
       setAccountOpen(true);
       window.history.replaceState({}, "", window.location.pathname);
@@ -108,14 +108,27 @@ export default function CampusExperience() {
     return () => window.removeEventListener("message", receiveWorldMessage);
   }, []);
 
+  useEffect(()=>{
+    const controlled=new Set(["w","a","s","d","shift","arrowleft","arrowright","arrowup","arrowdown"]);
+    const forward=(down:boolean)=>(event:KeyboardEvent)=>{
+      if(event.target instanceof HTMLElement&&event.target.closest("input,textarea,select,[contenteditable='true']"))return;
+      const key=event.key.toLowerCase();if(!controlled.has(key))return;
+      if(key.startsWith("arrow"))event.preventDefault();
+      worldFrame.current?.contentWindow?.postMessage({type:"futo:key",key,down},window.location.origin);
+    };
+    const down=forward(true),up=forward(false);
+    window.addEventListener("keydown",down);window.addEventListener("keyup",up);
+    return()=>{window.removeEventListener("keydown",down);window.removeEventListener("keyup",up);};
+  },[]);
+
   useEffect(() => {
-    if (!accountOpen && !mapOpen && !socialOpen) return;
+    if (!accountOpen && !mapOpen) return;
     function closeOnEscape(event: KeyboardEvent) {
-      if (event.key === "Escape") { setAccountOpen(false); setMapOpen(false); setSocialOpen(false); }
+      if (event.key === "Escape") { setAccountOpen(false); setMapOpen(false); setMenuOpen(false); }
     }
     window.addEventListener("keydown", closeOnEscape);
     return () => window.removeEventListener("keydown", closeOnEscape);
-  }, [accountOpen, mapOpen, socialOpen]);
+  }, [accountOpen, mapOpen]);
 
   useEffect(() => {
     const supabase = createClient();
@@ -146,55 +159,44 @@ export default function CampusExperience() {
 
   return <main className="campus">
     <iframe ref={worldFrame} className="world" src="/campus/index.html" title="Interactive FUTO campus prototype" allow="fullscreen" />
-    <header className="topbar">
-      <div className="brand"><div className="brand-mark">F</div><div><div className="brand-title">FUTO LIFE</div><div className="brand-sub">Explore your campus. Find your people.</div></div></div>
-      <div className="top-actions">
-        {isAdmin && <Link className="glass admin-nav-link" href="/admin" title="Campus admin dashboard">Admin</Link>}
-        <IconButton label="Switch camera view" onClick={() => runWorldControl("camera")}><path d="M3 7.5h3l1.5-2h5l1.5 2h3v9H3z"/><circle cx="10" cy="12" r="3"/></IconButton>
-        <IconButton label="Open campus map" onClick={() => runWorldControl("map")}><path d="m3 6 5-2 5 2 4-2v12l-4 2-5-2-5 2z"/><path d="M8 4v12m5-10v12"/></IconButton>
-        <IconButton label="Toggle places directory" onClick={() => runWorldControl("directory")}><path d="M10 18s6-5.2 6-10a6 6 0 1 0-12 0c0 4.8 6 10 6 10Z"/><circle cx="10" cy="8" r="2"/></IconButton>
-        <IconButton label="Friends, feed and messages" onClick={() => setSocialOpen(true)}><circle cx="7" cy="7" r="3"/><path d="M1.5 17v-1.2A4.8 4.8 0 0 1 6.3 11h1.4a4.8 4.8 0 0 1 4.8 4.8V17zM13 4.3a3 3 0 0 1 0 5.8m1.3 1.2a4.5 4.5 0 0 1 4.2 4.5V17h-3"/></IconButton>
-        <button className="glass user-chip" onClick={() => setAccountOpen(true)} aria-label={profile?.display_name ?? (email ? "Finish profile" : "Sign in")} title={profile?.display_name ?? (email ? "Finish profile" : "Sign in")}>{profile?.avatar_url ? <img src={profile.avatar_url} alt=""/> : <span className="avatar-dot">{profile?.display_name?.[0]?.toUpperCase() ?? "♙"}</span>}</button>
-      </div>
-    </header>
-    {!directoryOpen && <button className="places-toggle glass" onClick={() => setDirectoryOpen(true)} aria-label="Show places directory" title="Show places directory"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M10 18s6-5.2 6-10a6 6 0 1 0-12 0c0 4.8 6 10 6 10Z"/><circle cx="10" cy="8" r="2"/></svg><span>Places</span></button>}
-    <aside className={`locations panel${directoryOpen ? "" : " is-closed"}`}>
-      <div className="panel-head">
-        <div className="eyebrow">Campus directory</div><div className="panel-title">Find a place</div>
-        <div className="panel-copy">Explore the campus prototype and browse the current location inventory. Estimated positions are labelled.</div>
-        <input className="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search buildings, halls, facilities…" aria-label="Search campus locations" />
-      </div>
-      {selected && <div className="selected-place">{selected.image_url && <img className="selected-place-image" src={selected.image_url} alt={`Photo of ${selected.name}`} />}<div className="selected-place-title">{selected.name}</div><div className="loc-meta">{selected.category.replaceAll("-", " ")} · {selected.position_status === "provisional" ? "Estimated position" : selected.position_status === "verified" ? "Verified" : "Unverified"}</div><div className="selected-place-copy">{selected.description || selected.notes || "Details and map position need confirmation."}</div><button className="clear-place" onClick={() => setSelected(null)}>Clear selection</button></div>}
-      <div className="location-list" aria-live="polite">
-        {visibleLocations.map((place) => <button className="location-row" key={place.id} onClick={() => chooseLocation(place)}>
-          <span className="loc-icon">{place.category === "lecture" ? "⌂" : place.category === "entrance" ? "↗" : "•"}</span>
-          <span><span className="loc-name">{place.name}</span><br/><span className="loc-meta">{place.category.replaceAll("-", " ")}</span><br/><span className="badge">{place.position_status === "provisional" ? "Estimated position" : place.position_status === "verified" ? "Verified location" : "Location unverified"}</span></span>
-        </button>)}
-        {visibleLocations.length === 0 && <p className="panel-copy" style={{ padding: 10 }}>No locations match that search.</p>}
-      </div>
-      {profile && <div className="profile-card"><div className="profile-name">{profile.display_name}</div><div className="profile-email">{[profile.department, profile.year_of_study ? `Year ${profile.year_of_study}` : null].filter(Boolean).join(" · ") || email}</div></div>}
-      <div className="locations-note"><span className="note-mark">i</span><span>{locationLoadError ? "Live inventory is unavailable; showing the bundled location list. " : locationSource === "supabase" ? "Live location inventory connected. " : "Showing the bundled location list. "}Map positions are provisional until verified against reliable FUTO sources.</span></div>
+    <Link href="/" className="campus-brand"><span className="brand-mark">F</span><span><b>FUTO LIFE</b><small>Explore your campus</small></span></Link>
+    <button className={`dock-menu-toggle${menuOpen?" active":""}`} onClick={()=>setMenuOpen(v=>!v)} aria-expanded={menuOpen} aria-label={menuOpen?"Close campus menu":"Open campus menu"}><span>{menuOpen?"×":"☰"}</span><b>{menuOpen?"Close":"Menu"}</b></button>
+    <aside className={`experience-dock${menuOpen?" drawer-open":""}`} aria-label="Campus menu">
+      <div className="dock-heading"><div><span className="eyebrow">FUTO LIFE</span><b>Campus explorer</b></div><button className="dock-dismiss" onClick={()=>setMenuOpen(false)} aria-label="Close menu">×</button></div>
+      <nav className="dock-nav" aria-label="Explore FUTO">
+        <DockAction icon="walk" label="Explore" detail="Move around campus" onClick={()=>runWorldControl("camera")}/>
+        <DockAction icon="map" label="Campus map" detail="View saved places" onClick={()=>{setMapOpen(true);setMenuOpen(false);}}/>
+        <DockAction icon="pin" label={directoryOpen?"Hide places":"Campus directory"} detail={directoryOpen?"Collapse place list":"Search campus locations"} active={directoryOpen} onClick={()=>setDirectoryOpen(v=>!v)}/>
+        <Link className="dock-action" href="/community"><DockGlyph icon="people"/><span><b>Community</b><small>Friends, posts and messages</small></span><span className="dock-arrow">↗</span></Link>
+        <button className="dock-action" onClick={()=>{setAccountOpen(true);setMenuOpen(false);}}><span className="dock-avatar">{profile?.avatar_url?<img src={profile.avatar_url} alt=""/>:profile?.display_name?.slice(0,1).toUpperCase()??"♙"}</span><span><b>{profile?.display_name??(email?"Finish profile":"Sign in")}</b><small>Account and profile</small></span><span className="dock-arrow">›</span></button>
+        {isAdmin&&<Link className="dock-action" href="/admin"><DockGlyph icon="shield"/><span><b>Admin dashboard</b><small>Manage FUTO campus</small></span><span className="dock-arrow">↗</span></Link>}
+      </nav>
+      {directoryOpen&&<section className="dock-directory" aria-label="Campus directory"><div className="dock-directory-head"><div><span className="eyebrow">CAMPUS DIRECTORY</span><h2>Find a place</h2></div><button onClick={()=>setDirectoryOpen(false)} aria-label="Collapse directory">−</button></div><input className="search" value={query} onChange={event=>setQuery(event.target.value)} placeholder="Search halls, eateries…" aria-label="Search campus locations"/><div className="location-list" aria-live="polite">{visibleLocations.map(place=><button className="location-row" key={place.id} onClick={()=>{chooseLocation(place);if(window.matchMedia("(max-width:760px)").matches)setMenuOpen(false);}}><span className="loc-icon">{place.category==="lecture"?"⌂":place.category==="entrance"?"↗":"•"}</span><span><span className="loc-name">{place.name}</span><br/><span className="loc-meta">{place.category.replaceAll("-"," ")}</span><br/><span className="badge">{place.position_status==="provisional"?"Estimated position":place.position_status==="verified"?"Verified location":"Location unverified"}</span></span></button>)}{!visibleLocations.length&&<p className="panel-copy">No places match that search.</p>}</div>{selected&&<div className="selected-place">{selected.image_url&&<img className="selected-place-image" src={selected.image_url} alt={`Photo of ${selected.name}`}/>}<b>{selected.name}</b><span>{selected.description||selected.notes||"Details and map position need confirmation."}</span></div>}<div className="locations-note"><span className="note-mark">i</span><span>{locationLoadError?"Live location data unavailable. ":locationSource==="supabase"?"Live location data connected. ":"Showing the available place list. "}Map positions may be provisional or unverified.</span></div></section>}
+      <div className="dock-controls"><span>CONTROLS</span><p><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> Move <kbd>⇧</kbd> Sprint</p><p><kbd>←</kbd><kbd>↑</kbd><kbd>↓</kbd><kbd>→</kbd> Look around</p><small>Touch: swipe to look, use the on-screen stick to move.</small></div>
     </aside>
     {mapOpen && <div className="map-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setMapOpen(false); }}><section className="map-dialog panel" role="dialog" aria-modal="true" aria-labelledby="map-title">
       <header className="map-header"><div><div className="eyebrow">Campus map</div><h2 id="map-title">Places with saved positions</h2></div><button className="secondary map-close" onClick={() => setMapOpen(false)} aria-label="Close campus map">×</button></header>
       <div className="schematic-map" role="img" aria-label="Schematic map showing campus locations that have saved local positions">
         <span className="north-marker" aria-hidden="true">N ↑</span>
-        {plottedLocations.map(({ place, left, top }) => <button key={place.id} className={`map-marker status-${place.position_status ?? "unverified"}`} style={{ left: `${left}%`, top: `${top}%` }} onClick={() => { chooseLocation(place); setMapOpen(false); setDirectoryOpen(true); }} aria-label={`${place.name}, ${place.position_status === "provisional" ? "estimated position" : place.position_status === "verified" ? "verified position" : "unverified position"}`} title={place.name}><span className="map-marker-dot"/><span className="map-marker-name">{place.name}</span></button>)}
+        {plottedLocations.map(({ place, left, top }) => <button key={place.id} className={`map-marker status-${place.position_status ?? "unverified"}`} style={{ left: `${left}%`, top: `${top}%` }} onClick={() => { chooseLocation(place); setMapOpen(false); setDirectoryOpen(true); if(window.matchMedia("(max-width:640px)").matches)setMenuOpen(true); }} aria-label={`${place.name}, ${place.position_status === "provisional" ? "estimated position" : place.position_status === "verified" ? "verified position" : "unverified position"}`} title={place.name}><span className="map-marker-dot"/><span className="map-marker-name">{place.name}</span></button>)}
         {!plottedLocations.length && <p className="empty-map">No campus places have map positions yet.</p>}
       </div>
       <p className="map-caveat">Schematic positions only. This view does not imply surveyed roads, boundaries, building footprints, or verified directions.</p>
-      {campusLocations.some((place) => typeof place.local_x !== "number" || !Number.isFinite(place.local_x) || typeof place.local_z !== "number" || !Number.isFinite(place.local_z)) && <div className="unmapped-section"><h3>Not placed on this map yet</h3><div className="unmapped-list">{campusLocations.filter((place) => typeof place.local_x !== "number" || !Number.isFinite(place.local_x) || typeof place.local_z !== "number" || !Number.isFinite(place.local_z)).map((place) => <button key={place.id} className="unmapped-place" onClick={() => { chooseLocation(place); setMapOpen(false); setDirectoryOpen(true); }}><span>{place.name}</span><span className="loc-meta">Position needed</span></button>)}</div></div>}
+      {campusLocations.some((place) => typeof place.local_x !== "number" || !Number.isFinite(place.local_x) || typeof place.local_z !== "number" || !Number.isFinite(place.local_z)) && <div className="unmapped-section"><h3>Not placed on this map yet</h3><div className="unmapped-list">{campusLocations.filter((place) => typeof place.local_x !== "number" || !Number.isFinite(place.local_x) || typeof place.local_z !== "number" || !Number.isFinite(place.local_z)).map((place) => <button key={place.id} className="unmapped-place" onClick={() => { chooseLocation(place); setMapOpen(false); setDirectoryOpen(true); if(window.matchMedia("(max-width:640px)").matches)setMenuOpen(true); }}><span>{place.name}</span><span className="loc-meta">Position needed</span></button>)}</div></div>}
     </section></div>}
-    {socialOpen && <SocialHub onClose={() => setSocialOpen(false)} onSignIn={() => { setSocialOpen(false); setAccountOpen(true); }} onProfileChange={(updated) => setProfile(updated)} />}
-    {accountOpen && <AccountDialog email={email} profile={profile} initialName={profileNameDraft} initialMessage={authNotice} initialReferralCode={initialReferralCode} onClose={() => setAccountOpen(false)} onSignedIn={(userEmail, savedProfile) => { setEmail(userEmail); setProfile(savedProfile); setProfileNameDraft(""); setAuthNotice(""); setInitialReferralCode(""); setAccountOpen(false); }} />}
+    {accountOpen && <AccountDialog email={email} profile={profile} initialName={profileNameDraft} initialMessage={authNotice} initialReferralCode={initialReferralCode} redirectTo={authReturnTo||"/"} onClose={() => setAccountOpen(false)} onSignedIn={(userEmail, savedProfile) => { setEmail(userEmail); setProfile(savedProfile); setProfileNameDraft(""); setAuthNotice(""); setInitialReferralCode(""); setAccountOpen(false); if(userEmail&&authReturnTo)window.location.assign(authReturnTo); }} />}
   </main>;
 }
 
-function IconButton({ label, onClick, children }: { label: string; onClick: () => void; children: ReactNode }) {
-  return <button className="icon-button" onClick={onClick} aria-label={label} title={label} type="button"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{children}</svg><span className="sr-only">{label}</span></button>;
+function DockGlyph({icon}:{icon:"walk"|"map"|"pin"|"people"|"shield"}) {
+  return <svg className="dock-glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{icon==="walk"?<><circle cx="13" cy="4" r="2"/><path d="m11 8-3 4 4 2 2 6m-6-8-3 5-3 1m8-8 4 2 3 1m-8 1-1 7"/></>:icon==="map"?<><path d="m3 6 5-2 8 3 5-2v13l-5 2-8-3-5 2z"/><path d="M8 4v13m8-10v13"/></>:icon==="pin"?<><path d="M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/></>:icon==="people"?<><circle cx="9" cy="8" r="3"/><path d="M3 20v-1a6 6 0 0 1 12 0v1m1-12a3 3 0 0 1 0 6m1 2a5 5 0 0 1 4 5"/></>:<><path d="M12 22s8-4 8-11V5l-8-3-8 3v6c0 7 8 11 8 11Z"/><path d="m9 12 2 2 4-4"/></>}</svg>;
 }
 
-function AccountDialog({ email: currentEmail, profile, initialName, initialMessage, initialReferralCode, onClose, onSignedIn }: { email: string | null; profile: Profile | null; initialName: string; initialMessage: string; initialReferralCode: string; onClose: () => void; onSignedIn: (email: string, profile: Profile | null) => void }) {
+function DockAction({icon,label,detail,onClick,active=false}:{icon:"walk"|"map"|"pin";label:string;detail:string;onClick:()=>void;active?:boolean}) {
+  return <button className={`dock-action${active?" active":""}`} onClick={onClick}><DockGlyph icon={icon}/><span><b>{label}</b><small>{detail}</small></span><span className="dock-arrow">›</span></button>;
+}
+
+function AccountDialog({ email: currentEmail, profile, initialName, initialMessage, initialReferralCode, redirectTo, onClose, onSignedIn }: { email: string | null; profile: Profile | null; initialName: string; initialMessage: string; initialReferralCode: string; redirectTo: string; onClose: () => void; onSignedIn: (email: string, profile: Profile | null) => void }) {
   const supabase = useMemo(() => createClient(), []);
   const [mode, setMode] = useState<AuthMode>(currentEmail || initialReferralCode ? "signup" : "signin");
   const [email, setEmail] = useState(currentEmail ?? "");
@@ -229,7 +231,7 @@ function AccountDialog({ email: currentEmail, profile, initialName, initialMessa
       if (currentUser) setAuthenticated(true);
       if (mode === "signup") {
         if (!currentUser) {
-          const { data, error } = await supabase.auth.signUp({ email, password, options: { data: { display_name: name.trim(), referral_code: referralCode.trim().toLowerCase() || null }, emailRedirectTo: `${window.location.origin}/auth/callback` } });
+          const { data, error } = await supabase.auth.signUp({ email, password, options: { data: { display_name: name.trim(), referral_code: referralCode.trim().toLowerCase() || null }, emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(redirectTo)}` } });
           if (error) throw error;
           if (!data.session) { setCanResendConfirmation(true); setMessage("Check your email to confirm your account. Your display name is saved; you can finish your profile after confirmation."); return; }
         }
@@ -263,7 +265,7 @@ function AccountDialog({ email: currentEmail, profile, initialName, initialMessa
     if (!supabase || !email.trim()) { setMessage("Enter the email address you used to sign up."); return; }
     setResendBusy(true); setMessage("");
     try {
-      const { error } = await supabase.auth.resend({ type: "signup", email: email.trim(), options: { emailRedirectTo: `${window.location.origin}/auth/callback` } });
+      const { error } = await supabase.auth.resend({ type: "signup", email: email.trim(), options: { emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(redirectTo)}` } });
       if (error) throw error;
       setMessage("Confirmation email sent. Check your inbox and spam folder.");
     } catch (error) { setMessage(error instanceof Error ? error.message : "Unable to resend the confirmation email."); }

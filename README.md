@@ -1,6 +1,6 @@
 # FUTO Life
 
-Mobile-first virtual FUTO campus. The Next.js application wraps the supplied Three.js proof of concept and adds a location directory, accounts, profiles and a friend-based social layer. The campus remains a browser-side experience; Next.js route handlers provide the server boundary, and Supabase provides Postgres, authentication, storage and realtime messages.
+Mobile-first virtual FUTO campus. Next.js provides a public landing page, a campus explorer at `/explore`, a full community page at `/community`, and protected admin tools. The explorer wraps the supplied Three.js proof of concept; Supabase provides Postgres, authentication, storage and realtime messages.
 
 ## Local setup
 
@@ -30,13 +30,16 @@ Mobile-first virtual FUTO campus. The Next.js application wraps the supplied Thr
 
 ## First release scope
 
-- 3D campus prototype at `/campus/index.html`, embedded in the Next.js campus shell.
+- Public landing page with a responsive footer and Privacy/Terms pages.
+- 3D campus prototype at `/campus/index.html`, embedded at `/explore`, with a labeled collapsible menu and responsive mobile drawer.
+- Keyboard: W/A/S/D move, arrow keys look, Shift sprints. Touch: swipe on the scene to look and use the on-screen movement stick.
 - Schematic map plots saved local positions and lists locations without positions; it does not draw roads or claim geographic accuracy.
 - Searchable location directory served from Supabase Postgres, seeded from the supplied inventory; the bundled JSON is the no-credentials fallback.
 - Email/password sign-in with confirmation, profile setup after confirmation, confirmation resend, profile editing, and sign-out.
 - Student discovery, friend requests and approval, friend lists, profile photos, a friends-only feed with friend tags, reactions and comments, direct messages and friend-only group chats.
 - Admin dashboard at `/admin` for managing place details, WGS84 and 3D coordinates, evidence, verification status, photos and GeoJSON imports. It also supports suspending/restoring users, reviewing post reports, and deleting a post after five distinct reports. Imported coordinates remain provisional; reviewed locations need evidence before they can be marked verified.
 - Student referral codes and links with a persistent, multi-level referral chain. Referral tracking currently has no rewards.
+- Friend tagging by typing `@` in a post composer; `#hashtags` are indexed in Postgres for future feed discovery.
 - Guest campus exploration remains available.
 
 Multiplayer presence, events and missions are later releases. Social tools require a confirmed account and a completed profile. A direct chat is accessible only while both participants are accepted friends; group members are selected from the creator's accepted friends. Posts are visible to their authors and accepted friends. Users can report posts with a reason; administrators may delete a post once five distinct users have reported it. Configure Supabase Realtime for the `messages` table for immediate incoming chat updates; messages remain available from Postgres if realtime is temporarily disconnected. Many positions in the supplied inventory are null or explicitly provisional. Directory items carry an unverified label until the project has trustworthy evidence. Admin GeoJSON imports save place records but never mark features verified automatically. A current, georeferenced campus source is still required for a real navigable map.

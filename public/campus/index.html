@@ -358,10 +358,10 @@ const me=mkAv(0xf2b84b);const P={x:0,z:7,yaw:0,pitch:.35,face:0,tx:null,tz:null,
 const bots=[['Ada',0x4cc9a6],['Chidi',0x9aa8ff],['Ife',0xe8765a],['Tobi',0xd68cf0]].map((b,i)=>{const g=mkAv(b[1],i+1);const o={n:b[0],c:b[1],g,x:-8+i*5,z:-8-i*6,a:i*1.7,el:document.createElement('div')};o.el.className='nl';o.el.innerHTML=b[0]+' <span class="tag demo">DEMO</span>';$('labels').appendChild(o.el);return o});
 // input
 let first=false,keys={},ju={x:0,y:0},inside=false,near=null;
-addEventListener('keydown',e=>{keys[e.key.toLowerCase()]=1;const k=e.key.toLowerCase();if(k==='e')act();if(k==='c')$('cam').click();if(k==='m')$('mapb').click()});
+addEventListener('keydown',e=>{if(e.target instanceof HTMLElement&&e.target.closest('input,textarea,select,[contenteditable="true"]'))return;const k=e.key.toLowerCase();keys[k]=1;if(k.startsWith('arrow'))e.preventDefault();if(k==='e')act();if(k==='c')$('cam').click();if(k==='m')$('mapb').click()});
 addEventListener('keyup',e=>keys[e.key.toLowerCase()]=0);
 const app=$('app');let drag=null,moved=0;
-app.addEventListener('pointerdown',e=>{if(e.target.closest('.g,.ib,#joy,#act,#panel,#int'))return;drag={id:e.pointerId,x:e.clientX,y:e.clientY};moved=0});
+app.addEventListener('pointerdown',e=>{if(e.target.closest('.g,.ib,#joy,#act,#panel,#int'))return;drag={id:e.pointerId,x:e.clientX,y:e.clientY};moved=0;try{app.setPointerCapture(e.pointerId)}catch{}});
 addEventListener('pointermove',e=>{if(!drag||e.pointerId!==drag.id)return;const dx=e.clientX-drag.x,dy=e.clientY-drag.y;moved+=Math.abs(dx)+Math.abs(dy);drag.x=e.clientX;drag.y=e.clientY;P.yaw-=dx*.006;P.pitch=Math.max(-.5,Math.min(1.1,P.pitch+dy*.004*(first?-1:1)))});
 const rc=new THREE.Raycaster();
 addEventListener('pointerup',e=>{if(drag&&e.pointerId===drag.id){if(moved<6&&!inside){const r=app.getBoundingClientRect();rc.setFromCamera(new THREE.Vector2((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1),C);const h=rc.intersectObject(gr)[0];if(h){P.tx=h.point.x;P.tz=h.point.z}}drag=null}});
@@ -372,7 +372,7 @@ $('cam').onclick=()=>{first=!first;$('cam').textContent=first?'1st':'3rd';$('cam
 // UI
 const pn=$('panel');function show(h){pn.innerHTML=h;pn.classList.add('show')}window.cl=()=>pn.classList.remove('show');
 function walkTo(x,z){P.tx=x;P.tz=z;cl();toast('Walking…')}window.walkTo=walkTo;
-addEventListener('message',e=>{if(e.source!==parent||!e.data||typeof e.data!=='object')return;if(e.data.type==='futo:walk-to'&&Number.isFinite(e.data.x)&&Number.isFinite(e.data.z)){if(Math.abs(e.data.x)<700&&Math.abs(e.data.z)<700)walkTo(e.data.x,e.data.z)}else if(e.data.type==='futo:camera')$('cam').onclick();else if(e.data.type==='futo:map')$('mapb').onclick();else if(e.data.type==='futo:near')$('ppl').onclick()});
+addEventListener('message',e=>{if(e.source!==parent||!e.data||typeof e.data!=='object')return;if(e.data.type==='futo:walk-to'&&Number.isFinite(e.data.x)&&Number.isFinite(e.data.z)){if(Math.abs(e.data.x)<700&&Math.abs(e.data.z)<700)walkTo(e.data.x,e.data.z)}else if(e.data.type==='futo:key'&&typeof e.data.key==='string'&&['w','a','s','d','shift','arrowleft','arrowright','arrowup','arrowdown'].includes(e.data.key))keys[e.data.key]=Boolean(e.data.down);else if(e.data.type==='futo:camera')$('cam').onclick();else if(e.data.type==='futo:map')$('mapb').onclick();else if(e.data.type==='futo:near')$('ppl').onclick()});
 $('mapb').onclick=()=>parent.postMessage({type:'futo:open-map'},location.origin);
 $('ppl').onclick=()=>{if(pn.classList.contains('show')&&pn.dataset.k=='p'){cl();return}pn.dataset.k='p';show('<h3 style="margin:0">Nearby students <span class="tag demo">DEMO DATA</span></h3><div style="color:var(--mut);font-size:12px">Simulated avatars for layout only. No real people or networking.</div>'+bots.map((b,i)=>`<div class="li"><div class="av" style="background:#${b.c.toString(16).padStart(6,'0')}">${b.n[0]}</div><div><b>${b.n}</b><div style="color:var(--mut);font-size:12px">${Math.round(Math.hypot(b.x-P.x,b.z-P.z))} m away</div></div><button class="btn" onclick="wave(${i})">Wave</button></div>`).join('')+'<div class="row"><button class="btn" onclick="cl()">Close</button></div>')};
 window.wave=i=>{toast('Demo: you waved at '+bots[i].n)};
@@ -436,10 +436,10 @@ const clk=new THREE.Clock();
 function res(){const w=app.clientWidth,h=app.clientHeight;R.setSize(w,h,false);C.aspect=w/h;C.updateProjectionMatrix()}addEventListener('resize',res);res();
 const v3=new THREE.Vector3();
 function loop(){requestAnimationFrame(loop);const dt=Math.min(clk.getDelta(),.05);
- if(!inside){let ix=ju.x,iy=ju.y;if(keys.a||keys.arrowleft)ix-=1;if(keys.d||keys.arrowright)ix+=1;if(keys.w||keys.arrowup)iy-=1;if(keys.s||keys.arrowdown)iy+=1;
+ if(!inside){if(keys.arrowleft)P.yaw+=dt*1.8;if(keys.arrowright)P.yaw-=dt*1.8;if(keys.arrowup)P.pitch=Math.max(-.5,Math.min(1.1,P.pitch-dt*1.35));if(keys.arrowdown)P.pitch=Math.max(-.5,Math.min(1.1,P.pitch+dt*1.35));let ix=ju.x,iy=ju.y;if(keys.a)ix-=1;if(keys.d)ix+=1;if(keys.w)iy-=1;if(keys.s)iy+=1;
   const fx=-Math.sin(P.yaw),fz=-Math.cos(P.yaw),rx=Math.cos(P.yaw),rz=-Math.sin(P.yaw);let mx=rx*ix-fx*iy,mz=rz*ix-fz*iy,l=Math.hypot(mx,mz);
   if(l>.05)P.tx=null;else if(P.tx!=null){mx=P.tx-P.x;mz=P.tz-P.z;l=Math.hypot(mx,mz);if(l<.4){P.tx=null;l=0}}
-  let sp=0;if(l>.05){sp=(keys.shift||l>1.2?6.5:3.8)*Math.min(1,P.tx!=null?1:l);mx/=l;mz/=l}
+  let sp=0;if(l>.05){sp=(keys.shift?6.5:3.8)*Math.min(1,P.tx!=null?1:l);mx/=l;mz/=l}
   const kk=Math.min(1,dt*(sp>0?8:11));P.vx+=(mx*sp-P.vx)*kk;P.vz+=(mz*sp-P.vz)*kk;const spd=Math.hypot(P.vx,P.vz);
   if(P.tx!=null&&spd<.4){P.st=(P.st||0)+dt;if(P.st>.7){P.tx=null;P.st=0}}else P.st=0;
   if(spd>.02){let nx=P.x+P.vx*dt,nz=P.z+P.vz*dt;
