@@ -32,7 +32,8 @@ Mobile-first virtual FUTO campus. Next.js provides a public landing page, a camp
 
 - Public landing page with a responsive footer and Privacy/Terms pages.
 - 3D campus prototype at `/campus/index.html`, embedded at `/explore`, with a labeled collapsible menu and responsive mobile drawer.
-- Keyboard: W/A/S/D move, arrow keys look, Shift sprints. Touch: swipe on the scene to look and use the on-screen movement stick.
+- Keyboard: W/A/S/D move, arrow keys look, Shift sprints. Touch: swipe on the scene to look, use the movement stick, and hold RUN to sprint.
+- To open the dev server on a phone on the same Wi-Fi, run `npm run dev -- --hostname 0.0.0.0`, find the computer's IPv4 address with `ipconfig`, then visit `http://<computer-ip>:3000` on the phone.
 - Schematic map plots saved local positions and lists locations without positions; it does not draw roads or claim geographic accuracy.
 - Searchable location directory served from Supabase Postgres, seeded from the supplied inventory; the bundled JSON is the no-credentials fallback.
 - Email/password sign-in with confirmation, profile setup after confirmation, confirmation resend, profile editing, and sign-out.

@@ -16,6 +16,7 @@
 #joy{position:absolute;left:18px;bottom:calc(24px + env(safe-area-inset-bottom,0px));width:128px;height:128px;border-radius:50%;background:rgba(16,22,30,.5);border:1px solid var(--line);touch-action:none}
 #kn{position:absolute;left:42px;top:42px;width:44px;height:44px;border-radius:50%;background:var(--acc);opacity:.92}
 #act{position:absolute;right:20px;bottom:calc(34px + env(safe-area-inset-bottom,0px));width:88px;height:88px;border-radius:50%;border:2px solid var(--acc);background:rgba(242,184,75,.18);color:var(--acc);font:700 14px inherit;cursor:pointer;display:none}
+#run{position:absolute;left:158px;bottom:calc(54px + env(safe-area-inset-bottom,0px));width:66px;height:66px;border-radius:50%;border:1px solid rgba(242,184,75,.72);background:rgba(16,22,30,.78);color:var(--acc);font:700 12px inherit;touch-action:none;user-select:none;display:none}#run.on{background:rgba(242,184,75,.3);box-shadow:0 0 0 4px rgba(242,184,75,.13)}
 #prompt{position:absolute;left:50%;bottom:calc(168px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);padding:10px 16px;text-align:center;display:none;min-width:210px}
 .tag{display:inline-block;font-size:10px;padding:1px 6px;border-radius:6px;margin-left:4px;background:rgba(232,118,90,.2);color:var(--warn)}.tag.ok{background:rgba(76,201,166,.2);color:var(--acc2)}.tag.demo{background:rgba(154,168,255,.2);color:#aab4ff}
 #panel{position:absolute;left:0;right:0;bottom:0;max-height:72%;overflow:auto;padding:16px;background:rgba(20,27,36,.96);border-top:1px solid var(--line);border-radius:18px 18px 0 0;transform:translateY(105%);transition:transform .3s}
@@ -29,10 +30,10 @@
 #ban{display:none;position:absolute;left:50%;bottom:10px;transform:translateX(-50%);padding:5px 10px;font-size:11px;color:var(--mut);white-space:nowrap}
 #hint{display:none;position:absolute;left:14px;bottom:36px;padding:8px 12px;color:var(--mut);font-size:12px}
 #int{position:absolute;inset:0;background:radial-gradient(circle at 50% 30%,#2a2418,#0b0f14);display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px;gap:8px}
-@media(min-width:900px){#joy{display:none}#hint{display:block}#panel{left:auto;right:12px;bottom:12px;top:12px;width:360px;max-height:none;border-radius:16px;border:1px solid var(--line);transform:translateX(110%)}#panel.show{transform:none}}
+@media(min-width:900px){#joy,#run{display:none}#hint{display:block}#panel{left:auto;right:12px;bottom:12px;top:12px;width:360px;max-height:none;border-radius:16px;border:1px solid var(--line);transform:translateX(110%)}#panel.show{transform:none}}
 </style><style>
 @media(min-width:900px){#panel{top:70px;max-height:calc(100% - 82px)}#hint{display:none!important}}
-@media(max-width:899px){#joy{bottom:calc(238px + env(safe-area-inset-bottom,0px))}#act{bottom:calc(246px + env(safe-area-inset-bottom,0px))}#prompt{bottom:calc(355px + env(safe-area-inset-bottom,0px))}#hint{display:none!important}}
+@media(max-width:899px){#joy{bottom:calc(238px + env(safe-area-inset-bottom,0px))}#run{display:grid;place-items:center;left:auto;right:116px;bottom:calc(255px + env(safe-area-inset-bottom,0px))}#act{bottom:calc(246px + env(safe-area-inset-bottom,0px))}#prompt{bottom:calc(355px + env(safe-area-inset-bottom,0px))}#hint{display:none!important}}
 </style></head><body>
 <div id="app"><canvas id="gl"></canvas>
 <div id="labels"></div>
@@ -42,6 +43,7 @@
  <div id="toast" class="g"></div>
  <div id="prompt" class="g"><b id="pn"></b><div id="pd" style="color:var(--mut);font-size:12px"></div></div>
  <div id="joy"><div id="kn"></div></div>
+ <button id="run" type="button" aria-label="Hold to run" aria-pressed="false">RUN</button>
  <button id="act">Enter</button>
  <div id="hint" class="g">WASD move · Shift run · Drag to look · E enter · C camera · M map</div>
  <div id="ban" class="g" data-x="1">FUTO Life 3D preview · campus layout and building models need current verification · avatars are synthetic</div>
@@ -360,8 +362,9 @@ const bots=[['Ada',0x4cc9a6],['Chidi',0x9aa8ff],['Ife',0xe8765a],['Tobi',0xd68cf
 let first=false,keys={},ju={x:0,y:0},inside=false,near=null;
 addEventListener('keydown',e=>{if(e.target instanceof HTMLElement&&e.target.closest('input,textarea,select,[contenteditable="true"]'))return;const k=e.key.toLowerCase();keys[k]=1;if(k.startsWith('arrow'))e.preventDefault();if(k==='e')act();if(k==='c')$('cam').click();if(k==='m')$('mapb').click()});
 addEventListener('keyup',e=>keys[e.key.toLowerCase()]=0);
+const runButton=$('run');function setRunning(on){keys.shift=on;runButton.classList.toggle('on',on);runButton.setAttribute('aria-pressed',String(on))}runButton.addEventListener('pointerdown',e=>{e.preventDefault();try{runButton.setPointerCapture(e.pointerId)}catch{}setRunning(true)});['pointerup','pointercancel','lostpointercapture'].forEach(type=>runButton.addEventListener(type,()=>setRunning(false)));runButton.addEventListener('contextmenu',e=>e.preventDefault());
 const app=$('app');let drag=null,moved=0;
-app.addEventListener('pointerdown',e=>{if(e.target.closest('.g,.ib,#joy,#act,#panel,#int'))return;drag={id:e.pointerId,x:e.clientX,y:e.clientY};moved=0;try{app.setPointerCapture(e.pointerId)}catch{}});
+app.addEventListener('pointerdown',e=>{if(e.target.closest('.g,.ib,#joy,#run,#act,#panel,#int'))return;drag={id:e.pointerId,x:e.clientX,y:e.clientY};moved=0;try{app.setPointerCapture(e.pointerId)}catch{}});
 addEventListener('pointermove',e=>{if(!drag||e.pointerId!==drag.id)return;const dx=e.clientX-drag.x,dy=e.clientY-drag.y;moved+=Math.abs(dx)+Math.abs(dy);drag.x=e.clientX;drag.y=e.clientY;P.yaw-=dx*.006;P.pitch=Math.max(-.5,Math.min(1.1,P.pitch+dy*.004*(first?-1:1)))});
 const rc=new THREE.Raycaster();
 addEventListener('pointerup',e=>{if(drag&&e.pointerId===drag.id){if(moved<6&&!inside){const r=app.getBoundingClientRect();rc.setFromCamera(new THREE.Vector2((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1),C);const h=rc.intersectObject(gr)[0];if(h){P.tx=h.point.x;P.tz=h.point.z}}drag=null}});
@@ -379,7 +382,7 @@ window.wave=i=>{toast('Demo: you waved at '+bots[i].n)};
 function act(){if(inside||!near)return;P.tx=null;P.vx=P.vz=0;const f=$('fade');f.style.opacity=1;setTimeout(()=>{inside=true;$('it').textContent=near.n;$('int').style.display='flex';cl();f.style.opacity=0},350)}
 $('act').onclick=act;
 $('lv').onclick=()=>{const f=$('fade');f.style.opacity=1;setTimeout(()=>{$('int').style.display='none';inside=false;f.style.opacity=0},350)};
-addEventListener('blur',()=>{keys={};ju={x:0,y:0}});['pointercancel','lostpointercapture'].forEach(ev=>joy.addEventListener(ev,()=>{jp=null;ju={x:0,y:0};kn.style.left=kn.style.top='42px'}));addEventListener('pointercancel',()=>{drag=null});
+addEventListener('blur',()=>{keys={};setRunning(false);ju={x:0,y:0}});['pointercancel','lostpointercapture'].forEach(ev=>joy.addEventListener(ev,()=>{jp=null;ju={x:0,y:0};kn.style.left=kn.style.top='42px'}));addEventListener('pointercancel',()=>{drag=null});
 let fa=0,fn=0,qd=0;function fps(dt){fa+=dt;fn++;if(fa>3){const ms=fa/fn*1000;fa=fn=0;if(ms>26&&qd<2){qd++;if(qd==1){R.setPixelRatio(1);res()}else{sun.castShadow=false;toast('Low-end mode: shadows off')}}}}
 /* geozone.js (inlined, tested in Node) */
 (function(root){
