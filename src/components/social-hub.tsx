@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/browser";
 
 type Person = { id: string; display_name: string; department: string | null; year_of_study: number | null; avatar_url: string | null; bio?: string | null; referral_code?: string; is_suspended?: boolean };
@@ -11,7 +12,7 @@ type Chat = { id: string; kind: "direct" | "group"; title: string | null; create
 type ReferralRow = {profile_id:string;display_name:string;depth:number;joined_at:string};
 type ReportReason = "spam"|"harassment"|"hate_or_abuse"|"sexual_content"|"violence"|"false_information"|"other";
 
-export default function SocialHub({ onClose, onSignIn, onProfileChange }: { onClose: () => void; onSignIn: () => void; onProfileChange: (profile: Person) => void }) {
+export default function SocialHub({ onClose = () => {}, onSignIn, onProfileChange = () => {}, standalone = false }: { onClose?: () => void; onSignIn?: () => void; onProfileChange?: (profile: Person) => void; standalone?: boolean }) {
   const supabase = useMemo(() => createClient(), []);
   const [me, setMe] = useState<Person | null>(null);
   const [people, setPeople] = useState<Person[]>([]);
@@ -203,9 +204,9 @@ export default function SocialHub({ onClose, onSignIn, onProfileChange }: { onCl
     setBusy(false); if (profileError) setNotice(profileError.message); else { const updated = { ...me, avatar_url: `${data.publicUrl}?v=${Date.now()}` }; setMe(updated); onProfileChange(updated); setNotice("Profile photo updated."); await load(); }
   }
 
-  return <div className="social-backdrop" onMouseDown={e => {if(e.target===e.currentTarget)onClose();}}><section className="social-window panel" role="dialog" aria-modal="true" aria-label="FUTO Life social">
-    <header className="social-header"><div className="social-brand"><div className="eyebrow">FUTO LIFE · COMMUNITY</div><h2>Connect on campus</h2></div><button className="secondary social-close" onClick={onClose} aria-label="Close social">×</button></header>
-    {!me ? <div className="social-empty">{notice || "Sign in and complete your profile to use the student community."}<br/><button className="primary social-signin" onClick={onSignIn}>Sign in / create account</button></div> : <>
+  return <div className={`social-backdrop${standalone?" social-standalone":""}`} onMouseDown={e => {if(!standalone&&e.target===e.currentTarget)onClose();}}><section className={`social-window panel${standalone?" social-page-window":""}`} role={standalone?"main":"dialog"} aria-modal={standalone?undefined:true} aria-label="FUTO Life social">
+    <header className="social-header"><div className="social-brand"><div className="eyebrow">FUTO LIFE · COMMUNITY</div><h2>Connect on campus</h2></div>{standalone?<Link className="secondary social-close-link" href="/explore">← Campus</Link>:<button className="secondary social-close" onClick={onClose} aria-label="Close social">×</button>}</header>
+    {!me ? <div className="social-empty">{notice || "Sign in and complete your profile to use the student community."}<br/>{standalone?<Link className="primary social-signin" href="/explore?auth=signin">Sign in / create account</Link>:<button className="primary social-signin" onClick={onSignIn}>Sign in / create account</button>}</div> : <>
       <nav className="social-tabs">{(["feed","friends","messages","profile"] as const).map(item => <button key={item} className={tab===item?"active":""} onClick={()=>setTab(item)}>{item === "feed" ? "Feed" : item === "friends" ? `Friends${friends.length?` · ${friends.length}`:""}` : item === "messages" ? "Messages" : "My profile"}</button>)}</nav>
       {notice && <p className="social-notice" role="status">{notice}</p>}
       <div className="social-content">
