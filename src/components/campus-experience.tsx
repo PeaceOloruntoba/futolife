@@ -199,6 +199,7 @@ function DockAction({icon,label,detail,onClick,active=false}:{icon:"walk"|"map"|
 function AccountDialog({ email: currentEmail, profile, initialName, initialMessage, initialReferralCode, redirectTo, onClose, onSignedIn }: { email: string | null; profile: Profile | null; initialName: string; initialMessage: string; initialReferralCode: string; redirectTo: string; onClose: () => void; onSignedIn: (email: string, profile: Profile | null) => void }) {
   const supabase = useMemo(() => createClient(), []);
   const [mode, setMode] = useState<AuthMode>(currentEmail || initialReferralCode ? "signup" : "signin");
+  const [recoveringPassword, setRecoveringPassword] = useState(false);
   const [email, setEmail] = useState(currentEmail ?? "");
   const [password, setPassword] = useState("");
   const [referralCode,setReferralCode] = useState(initialReferralCode);
@@ -227,6 +228,14 @@ function AccountDialog({ email: currentEmail, profile, initialName, initialMessa
     if (!supabase) { setMessage("Account sign-in is not connected yet. Add your Supabase project URL and public key to .env.local."); return; }
     setBusy(true); setMessage("");
     try {
+      if (recoveringPassword) {
+        const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+          redirectTo: `${window.location.origin}/auth/callback?next=%2Freset-password`,
+        });
+        if (error) throw error;
+        setMessage("If an account exists for that email, a password reset link has been sent. Check your inbox and spam folder.");
+        return;
+      }
       const { data: { user: currentUser } } = await supabase.auth.getUser();
       if (currentUser) setAuthenticated(true);
       if (mode === "signup") {
@@ -273,23 +282,23 @@ function AccountDialog({ email: currentEmail, profile, initialName, initialMessa
   }
 
   return <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}><section className="modal panel" role="dialog" aria-modal="true" aria-labelledby="account-title">
-    <div className="eyebrow">Your FUTO Life account</div><h2 id="account-title">{hasSession ? (profile ? "Edit your profile" : "Complete your profile") : mode === "signin" ? "Welcome back" : "Join FUTO Life"}</h2>
+    <div className="eyebrow">Your FUTO Life account</div><h2 id="account-title">{recoveringPassword ? "Reset your password" : hasSession ? (profile ? "Edit your profile" : "Complete your profile") : mode === "signin" ? "Welcome back" : "Join FUTO Life"}</h2>
     <p>Save your profile and make your campus experience yours. Connect with classmates through FUTO Life.</p>
     {!supabase && <p className="error">Supabase credentials are not configured yet. Guest campus exploration is available.</p>}
     <form className="form" onSubmit={submit}>
       <label className="field">Email<input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" readOnly={hasSession} /></label>
-      {!hasSession && <label className="field">Password<input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} autoComplete={mode === "signin" ? "current-password" : "new-password"} /></label>}
+      {!hasSession && !recoveringPassword && <label className="field">Password<input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} autoComplete={mode === "signin" ? "current-password" : "new-password"} /></label>}
       {!hasSession && mode === "signup" && <label className="field">Referral code (optional)<input value={referralCode} onChange={e=>setReferralCode(e.target.value.trim())} maxLength={40} autoComplete="off" placeholder="Enter a classmate’s referral code"/></label>}
       {showProfileFields && <>
         <label className="field">Display name<input value={name} onChange={(e) => setName(e.target.value)} minLength={2} maxLength={48} required /></label>
         <label className="field">Department (optional)<input value={department} onChange={(e) => setDepartment(e.target.value)} maxLength={80} placeholder="e.g. Computer Science" /></label>
         <label className="field">Year of study (optional)<select value={year} onChange={(e) => setYear(e.target.value)} className="field input" style={{ background: "#10120f", color: "white", border: "1px solid #3b4037", borderRadius: 10, padding: 11 }}><option value="">Choose year</option>{[1,2,3,4,5,6,7].map((n) => <option key={n} value={n}>{n}</option>)}</select></label>
       </>}
-      {message && <p className={message.startsWith("Check your email") || message.startsWith("Confirmation email sent") ? "panel-copy" : "error"} role="status">{message}</p>}
-      <button className="primary" disabled={busy || !supabase}>{busy ? "Please wait…" : hasSession ? "Save profile" : mode === "signin" ? "Sign in" : "Create account"}</button>
+      {message && <p className={message.startsWith("Check your email") || message.startsWith("Confirmation email sent") || message.startsWith("If an account exists") ? "panel-copy" : "error"} role="status">{message}</p>}
+      <button className="primary" disabled={busy || !supabase}>{busy ? "Please wait…" : recoveringPassword ? "Send reset link" : hasSession ? "Save profile" : mode === "signin" ? "Sign in" : "Create account"}</button>
       {canResendConfirmation && <button className="secondary" type="button" disabled={resendBusy || !supabase} onClick={() => void resendConfirmation()}>{resendBusy ? "Sending…" : "Resend confirmation email"}</button>}
     </form>
-    {!hasSession && <div className="actions-row"><button className="secondary" onClick={() => { setMode(mode === "signin" ? "signup" : "signin"); setMessage(""); }}>{mode === "signin" ? "Create an account" : "I already have an account"}</button><button className="secondary" onClick={onClose}>Explore as guest</button></div>}
+    {!hasSession && <div className="actions-row"><button className="secondary" onClick={() => { setRecoveringPassword(false); setMode(mode === "signin" ? "signup" : "signin"); setMessage(""); }}>{recoveringPassword ? "Back to sign in" : mode === "signin" ? "Create an account" : "I already have an account"}</button>{!recoveringPassword && mode === "signin" && <button className="text-action" type="button" onClick={() => { setRecoveringPassword(true); setMessage(""); }}>Forgot password?</button>}<button className="secondary" onClick={onClose}>Explore as guest</button></div>}
     {hasSession && <div className="actions-row"><button className="secondary" onClick={signOut}>Sign out</button><button className="secondary" onClick={onClose}>Close</button></div>}
   </section></div>;
 }
