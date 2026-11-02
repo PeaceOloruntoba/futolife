@@ -149,10 +149,11 @@ export default function SocialHub({ onClose, onSignIn, onProfileChange }: { onCl
   }
   async function createGroup(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); if (!supabase) return;
-    const form = new FormData(event.currentTarget); const title = String(form.get("groupTitle") ?? "");
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement); const title = String(form.get("groupTitle") ?? "");
     const ids = form.getAll("groupFriend").map(String);
     const { data, error } = await supabase.rpc("create_group_conversation", { group_title: title, friend_ids: ids });
-    if (error) setNotice(error.message); else { event.currentTarget.reset(); await load(); setActiveChat(data as string); setNotice("Group chat created."); }
+    if (error) setNotice(error.message); else { formElement.reset(); await load(); setActiveChat(data as string); setNotice("Group chat created."); }
   }
   async function sendMessage(event: FormEvent) {
     event.preventDefault(); if (!supabase || !me || !activeChat || !draftMessage.trim()) return;
