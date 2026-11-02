@@ -13,6 +13,7 @@ export type CampusLocation = {
   longitude?: number | null;
   local_x?: number | null;
   local_z?: number | null;
+  image_url?: string | null;
 };
 
 type InventoryLocation = CampusLocation & {

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
+import Link from "next/link";
 import { locations, type CampusLocation } from "@/lib/locations";
 import { createClient } from "@/lib/supabase/browser";
 import SocialHub from "@/components/social-hub";
@@ -20,6 +21,7 @@ export default function CampusExperience() {
   const [accountOpen, setAccountOpen] = useState(false);
   const [socialOpen, setSocialOpen] = useState(false);
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [email, setEmail] = useState<string | null>(null);
   const [profileNameDraft, setProfileNameDraft] = useState("");
   const [authNotice, setAuthNotice] = useState("");
@@ -80,7 +82,10 @@ export default function CampusExperience() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    if (params.get("auth") === "confirmation-error") {
+    if (params.get("auth") === "signin") {
+      setAccountOpen(true);
+      window.history.replaceState({}, "", window.location.pathname);
+    } else if (params.get("auth") === "confirmation-error") {
       setAuthNotice("We couldn’t confirm that email link. It may have expired; enter your email and resend the confirmation.");
       setAccountOpen(true);
       window.history.replaceState({}, "", window.location.pathname);
@@ -115,6 +120,8 @@ export default function CampusExperience() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!active || !user) return;
       setEmail(user.email ?? null);
+      const { data: role } = await supabase.from("user_roles").select("role").eq("user_id", user.id).eq("role", "admin").maybeSingle();
+      if (active) setIsAdmin(Boolean(role));
       const metadataName = user.user_metadata?.display_name;
       if (typeof metadataName === "string") setProfileNameDraft(metadataName);
       const response = await fetch("/api/profile", { cache: "no-store" });
@@ -126,7 +133,8 @@ export default function CampusExperience() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!active) return;
       setEmail(session?.user.email ?? null);
-      if (!session) setProfile(null);
+      if (!session) { setProfile(null); setIsAdmin(false); }
+      else void supabase.from("user_roles").select("role").eq("user_id", session.user.id).eq("role", "admin").maybeSingle().then(({ data }) => { if (active) setIsAdmin(Boolean(data)); });
     });
     return () => { active = false; subscription.unsubscribe(); };
   }, []);
@@ -136,6 +144,7 @@ export default function CampusExperience() {
     <header className="topbar">
       <div className="brand"><div className="brand-mark">F</div><div><div className="brand-title">FUTO LIFE</div><div className="brand-sub">Explore your campus. Find your people.</div></div></div>
       <div className="top-actions">
+        {isAdmin && <Link className="glass admin-nav-link" href="/admin" title="Campus admin dashboard">Admin</Link>}
         <IconButton label="Switch camera view" onClick={() => runWorldControl("camera")}><path d="M3 7.5h3l1.5-2h5l1.5 2h3v9H3z"/><circle cx="10" cy="12" r="3"/></IconButton>
         <IconButton label="Open campus map" onClick={() => runWorldControl("map")}><path d="m3 6 5-2 5 2 4-2v12l-4 2-5-2-5 2z"/><path d="M8 4v12m5-10v12"/></IconButton>
         <IconButton label="Toggle places directory" onClick={() => runWorldControl("directory")}><path d="M10 18s6-5.2 6-10a6 6 0 1 0-12 0c0 4.8 6 10 6 10Z"/><circle cx="10" cy="8" r="2"/></IconButton>
@@ -151,7 +160,7 @@ export default function CampusExperience() {
         <div className="panel-copy">Explore the campus prototype and browse the current location inventory. Estimated positions are labelled.</div>
         <input className="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search buildings, halls, facilities…" aria-label="Search campus locations" />
       </div>
-      {selected && <div className="selected-place"><div className="selected-place-title">{selected.name}</div><div className="loc-meta">{selected.category.replaceAll("-", " ")} · {selected.position_status === "provisional" ? "Estimated position" : selected.position_status === "verified" ? "Verified" : "Unverified"}</div><div className="selected-place-copy">{selected.description || selected.notes || "Details and map position need confirmation."}</div><button className="clear-place" onClick={() => setSelected(null)}>Clear selection</button></div>}
+      {selected && <div className="selected-place">{selected.image_url && <img className="selected-place-image" src={selected.image_url} alt={`Photo of ${selected.name}`} />}<div className="selected-place-title">{selected.name}</div><div className="loc-meta">{selected.category.replaceAll("-", " ")} · {selected.position_status === "provisional" ? "Estimated position" : selected.position_status === "verified" ? "Verified" : "Unverified"}</div><div className="selected-place-copy">{selected.description || selected.notes || "Details and map position need confirmation."}</div><button className="clear-place" onClick={() => setSelected(null)}>Clear selection</button></div>}
       <div className="location-list" aria-live="polite">
         {visibleLocations.map((place) => <button className="location-row" key={place.id} onClick={() => chooseLocation(place)}>
           <span className="loc-icon">{place.category === "lecture" ? "⌂" : place.category === "entrance" ? "↗" : "•"}</span>

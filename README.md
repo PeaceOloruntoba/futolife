@@ -24,7 +24,7 @@ Mobile-first virtual FUTO campus. The Next.js application wraps the supplied Thr
    npx supabase@latest db push --linked
    ```
 
-   The migrations in `supabase/migrations/` create profiles, the campus-location inventory, friend requests, posts and comments, direct/group conversations, avatar storage policies, and their row-level security rules. `--linked` makes the target explicit.
+   The migrations in `supabase/migrations/` create profiles, the campus-location inventory, friend requests, posts and comments, direct/group conversations, avatar storage policies, the campus admin role, and their row-level security rules. `--linked` makes the target explicit.
 
 6. Start the app with `npm run dev` and open `http://localhost:3000`.
 
@@ -35,6 +35,7 @@ Mobile-first virtual FUTO campus. The Next.js application wraps the supplied Thr
 - Searchable location directory served from Supabase Postgres, seeded from the supplied inventory; the bundled JSON is the no-credentials fallback.
 - Email/password sign-in with confirmation, profile setup after confirmation, confirmation resend, profile editing, and sign-out.
 - Student discovery, friend requests and approval, friend lists, profile photos, a friends-only feed with friend tags, reactions and comments, direct messages and friend-only group chats.
+- Admin dashboard at `/admin` for managing place details, WGS84 and 3D coordinates, evidence, verification status, photos and GeoJSON imports. Imported coordinates remain provisional; reviewed locations need evidence before they can be marked verified.
 - Guest campus exploration remains available.
 
 Multiplayer presence, events and missions are later releases. Social tools require a confirmed account and a completed profile. A direct chat is accessible only while both participants are accepted friends; group members are selected from the creator's accepted friends. Posts are visible to their authors and accepted friends. Configure Supabase Realtime for the `messages` table for immediate incoming chat updates; messages remain available from Postgres if realtime is temporarily disconnected. Many positions in the supplied inventory are null or explicitly provisional. Directory items carry an unverified label until the project has trustworthy evidence. GeoJSON imports are temporary visual previews and never mark features verified or save to the database. A current, georeferenced campus source is still required for a real navigable map.
@@ -44,5 +45,7 @@ Multiplayer presence, events and missions are later releases. Social tools requi
 Do not commit `.env.local`, service-role keys, or credentials. The browser receives only the project's public publishable key (legacy anon keys are also accepted). Profile reads and writes are protected by row-level security and tied to the signed-in user's auth ID. `campus_locations` is publicly readable; only reviewed, evidence-backed records should be treated as verified.
 
 Account creation accepts any email address and requests email confirmation. In Supabase Auth settings, enable email confirmations, set the Site URL to `http://localhost:3000`, and allow `http://localhost:3000/auth/callback` as a redirect URL for local development. Set the production Site URL and callback URL before launch. Email verification confirms mailbox access; it does not independently verify FUTO enrollment.
+
+The confirmed account for `admin@futolife.com` receives the admin role automatically from the admin migration. Create that account through the normal sign-up flow, verify its mailbox, and choose a private, unique password in Supabase Auth. The app does not contain a default admin password. Admin role checks and campus write permissions are enforced by Supabase row-level security, not just by hiding the dashboard link.
 
 Before accepting student sign-ups, configure custom SMTP in Supabase Auth. Supabase's default mail service is restricted to project-team email addresses and low-volume testing; it is not suitable for a campus launch. See the [Supabase custom SMTP guide](https://supabase.com/docs/guides/auth/auth-smtp).
