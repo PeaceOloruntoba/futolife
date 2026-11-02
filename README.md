@@ -1,6 +1,6 @@
 # FUTO Life
 
-Mobile-first virtual FUTO campus. The Next.js application wraps the supplied Three.js proof of concept and adds a location directory and account/profile foundation. The campus remains a browser-side experience; Next.js route handlers provide the server boundary, and Supabase provides Postgres and authentication.
+Mobile-first virtual FUTO campus. The Next.js application wraps the supplied Three.js proof of concept and adds a location directory, accounts, profiles and a friend-based social layer. The campus remains a browser-side experience; Next.js route handlers provide the server boundary, and Supabase provides Postgres, authentication, storage and realtime messages.
 
 ## Local setup
 
@@ -24,7 +24,7 @@ Mobile-first virtual FUTO campus. The Next.js application wraps the supplied Thr
    npx supabase@latest db push --linked
    ```
 
-   The migrations in `supabase/migrations/` create the profile and campus-location tables, policies, and initial location inventory. `--linked` makes the target explicit.
+   The migrations in `supabase/migrations/` create profiles, the campus-location inventory, friend requests, posts and comments, direct/group conversations, avatar storage policies, and their row-level security rules. `--linked` makes the target explicit.
 
 6. Start the app with `npm run dev` and open `http://localhost:3000`.
 
@@ -34,9 +34,10 @@ Mobile-first virtual FUTO campus. The Next.js application wraps the supplied Thr
 - Schematic map plots saved local positions and lists locations without positions; it does not draw roads or claim geographic accuracy.
 - Searchable location directory served from Supabase Postgres, seeded from the supplied inventory; the bundled JSON is the no-credentials fallback.
 - Email/password sign-in with confirmation, profile setup after confirmation, confirmation resend, profile editing, and sign-out.
+- Student discovery, friend requests and approval, friend lists, profile photos, a friends-only feed with friend tags, reactions and comments, direct messages and friend-only group chats.
 - Guest campus exploration remains available.
 
-Chat, group creation, multiplayer presence, events and missions are later releases. Many positions in the supplied inventory are null or explicitly provisional. Directory items carry an unverified label until the project has trustworthy evidence. GeoJSON imports are temporary visual previews and never mark features verified or save to the database. A current, georeferenced campus source is still required for a real navigable map.
+Multiplayer presence, events and missions are later releases. Social tools require a confirmed account and a completed profile. A direct chat is accessible only while both participants are accepted friends; group members are selected from the creator's accepted friends. Posts are visible to their authors and accepted friends. Configure Supabase Realtime for the `messages` table for immediate incoming chat updates; messages remain available from Postgres if realtime is temporarily disconnected. Many positions in the supplied inventory are null or explicitly provisional. Directory items carry an unverified label until the project has trustworthy evidence. GeoJSON imports are temporary visual previews and never mark features verified or save to the database. A current, georeferenced campus source is still required for a real navigable map.
 
 ## Supabase configuration
 

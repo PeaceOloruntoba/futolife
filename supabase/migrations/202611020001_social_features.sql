@@ -17,7 +17,8 @@ create table if not exists public.friendships (
   updated_at timestamptz not null default now(),
   check (requester_id <> addressee_id)
 );
-create unique index if not exists friendships_pair_unique on public.friendships (least(requester_id, addressee_id), greatest(requester_id, addressee_id));
+drop index if exists public.friendships_pair_unique;
+create unique index friendships_active_pair_unique on public.friendships (least(requester_id, addressee_id), greatest(requester_id, addressee_id)) where status in ('pending','accepted');
 create index if not exists friendships_addressee_pending on public.friendships (addressee_id, status);
 alter table public.friendships enable row level security;
 drop policy if exists "Users can read their friendships" on public.friendships;
@@ -30,6 +31,17 @@ drop policy if exists "Recipients can respond to requests" on public.friendships
 create policy "Recipients can respond to requests" on public.friendships for update to authenticated
 using ((select auth.uid()) = addressee_id and status = 'pending')
 with check ((select auth.uid()) = addressee_id and status in ('accepted','declined'));
+create or replace function public.protect_friendship_participants()
+returns trigger language plpgsql set search_path = '' as $$
+begin
+  if new.requester_id <> old.requester_id or new.addressee_id <> old.addressee_id or old.status <> 'pending' or new.status not in ('accepted','declined') then
+    raise exception 'Friend request participants cannot be changed';
+  end if;
+  return new;
+end;
+$$;
+drop trigger if exists protect_friendship_participants on public.friendships;
+create trigger protect_friendship_participants before update on public.friendships for each row execute function public.protect_friendship_participants();
 drop policy if exists "Requesters can cancel requests" on public.friendships;
 create policy "Requesters can cancel requests" on public.friendships for delete to authenticated using ((select auth.uid()) = requester_id and status = 'pending');
 drop policy if exists "Friends can end friendship" on public.friendships;
@@ -46,7 +58,10 @@ create table if not exists public.posts (
 create index if not exists posts_created_at_idx on public.posts (created_at desc);
 alter table public.posts enable row level security;
 drop policy if exists "Signed in users can read posts" on public.posts;
-create policy "Signed in users can read posts" on public.posts for select to authenticated using (true);
+create policy "Users can read their friends posts" on public.posts for select to authenticated using (
+  author_id=(select auth.uid()) or exists(select 1 from public.friendships f where f.status='accepted' and
+    ((f.requester_id=(select auth.uid()) and f.addressee_id=author_id) or (f.addressee_id=(select auth.uid()) and f.requester_id=author_id)))
+);
 drop policy if exists "Authors can create posts" on public.posts;
 create policy "Authors can create posts" on public.posts for insert to authenticated with check ((select auth.uid()) = author_id);
 drop policy if exists "Authors can edit posts" on public.posts;
@@ -62,7 +77,7 @@ create table if not exists public.post_tags (
 );
 alter table public.post_tags enable row level security;
 drop policy if exists "Signed in users can read post tags" on public.post_tags;
-create policy "Signed in users can read post tags" on public.post_tags for select to authenticated using (true);
+create policy "Users can read visible post tags" on public.post_tags for select to authenticated using (exists(select 1 from public.posts p where p.id=post_id));
 drop policy if exists "Authors can tag friends in posts" on public.post_tags;
 create policy "Authors can tag friends in posts" on public.post_tags for insert to authenticated with check (
   exists (select 1 from public.posts p where p.id = post_id and p.author_id = (select auth.uid())) and
@@ -78,9 +93,9 @@ create table if not exists public.post_reactions (
 );
 alter table public.post_reactions enable row level security;
 drop policy if exists "Signed in users can read reactions" on public.post_reactions;
-create policy "Signed in users can read reactions" on public.post_reactions for select to authenticated using (true);
+create policy "Users can read reactions on visible posts" on public.post_reactions for select to authenticated using (exists(select 1 from public.posts p where p.id=post_id));
 drop policy if exists "Users can react to posts" on public.post_reactions;
-create policy "Users can react to posts" on public.post_reactions for insert to authenticated with check ((select auth.uid()) = profile_id);
+create policy "Users can react to visible posts" on public.post_reactions for insert to authenticated with check ((select auth.uid()) = profile_id and exists(select 1 from public.posts p where p.id=post_id));
 drop policy if exists "Users can remove their reactions" on public.post_reactions;
 create policy "Users can remove their reactions" on public.post_reactions for delete to authenticated using ((select auth.uid()) = profile_id);
 
@@ -94,9 +109,9 @@ create table if not exists public.post_comments (
 create index if not exists post_comments_post_idx on public.post_comments (post_id, created_at);
 alter table public.post_comments enable row level security;
 drop policy if exists "Signed in users can read comments" on public.post_comments;
-create policy "Signed in users can read comments" on public.post_comments for select to authenticated using (true);
+create policy "Users can read comments on visible posts" on public.post_comments for select to authenticated using (exists(select 1 from public.posts p where p.id=post_id));
 drop policy if exists "Users can comment on posts" on public.post_comments;
-create policy "Users can comment on posts" on public.post_comments for insert to authenticated with check ((select auth.uid()) = author_id);
+create policy "Users can comment on visible posts" on public.post_comments for insert to authenticated with check ((select auth.uid()) = author_id and exists(select 1 from public.posts p where p.id=post_id));
 drop policy if exists "Authors can delete their comments" on public.post_comments;
 create policy "Authors can delete their comments" on public.post_comments for delete to authenticated using ((select auth.uid()) = author_id);
 

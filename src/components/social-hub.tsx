@@ -9,7 +9,7 @@ type Post = { id: string; author_id: string; body: string; created_at: string };
 type Message = { id: string; conversation_id: string; sender_id: string; body: string; created_at: string };
 type Chat = { id: string; kind: "direct" | "group"; title: string | null; created_at: string; members: Person[]; lastMessage?: Message };
 
-export default function SocialHub({ onClose }: { onClose: () => void }) {
+export default function SocialHub({ onClose, onSignIn, onProfileChange }: { onClose: () => void; onSignIn: () => void; onProfileChange: (profile: Person) => void }) {
   const supabase = useMemo(() => createClient(), []);
   const [me, setMe] = useState<Person | null>(null);
   const [people, setPeople] = useState<Person[]>([]);
@@ -163,7 +163,7 @@ export default function SocialHub({ onClose }: { onClose: () => void }) {
     event.preventDefault(); if (!supabase || !me) return;
     setBusy(true);
     const { data, error } = await supabase.from("profiles").update({ display_name:profileDraft.display_name.trim(), department:profileDraft.department.trim() || null, year_of_study:profileDraft.year ? Number(profileDraft.year) : null, bio:profileDraft.bio.trim() || null }).eq("id",me.id).select("id,display_name,department,year_of_study,avatar_url,bio").single();
-    setBusy(false); if (error) setNotice(error.message); else { setMe(data as Person); setNotice("Profile saved."); await load(); }
+    setBusy(false); if (error) setNotice(error.message); else { setMe(data as Person); onProfileChange(data as Person); setNotice("Profile saved."); await load(); }
   }
   async function uploadAvatar(file?: File) {
     if (!supabase || !me || !file) return;
@@ -174,12 +174,12 @@ export default function SocialHub({ onClose }: { onClose: () => void }) {
     if (error) { setBusy(false); setNotice(error.message); return; }
     const { data } = supabase.storage.from("profile-avatars").getPublicUrl(path);
     const { error: profileError } = await supabase.from("profiles").update({ avatar_url:`${data.publicUrl}?v=${Date.now()}` }).eq("id",me.id);
-    setBusy(false); if (profileError) setNotice(profileError.message); else { setNotice("Profile photo updated."); await load(); }
+    setBusy(false); if (profileError) setNotice(profileError.message); else { const updated = { ...me, avatar_url: `${data.publicUrl}?v=${Date.now()}` }; setMe(updated); onProfileChange(updated); setNotice("Profile photo updated."); await load(); }
   }
 
   return <div className="social-backdrop" onMouseDown={e => {if(e.target===e.currentTarget)onClose();}}><section className="social-window panel" role="dialog" aria-modal="true" aria-label="FUTO Life social">
     <header className="social-header"><div className="social-brand"><div className="eyebrow">FUTO LIFE · COMMUNITY</div><h2>Connect on campus</h2></div><button className="secondary social-close" onClick={onClose} aria-label="Close social">×</button></header>
-    {!me ? <div className="social-empty">{notice || "Sign in and complete your profile to use the student community."}</div> : <>
+    {!me ? <div className="social-empty">{notice || "Sign in and complete your profile to use the student community."}<br/><button className="primary social-signin" onClick={onSignIn}>Sign in / create account</button></div> : <>
       <nav className="social-tabs">{(["feed","friends","messages","profile"] as const).map(item => <button key={item} className={tab===item?"active":""} onClick={()=>setTab(item)}>{item === "feed" ? "Feed" : item === "friends" ? `Friends${friends.length?` · ${friends.length}`:""}` : item === "messages" ? "Messages" : "My profile"}</button>)}</nav>
       {notice && <p className="social-notice" role="status">{notice}</p>}
       <div className="social-content">
