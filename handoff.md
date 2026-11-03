@@ -8,12 +8,13 @@
 - Campus explorer includes a collapsible directory, schematic map, touch joystick and swipe look; desktop uses WASD, arrows and Shift; mobile has a hold-to-run button.
 - Recent UI work separates chat list/thread scrolling, follows the newest messages, and resizes the chat view for the mobile keyboard.
 - Latest controls/auth update: moved the mobile movement stick to the bottom-left with safe-area spacing; sign-in and signup password fields now have accessible Show/Hide buttons.
+- Latest platform feedback update: added a global Sonner toaster (color-coded, top-right) and routed account confirmation/recovery, social, admin, and reset-password notices into it. Added/extended pending labels and disabled states for chat actions and admin confirmations, plus initial loading labels for admin data.
 - Supabase migrations are in `supabase/migrations/`, through `202611020004_post_hashtags.sql`.
 
 ## Known gaps / outstanding bugs
 
 - **Campus data is not launch-ready for navigation:** many places have null, provisional or unverified coordinates. The 3D campus is a prototype; the schematic map is not a verified geographic map. A sourced, georeferenced campus dataset and review of place names/positions are still needed.
-- **Mobile chat and controls need device verification:** TypeScript and production builds pass, but keyboard resizing, scrolling, touch movement and the RUN control have not had a comprehensive real-device test.
+- **Mobile chat, controls, and toast placement need device verification:** TypeScript passes, but keyboard resizing, scrolling, touch movement, the RUN control, and top-right toast fit/visibility on small screens have not had a comprehensive real-device test.
 - **Operational setup remains:** apply any unapplied migrations to the linked Supabase project; configure production Site URL, auth callback/recovery redirect allow-list, email delivery, and Realtime for `messages`.
 - Replace the sample `hello@futolife.com` contact address on legal pages with a monitored address before public launch. Review Privacy/Terms text for the actual operator and policies.
 - Admin access requires the verified `admin@futolife.com` account to be created through normal signup; there is no built-in default password. Use a private password.
