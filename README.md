@@ -37,6 +37,7 @@ Mobile-first virtual FUTO campus. Next.js provides a public landing page, a camp
 - Schematic map plots saved local positions and lists locations without positions; it does not draw roads or claim geographic accuracy.
 - Searchable location directory served from Supabase Postgres, seeded from the supplied inventory; the bundled JSON is the no-credentials fallback.
 - Email/password sign-in with confirmation, profile setup after confirmation, confirmation resend, profile editing, and sign-out.
+- Community routes are independent: `/community/feed`, `/community/friends`, `/community/messages`, `/community/profile`, and `/community/messages/<conversation-id>`. The chat route opens full screen with a back action and profile links.
 - Student discovery, friend requests and approval, friend lists, profile photos, a friends-only feed with friend tags, reactions and comments, direct messages and friend-only group chats. Chat includes unread counts, per-message read receipts, private images (10 MB max), videos/documents (25 MB max), voice notes and emoji.
 - Admin dashboard at `/admin` for managing place details, WGS84 and 3D coordinates, evidence, verification status, photos and GeoJSON imports. It also supports suspending/restoring users, reviewing post reports, and deleting a post after five distinct reports. Imported coordinates remain provisional; reviewed locations need evidence before they can be marked verified.
 - Student referral codes and links with a persistent, multi-level referral chain. Referral tracking currently has no rewards.
