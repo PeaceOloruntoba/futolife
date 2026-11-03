@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { locations, type CampusLocation } from "@/lib/locations";
 import { createClient } from "@/lib/supabase/browser";
+import { notify } from "@/lib/notify";
 
 type Profile = { id: string; display_name: string; department: string | null; year_of_study: number | null; avatar_url: string | null };
 type AuthMode = "signin" | "signup";
@@ -212,6 +213,7 @@ function AccountDialog({ email: currentEmail, profile, initialName, initialMessa
   const [busy, setBusy] = useState(false);
   const [resendBusy, setResendBusy] = useState(false);
   const [canResendConfirmation, setCanResendConfirmation] = useState(initialMessage.startsWith("We couldn’t confirm"));
+  useEffect(() => { if (message) notify(message); }, [message]);
   const hasSession = authenticated || Boolean(currentEmail);
   const showProfileFields = mode === "signup" || Boolean(currentEmail) || authenticated;
 
@@ -252,7 +254,7 @@ function AccountDialog({ email: currentEmail, profile, initialName, initialMessa
       }
       const existing = await fetch("/api/profile", { cache: "no-store" });
       const existingData = await existing.json();
-      if (existing.ok && existingData.profile?.display_name && !currentEmail) { onSignedIn(email, existingData.profile); return; }
+      if (existing.ok && existingData.profile?.display_name && !currentEmail) { notify("You’re signed in. Welcome back!"); onSignedIn(email, existingData.profile); return; }
       if (mode === "signin" && !currentEmail) {
         setMode("signup");
         setMessage("You’re signed in. Finish setting up your profile.");
@@ -261,6 +263,7 @@ function AccountDialog({ email: currentEmail, profile, initialName, initialMessa
       const response = await fetch("/api/profile", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ display_name: name.trim(), department, year_of_study: year ? Number(year) : null }) });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error ?? "Unable to save profile.");
+      notify("Your FUTO Life profile is ready.");
       onSignedIn(email, result.profile);
     } catch (error) { setMessage(error instanceof Error ? error.message : "Something went wrong. Please try again."); }
     finally { setBusy(false); }
@@ -295,7 +298,6 @@ function AccountDialog({ email: currentEmail, profile, initialName, initialMessa
         <label className="field">Department (optional)<input value={department} onChange={(e) => setDepartment(e.target.value)} maxLength={80} placeholder="e.g. Computer Science" /></label>
         <label className="field">Year of study (optional)<select value={year} onChange={(e) => setYear(e.target.value)} className="field input" style={{ background: "#10120f", color: "white", border: "1px solid #3b4037", borderRadius: 10, padding: 11 }}><option value="">Choose year</option>{[1,2,3,4,5,6,7].map((n) => <option key={n} value={n}>{n}</option>)}</select></label>
       </>}
-      {message && <p className={message.startsWith("Check your email") || message.startsWith("Confirmation email sent") || message.startsWith("If an account exists") ? "panel-copy" : "error"} role="status">{message}</p>}
       <button className="primary" disabled={busy || !supabase}>{busy ? "Please wait…" : recoveringPassword ? "Send reset link" : hasSession ? "Save profile" : mode === "signin" ? "Sign in" : "Create account"}</button>
       {canResendConfirmation && <button className="secondary" type="button" disabled={resendBusy || !supabase} onClick={() => void resendConfirmation()}>{resendBusy ? "Sending…" : "Resend confirmation email"}</button>}
     </form>

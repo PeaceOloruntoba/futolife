@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/browser";
 import { SiteFrame } from "@/components/site-frame";
+import { notify } from "@/lib/notify";
 
 export default function ResetPasswordPage() {
   const supabase = useMemo(() => createClient(), []);
@@ -14,6 +15,7 @@ export default function ResetPasswordPage() {
   const [message, setMessage] = useState("");
   const [ready, setReady] = useState(false);
   const [busy, setBusy] = useState(false);
+  useEffect(() => { if (message) notify(message); }, [message]);
 
   useEffect(() => {
     if (!supabase) return;
@@ -59,7 +61,6 @@ export default function ResetPasswordPage() {
       <label className="field">Confirm new password<input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} autoComplete="new-password" minLength={8} required/></label>
       <button className="primary" disabled={busy}>{busy ? "Updating…" : "Update password"}</button>
     </form>}
-    {message && <p className={message.startsWith("Your password has been updated") ? "panel-copy" : "error"} role="status">{message}</p>}
     {!ready && <Link className="primary auth-back-link" href="/explore?auth=signin">Return to sign in</Link>}
     <button className="secondary auth-home-link" onClick={() => router.push("/")}>Back to FUTO Life</button>
   </section></main></SiteFrame>;

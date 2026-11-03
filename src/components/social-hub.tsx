@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/browser";
+import { notify } from "@/lib/notify";
 
 type Person = { id: string; display_name: string; department: string | null; year_of_study: number | null; avatar_url: string | null; bio?: string | null; referral_code?: string; is_suspended?: boolean };
 type Friendship = { id: string; requester_id: string; addressee_id: string; status: string; created_at: string };
@@ -97,6 +98,7 @@ export default function SocialHub({ onClose = () => {}, onSignIn, onProfileChang
   }, [supabase]);
 
   useEffect(() => { void load(); }, [load]);
+  useEffect(() => { if (notice) { notify(notice); setNotice(""); } }, [notice]);
   useEffect(() => {
     if (!supabase || !activeChat) return;
     const refresh = async () => {
@@ -182,16 +184,19 @@ export default function SocialHub({ onClose = () => {}, onSignIn, onProfileChang
     setBusy(false); if (error) setNotice(error.code === "23505" ? "A request or friendship already exists." : error.message); else { setNotice(`Friend request sent to ${person.display_name}.`); await load(); }
   }
   async function respond(request: Friendship, status: "accepted"|"declined") {
-    if (!supabase) return;
+    if (!supabase || busy) return;
+    setBusy(true);
     const { error } = await supabase.from("friendships").update({ status }).eq("id", request.id);
-    if (error) setNotice(error.message); else await load();
+    if (error) setNotice(error.message); else { setNotice(status === "accepted" ? "Friend request accepted." : "Friend request declined."); await load(); }
+    setBusy(false);
   }
   async function removeFriend(id: string) {
-    if (!supabase) return;
+    if (!supabase || busy) return;
     const relation = friendships.find((f) => f.status === "accepted" && [f.requester_id,f.addressee_id].includes(id));
     if (!relation) return;
-    const { error } = await supabase.from("friendships").delete().eq("id", relation.id);
+    setBusy(true);const { error } = await supabase.from("friendships").delete().eq("id", relation.id);
     if (error) setNotice(error.message); else { setNotice("Friend removed."); await load(); }
+    setBusy(false);
   }
   async function publishPost(event: FormEvent) {
     event.preventDefault(); if (!supabase || !me || !draftPost.trim()) return;
@@ -202,20 +207,24 @@ export default function SocialHub({ onClose = () => {}, onSignIn, onProfileChang
       const result = await supabase.from("post_tags").insert(friendIds.map(profile_id => ({ post_id: data.id, profile_id })));
       if (result.error) setNotice(result.error.message);
     }
-    if (error) setNotice(error.message); else { setDraftPost(""); await load(); }
+    if (error) setNotice(error.message); else { setDraftPost(""); setNotice("Post shared with your friends."); await load(); }
     setBusy(false);
   }
   async function likePost(post: Post) {
-    if (!supabase || !me) return;
+    if (!supabase || !me || busy) return;
+    setBusy(true);
     const mine = (likes[post.id] ?? []).includes(me.id);
     const query = mine ? supabase.from("post_reactions").delete().eq("post_id",post.id).eq("profile_id",me.id) : supabase.from("post_reactions").insert({post_id:post.id,profile_id:me.id});
     const { error } = await query; if (error) setNotice(error.message); else await load();
+    setBusy(false);
   }
   async function addComment(event: FormEvent<HTMLFormElement>, postId: string) {
-    event.preventDefault(); if (!supabase || !me) return;
+    event.preventDefault(); if (!supabase || !me || busy) return;
     const form = event.currentTarget; const input = new FormData(form).get("comment"); if (typeof input !== "string" || !input.trim()) return;
+    setBusy(true);
     const { error } = await supabase.from("post_comments").insert({post_id:postId,author_id:me.id,body:input.trim()});
-    if (error) setNotice(error.message); else { form.reset(); await load(); }
+    if (error) setNotice(error.message); else { form.reset(); setNotice("Comment added."); await load(); }
+    setBusy(false);
   }
   async function submitReport(event:FormEvent<HTMLFormElement>){
     event.preventDefault();if(!supabase||!me||!reportTarget)return;
@@ -235,17 +244,21 @@ export default function SocialHub({ onClose = () => {}, onSignIn, onProfileChang
     await load(); setTab("messages"); setActiveChat(data as string);
   }
   async function createGroup(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault(); if (!supabase) return;
+    event.preventDefault(); if (!supabase || busy) return;
+    setBusy(true);
     const formElement = event.currentTarget;
     const form = new FormData(formElement); const title = String(form.get("groupTitle") ?? "");
     const ids = form.getAll("groupFriend").map(String);
     const { data, error } = await supabase.rpc("create_group_conversation", { group_title: title, friend_ids: ids });
     if (error) setNotice(error.message); else { formElement.reset(); await load(); setActiveChat(data as string); setNotice("Group chat created."); }
+    setBusy(false);
   }
   async function sendMessage(event: FormEvent) {
-    event.preventDefault(); if (!supabase || !me || !activeChat || !draftMessage.trim()) return;
+    event.preventDefault(); if (!supabase || !me || !activeChat || !draftMessage.trim() || busy) return;
+    setBusy(true);
     const { error } = await supabase.from("messages").insert({conversation_id:activeChat,sender_id:me.id,body:draftMessage.trim()});
     if (error) setNotice(error.message); else { setDraftMessage(""); const {data} = await supabase.from("messages").select("id,conversation_id,sender_id,body,created_at").eq("conversation_id",activeChat).order("created_at").limit(300); setMessages((data ?? []) as Message[]); }
+    setBusy(false);
   }
   async function saveProfile(event: FormEvent) {
     event.preventDefault(); if (!supabase || !me) return;
@@ -269,15 +282,14 @@ export default function SocialHub({ onClose = () => {}, onSignIn, onProfileChang
     <header className="social-header"><div className="social-brand"><div className="eyebrow">FUTO LIFE · COMMUNITY</div><h2>Connect on campus</h2></div>{standalone?<Link className="secondary social-close-link" href="/explore">← Campus</Link>:<button className="secondary social-close" onClick={onClose} aria-label="Close social">×</button>}</header>
     {!me ? <div className="social-empty">{notice || "Sign in and complete your profile to use the student community."}<br/>{standalone?<Link className="primary social-signin" href="/explore?auth=signin&next=%2Fcommunity">Sign in / create account</Link>:<button className="primary social-signin" onClick={onSignIn}>Sign in / create account</button>}</div> : <>
       <nav className="social-tabs">{(["feed","friends","messages","profile"] as const).map(item => <button key={item} className={tab===item?"active":""} onClick={()=>setTab(item)}>{item === "feed" ? "Feed" : item === "friends" ? `Friends${friends.length?` · ${friends.length}`:""}` : item === "messages" ? "Messages" : "My profile"}</button>)}</nav>
-      {notice && <p className="social-notice" role="status">{notice}</p>}
       <div className={`social-content${tab==="messages"?" messages-content":""}`}>
         {tab === "feed" && <div className="feed-column">
           <form className="post-composer social-card" onSubmit={publishPost}><div className="composer-row"><Avatar person={me}/><div className="composer-input-wrap"><textarea ref={postInputRef} value={draftPost} onChange={e=>onPostDraftChange(e.target.value,e.target.selectionStart)} onClick={e=>onPostDraftChange(e.currentTarget.value,e.currentTarget.selectionStart)} maxLength={2000} placeholder="Share something with your FUTO friends…" aria-label="Write a post"/>{mentionSuggestions.length>0&&<div className="mention-suggestions" role="listbox" aria-label="Mention a friend">{mentionSuggestions.map(friend=><button type="button" key={friend.id} role="option" onMouseDown={e=>e.preventDefault()} onClick={()=>insertMention(friend)}><Avatar person={friend} small/><span><b>{friend.display_name}</b><small>{friend.department??"FUTO student"}</small></span></button>)}</div>}</div></div><div className="composer-footer"><span className="composer-hint">Type <b>@</b> to mention friends · add <b>#hashtags</b> to label your post</span><button className="primary" disabled={busy||!draftPost.trim()}>{busy?"Posting…":"Post"}</button></div></form>
-          {posts.map(post=>{const author=otherPerson(post.author_id); const postComments=comments[post.id]??[]; return <article className="social-card feed-post" key={post.id}><div className="post-author"><Avatar person={author}/><div><strong>{author?.display_name??"FUTO student"}</strong><small>{author?.department??"FUTO Life"} · {new Date(post.created_at).toLocaleString()}</small></div></div><p className="post-body">{renderPostBody(post.body)}</p>{(tags[post.id]?.length??0)>0&&<div className="post-tags">with {(tags[post.id]??[]).map(id=>otherPerson(id)?.display_name).filter(Boolean).join(", ")}</div>}<div className="post-actions"><button onClick={()=>void likePost(post)}>{(likes[post.id]??[]).includes(me.id)?"♥":"♡"} {(likes[post.id]??[]).length} · Like</button><span>▢ {postComments.length} comments</span>{post.author_id!==me.id&&(myReportedPosts.includes(post.id)?<span className="reported-label">Reported</span>:<button onClick={()=>{setReportTarget(post);setReportReason("spam");setReportDetails("");}}>Report</button>)}</div><div className="comment-list">{postComments.map(comment=><p key={comment.id}><b>{otherPerson(comment.author_id)?.display_name??"Student"}</b> {comment.body}</p>)}</div><form className="comment-form" onSubmit={e=>void addComment(e,post.id)}><Avatar person={me} small/><input name="comment" maxLength={1000} placeholder="Write a comment…" aria-label="Write a comment"/><button aria-label="Send comment">↗</button></form></article>;})}
+          {posts.map(post=>{const author=otherPerson(post.author_id); const postComments=comments[post.id]??[]; return <article className="social-card feed-post" key={post.id}><div className="post-author"><Avatar person={author}/><div><strong>{author?.display_name??"FUTO student"}</strong><small>{author?.department??"FUTO Life"} · {new Date(post.created_at).toLocaleString()}</small></div></div><p className="post-body">{renderPostBody(post.body)}</p>{(tags[post.id]?.length??0)>0&&<div className="post-tags">with {(tags[post.id]??[]).map(id=>otherPerson(id)?.display_name).filter(Boolean).join(", ")}</div>}<div className="post-actions"><button disabled={busy} onClick={()=>void likePost(post)}>{(likes[post.id]??[]).includes(me.id)?"♥":"♡"} {(likes[post.id]??[]).length} · Like</button><span>▢ {postComments.length} comments</span>{post.author_id!==me.id&&(myReportedPosts.includes(post.id)?<span className="reported-label">Reported</span>:<button onClick={()=>{setReportTarget(post);setReportReason("spam");setReportDetails("");}}>Report</button>)}</div><div className="comment-list">{postComments.map(comment=><p key={comment.id}><b>{otherPerson(comment.author_id)?.display_name??"Student"}</b> {comment.body}</p>)}</div><form className="comment-form" onSubmit={e=>void addComment(e,post.id)}><Avatar person={me} small/><input name="comment" maxLength={1000} placeholder="Write a comment…" aria-label="Write a comment"/><button aria-label="Send comment" disabled={busy}>{busy?"…":"↗"}</button></form></article>;})}
           {!posts.length&&<div className="social-card social-empty">No posts yet. Share a hello to start the FUTO community feed.</div>}
         </div>}
         {tab === "friends" && <div className="friends-layout"><div className="social-card requests-card"><h3>Friend requests <span>{pendingIn.length}</span></h3>{pendingIn.length?pendingIn.map(request=>{const person=otherPerson(request.requester_id);return <div className="person-row" key={request.id}><Avatar person={person}/><div className="person-info"><b>{person?.display_name??"FUTO student"}</b><small>{person?.department??""}</small></div><button className="primary compact" onClick={()=>void respond(request,"accepted")}>Accept</button><button className="secondary compact" onClick={()=>void respond(request,"declined")}>Decline</button></div>;}):<p className="muted">No pending requests.</p>}{pendingOut.length>0&&<p className="muted">{pendingOut.length} request{pendingOut.length===1?"":"s"} awaiting a reply.</p>}</div><div className="social-card people-card"><h3>Find students</h3><input className="social-search" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search name or department…"/>{filteredPeople.filter(p=>!accepted.includes(p.id)).slice(0,100).map(person=>{const sent=pendingOut.some(r=>r.addressee_id===person.id);return <div className="person-row" key={person.id}><Avatar person={person}/><div className="person-info"><b>{person.display_name}</b><small>{[person.department,person.year_of_study?`Year ${person.year_of_study}`:""].filter(Boolean).join(" · ")}</small></div>{sent?<span className="pending-label">Requested</span>:<button className="secondary compact" disabled={busy} onClick={()=>void sendRequest(person)}>＋ Add friend</button>}</div>;})}</div><div className="social-card people-card"><h3>Your friends <span>{friends.length}</span></h3>{friends.length?friends.map(person=><div className="person-row" key={person.id}><Avatar person={person}/><div className="person-info"><b>{person.display_name}</b><small>{person.department??"FUTO student"}</small></div><button className="secondary compact" onClick={()=>void openDirect(person)}>Message</button><button className="text-action" onClick={()=>void removeFriend(person.id)}>Remove</button></div>):<p className="muted">Accept a request or find classmates above. You need an accepted friendship to chat.</p>}</div></div>}
-        {tab === "messages" && <div className="chat-layout"><aside className="chat-sidebar"><form className="group-form" onSubmit={e=>void createGroup(e)}><input name="groupTitle" placeholder="New group name" maxLength={80} required/><details><summary>Choose 2+ friends</summary><div className="group-options">{friends.map(f=><label key={f.id}><input type="checkbox" name="groupFriend" value={f.id}/>{f.display_name}</label>)}</div></details><button className="secondary compact" disabled={friends.length<2}>Create group</button></form>{chats.map(chat=><button className={`chat-row ${activeChat===chat.id?"selected":""}`} key={chat.id} onClick={()=>setActiveChat(chat.id)}><Avatar person={chat.kind==="group"?null:chat.members.find(m=>m.id!==me.id)??null}/><span><b>{chat.kind==="group"?chat.title:chat.members.find(m=>m.id!==me.id)?.display_name??"Direct chat"}</b><small>{chat.lastMessage?.body??(chat.kind==="group"?`${chat.members.length} members`:"Start a conversation")}</small></span></button>)}{!chats.length&&<p className="muted">Your conversations will appear here after you message a friend or create a group.</p>}</aside><section className="chat-main">{currentChat?<><div className="chat-title"><b>{currentChat.kind==="group"?currentChat.title:currentChat.members.find(m=>m.id!==me.id)?.display_name}</b><small>{currentChat.kind==="group"?`${currentChat.members.length} members`:"Friends conversation"}</small></div><div ref={messageListRef} className="message-list">{messages.map(message=><div className={`message-bubble ${message.sender_id===me.id?"mine":""}`} key={message.id}><small>{message.sender_id===me.id?"You":otherPerson(message.sender_id)?.display_name??"Friend"}</small><p>{message.body}</p><time>{new Date(message.created_at).toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"})}</time></div>)}</div><form className="message-form" onSubmit={e=>void sendMessage(e)}><input value={draftMessage} onChange={e=>setDraftMessage(e.target.value)} onFocus={e=>{const input=e.currentTarget;window.setTimeout(()=>input.scrollIntoView({block:"nearest",behavior:"smooth"}),250);}} placeholder="Write a message…" maxLength={4000} enterKeyHint="send"/><button className="primary" disabled={!draftMessage.trim()}>Send</button></form></>:<div className="social-empty">Choose a conversation, or open a friend’s profile and start a chat.</div>}</section></div>}
+        {tab === "messages" && <div className="chat-layout"><aside className="chat-sidebar"><form className="group-form" onSubmit={e=>void createGroup(e)}><input name="groupTitle" placeholder="New group name" maxLength={80} required/><details><summary>Choose 2+ friends</summary><div className="group-options">{friends.map(f=><label key={f.id}><input type="checkbox" name="groupFriend" value={f.id}/>{f.display_name}</label>)}</div></details><button className="secondary compact" disabled={busy||friends.length<2}>{busy?"Working…":"Create group"}</button></form>{chats.map(chat=><button className={`chat-row ${activeChat===chat.id?"selected":""}`} key={chat.id} onClick={()=>setActiveChat(chat.id)}><Avatar person={chat.kind==="group"?null:chat.members.find(m=>m.id!==me.id)??null}/><span><b>{chat.kind==="group"?chat.title:chat.members.find(m=>m.id!==me.id)?.display_name??"Direct chat"}</b><small>{chat.lastMessage?.body??(chat.kind==="group"?`${chat.members.length} members`:"Start a conversation")}</small></span></button>)}{!chats.length&&<p className="muted">Your conversations will appear here after you message a friend or create a group.</p>}</aside><section className="chat-main">{currentChat?<><div className="chat-title"><b>{currentChat.kind==="group"?currentChat.title:currentChat.members.find(m=>m.id!==me.id)?.display_name}</b><small>{currentChat.kind==="group"?`${currentChat.members.length} members`:"Friends conversation"}</small></div><div ref={messageListRef} className="message-list">{messages.map(message=><div className={`message-bubble ${message.sender_id===me.id?"mine":""}`} key={message.id}><small>{message.sender_id===me.id?"You":otherPerson(message.sender_id)?.display_name??"Friend"}</small><p>{message.body}</p><time>{new Date(message.created_at).toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"})}</time></div>)}</div><form className="message-form" onSubmit={e=>void sendMessage(e)}><input value={draftMessage} onChange={e=>setDraftMessage(e.target.value)} onFocus={e=>{const input=e.currentTarget;window.setTimeout(()=>input.scrollIntoView({block:"nearest",behavior:"smooth"}),250);}} placeholder="Write a message…" maxLength={4000} enterKeyHint="send"/><button className="primary" disabled={!draftMessage.trim()||busy}>{busy?"Sending…":"Send"}</button></form></>:<div className="social-empty">Choose a conversation, or open a friend’s profile and start a chat.</div>}</section></div>}
         {tab === "profile" && <><form className="social-card profile-editor" onSubmit={e=>void saveProfile(e)}><div className="avatar-editor"><Avatar person={me} large/><label className="secondary upload-button">Change photo<input type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>void uploadAvatar(e.currentTarget.files?.[0])}/></label><small>JPG, PNG or WebP · up to 5 MB</small></div><label className="field">Display name<input required minLength={2} maxLength={48} value={profileDraft.display_name} onChange={e=>setProfileDraft({...profileDraft,display_name:e.target.value})}/></label><label className="field">Department<input maxLength={80} value={profileDraft.department} onChange={e=>setProfileDraft({...profileDraft,department:e.target.value})}/></label><label className="field">Year of study<select value={profileDraft.year} onChange={e=>setProfileDraft({...profileDraft,year:e.target.value})}><option value="">Choose year</option>{[1,2,3,4,5,6,7].map(n=><option key={n} value={n}>{n}</option>)}</select></label><label className="field">About you<textarea maxLength={280} value={profileDraft.bio} onChange={e=>setProfileDraft({...profileDraft,bio:e.target.value})} placeholder="A little about yourself…"/></label><button className="primary" disabled={busy}>Save profile</button></form><section className="social-card profile-editor referral-card"><h3>Invite classmates</h3><p>Your referrals are recorded as a private chain. There are no rewards for referrals at this time.</p><div className="referral-link-row"><code>{me.referral_code?`/?ref=${me.referral_code}`:"Referral link unavailable"}</code><button className="secondary compact" onClick={()=>void copyReferralLink()}>Copy link</button></div><p><b>{referralNetwork.length}</b> people in your referral network · direct and downstream referrals</p>{referralNetwork.slice(0,20).map(person=><div className="referral-person" key={person.profile_id}><span className="referral-depth">L{person.depth}</span><span>{person.display_name}</span><small>{new Date(person.joined_at).toLocaleDateString()}</small></div>)}</section></>}
       </div>
     </>}
