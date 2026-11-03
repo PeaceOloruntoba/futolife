@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import { createClient } from "@/lib/supabase/browser";
 import { notify } from "@/lib/notify";
+import { NotificationCenter } from "@/components/notification-center";
 
 type Place = { id: string; name: string; category: string; description: string | null; position_status: "verified" | "provisional" | "unverified"; latitude: number | null; longitude: number | null; local_x: number | null; local_z: number | null; evidence: unknown; image_url: string | null };
 type Draft = Omit<Place,"evidence"> & { evidenceText: string };
@@ -176,7 +177,7 @@ export default function AdminDashboard({ adminEmail }: { adminEmail: string }) {
     }).catch(error=>setImportSummary(error instanceof Error?error.message:"Unable to read this GeoJSON file.")).finally(()=>setBusy(false));
   }
 
-  return <main className="admin-page"><header className="admin-top"><Link className="admin-back" href="/">← Return to campus</Link><div className="admin-user">Signed in as <b>{adminEmail}</b></div></header><div className="admin-main">
+  return <main className="admin-page"><header className="admin-top"><Link className="admin-back" href="/">← Return to campus</Link><div className="admin-top-actions"><NotificationCenter/><div className="admin-user">Signed in as <b>{adminEmail}</b></div></div></header><div className="admin-main">
     <div className="admin-heading"><div><div className="eyebrow">FUTO LIFE · ADMIN</div><h1>Admin dashboard</h1><p>Manage campus data, student accounts, posts and referrals.</p></div><div className="admin-count">{places.length}<small>campus places</small></div></div>
     <nav className="admin-tabs">{(["places","users","posts","referrals","activity"] as const).map(item=><button key={item} className={section===item?"active":""} onClick={()=>setSection(item)}>{item==="places"?"Places & map":item==="users"?`Users · ${users.length}`:item==="posts"?`Post reports · ${reports.filter(r=>r.status==="pending").length}`:item==="referrals"?`Referrals · ${referrals.length}`:"Activity log"}</button>)}</nav>
     {section==="places"&&<div className="admin-layout"><section className="admin-form-card"><h2>{savedId?"Edit campus place":"Add a campus place"}</h2><p>Precise WGS84 coordinates use latitude/longitude. Local map coordinates place items in the current 3D scene.</p>
