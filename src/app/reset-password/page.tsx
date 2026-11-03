@@ -6,12 +6,15 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/browser";
 import { SiteFrame } from "@/components/site-frame";
 import { notify } from "@/lib/notify";
+import { FiEye, FiEyeOff } from "react-icons/fi";
 
 export default function ResetPasswordPage() {
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword,setShowPassword]=useState(false);
+  const [showConfirm,setShowConfirm]=useState(false);
   const [message, setMessage] = useState("");
   const [ready, setReady] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -57,8 +60,8 @@ export default function ResetPasswordPage() {
     <p>Set a new password for your FUTO Life account. Use at least 8 characters.</p>
     {!supabase && <p className="error">Supabase is not configured for this app.</p>}
     {ready && <form className="form" onSubmit={updatePassword}>
-      <label className="field">New password<input type="password" value={password} onChange={e => setPassword(e.target.value)} autoComplete="new-password" minLength={8} required/></label>
-      <label className="field">Confirm new password<input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} autoComplete="new-password" minLength={8} required/></label>
+      <label className="field">New password<div className="password-control"><input type={showPassword?"text":"password"} value={password} onChange={e => setPassword(e.target.value)} autoComplete="new-password" minLength={8} required/><button type="button" className="password-toggle" onClick={()=>setShowPassword(value=>!value)} aria-label={showPassword?"Hide password":"Show password"}>{showPassword?<FiEyeOff/>:<FiEye/>}</button></div></label>
+      <label className="field">Confirm new password<div className="password-control"><input type={showConfirm?"text":"password"} value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} autoComplete="new-password" minLength={8} required/><button type="button" className="password-toggle" onClick={()=>setShowConfirm(value=>!value)} aria-label={showConfirm?"Hide confirmation password":"Show confirmation password"}>{showConfirm?<FiEyeOff/>:<FiEye/>}</button></div></label>
       <button className="primary" disabled={busy}>{busy ? "Updating…" : "Update password"}</button>
     </form>}
     {!ready && <Link className="primary auth-back-link" href="/explore?auth=signin">Return to sign in</Link>}
