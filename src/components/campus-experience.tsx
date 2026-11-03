@@ -5,6 +5,7 @@ import Link from "next/link";
 import { locations, type CampusLocation } from "@/lib/locations";
 import { createClient } from "@/lib/supabase/browser";
 import { notify } from "@/lib/notify";
+import { FiEye, FiEyeOff } from "react-icons/fi";
 
 type Profile = { id: string; display_name: string; department: string | null; year_of_study: number | null; avatar_url: string | null };
 type AuthMode = "signin" | "signup";
@@ -291,7 +292,7 @@ function AccountDialog({ email: currentEmail, profile, initialName, initialMessa
     {!supabase && <p className="error">Supabase credentials are not configured yet. Guest campus exploration is available.</p>}
     <form className="form" onSubmit={submit}>
       <label className="field">Email<input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" readOnly={hasSession} /></label>
-      {!hasSession && !recoveringPassword && <label className="field">Password<div className="password-control"><input type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} autoComplete={mode === "signin" ? "current-password" : "new-password"} /><button type="button" className="password-toggle" onClick={() => setShowPassword(value => !value)} aria-label={showPassword ? "Hide password" : "Show password"} aria-pressed={showPassword}>{showPassword ? "Hide" : "Show"}</button></div></label>}
+      {!hasSession && !recoveringPassword && <label className="field">Password<div className="password-control"><input type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} autoComplete={mode === "signin" ? "current-password" : "new-password"} /><button type="button" className="password-toggle" onClick={() => setShowPassword(value => !value)} aria-label={showPassword ? "Hide password" : "Show password"} aria-pressed={showPassword}>{showPassword ? <FiEyeOff/> : <FiEye/>}</button></div></label>}
       {!hasSession && mode === "signup" && <label className="field">Referral code (optional)<input value={referralCode} onChange={e=>setReferralCode(e.target.value.trim())} maxLength={40} autoComplete="off" placeholder="Enter a classmate’s referral code"/></label>}
       {showProfileFields && <>
         <label className="field">Display name<input value={name} onChange={(e) => setName(e.target.value)} minLength={2} maxLength={48} required /></label>

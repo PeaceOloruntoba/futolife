@@ -2,6 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { FiArrowLeft, FiFileText, FiHeart, FiHome, FiImage, FiMessageCircle, FiMic, FiPlus, FiSmile, FiUser, FiUsers, FiVideo, FiX, FiCheck } from "react-icons/fi";
+import { IoCheckmarkDone } from "react-icons/io5";
 import { createClient } from "@/lib/supabase/browser";
 import { notify } from "@/lib/notify";
 
@@ -15,8 +18,9 @@ type Chat = { id: string; kind: "direct" | "group"; title: string | null; create
 type ReferralRow = {profile_id:string;display_name:string;depth:number;joined_at:string};
 type ReportReason = "spam"|"harassment"|"hate_or_abuse"|"sexual_content"|"violence"|"false_information"|"other";
 
-export default function SocialHub({ onClose = () => {}, onSignIn, onProfileChange = () => {}, standalone = false }: { onClose?: () => void; onSignIn?: () => void; onProfileChange?: (profile: Person) => void; standalone?: boolean }) {
+export default function SocialHub({ onClose = () => {}, onSignIn, onProfileChange = () => {}, standalone = false, initialTab = "feed", conversationId, profileId }: { onClose?: () => void; onSignIn?: () => void; onProfileChange?: (profile: Person) => void; standalone?: boolean; initialTab?: "feed"|"friends"|"messages"|"profile"; conversationId?: string; profileId?: string }) {
   const supabase = useMemo(() => createClient(), []);
+  const router=useRouter();
   const [me, setMe] = useState<Person | null>(null);
   const [people, setPeople] = useState<Person[]>([]);
   const [friendships, setFriendships] = useState<Friendship[]>([]);
@@ -30,7 +34,7 @@ export default function SocialHub({ onClose = () => {}, onSignIn, onProfileChang
   const [attachmentUrls, setAttachmentUrls] = useState<Record<string, string>>({});
   const [emojiOpen, setEmojiOpen] = useState(false);
   const [recording, setRecording] = useState(false);
-  const [activeChat, setActiveChat] = useState<string | null>(null);
+  const [activeChat, setActiveChat] = useState<string | null>(conversationId??null);
   const [comments, setComments] = useState<Record<string, { id: string; post_id: string; author_id: string; body: string; created_at: string }[]>>({});
   const [tags, setTags] = useState<Record<string, string[]>>({});
   const [likes, setLikes] = useState<Record<string, string[]>>({});
@@ -39,7 +43,7 @@ export default function SocialHub({ onClose = () => {}, onSignIn, onProfileChang
   const [reportReason,setReportReason] = useState<ReportReason>("spam");
   const [reportDetails,setReportDetails] = useState("");
   const [referralNetwork,setReferralNetwork] = useState<ReferralRow[]>([]);
-  const [tab, setTab] = useState<"feed" | "friends" | "messages" | "profile">("feed");
+  const [tab, setTab] = useState<"feed" | "friends" | "messages" | "profile">(initialTab);
   const [search, setSearch] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
@@ -332,14 +336,15 @@ export default function SocialHub({ onClose = () => {}, onSignIn, onProfileChang
 
   function selectAttachment(file?:File){
     if(!file)return;
-    const type=file.type.toLowerCase();let kind:PendingAttachment["kind"]|null=null;let bucket:PendingAttachment["bucket"]="chat-attachments";
+    const type=file.type.toLowerCase().split(";")[0];let kind:PendingAttachment["kind"]|null=null;let bucket:PendingAttachment["bucket"]="chat-attachments";
     if(type.startsWith("image/")){kind="image";bucket="chat-images";if(file.size>10*1024*1024){setNotice("Images must be 10 MB or smaller.");return;}}
     else if(type.startsWith("video/")){kind="video";if(!["video/mp4","video/webm","video/quicktime"].includes(type)){setNotice("Choose an MP4, WebM, or QuickTime video.");return;}}
     else if(type.startsWith("audio/")){kind="voice";if(!["audio/webm","audio/ogg","audio/mp4","audio/mpeg","audio/wav","audio/x-wav"].includes(type)){setNotice("This audio format is not supported.");return;}}
     else if(["application/pdf","text/plain","application/msword","application/vnd.openxmlformats-officedocument.wordprocessingml.document","application/vnd.ms-powerpoint","application/vnd.openxmlformats-officedocument.presentationml.presentation","application/vnd.ms-excel","application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"].includes(type)){kind="document";}
     if(!kind){setNotice("Choose an image, video, PDF, office document, or plain text file.");return;}
     if(file.size>25*1024*1024){setNotice("Files must be 25 MB or smaller.");return;}
-    setPendingAttachment({file,kind,bucket});
+    const normalizedFile=file.type===type?file:new File([file],file.name,{type,lastModified:file.lastModified});
+    setPendingAttachment({file:normalizedFile,kind,bucket});
   }
 
   async function toggleVoiceRecording(){
@@ -350,7 +355,7 @@ export default function SocialHub({ onClose = () => {}, onSignIn, onProfileChang
       const mime=["audio/webm;codecs=opus","audio/webm","audio/mp4"].find(type=>MediaRecorder.isTypeSupported(type));
       const recorder=new MediaRecorder(stream,mime?{mimeType:mime}:undefined);recorderRef.current=recorder;
       recorder.addEventListener("dataavailable",event=>{if(event.data.size)recorderChunksRef.current.push(event.data);});
-      recorder.addEventListener("stop",()=>{const blob=new Blob(recorderChunksRef.current,{type:recorder.mimeType||"audio/webm"});const ext=blob.type.includes("mp4")?"mp4":"webm";selectAttachment(new File([blob],`voice-note-${Date.now()}.${ext}`,{type:blob.type}));stream.getTracks().forEach(track=>track.stop());recorderStreamRef.current=null;});
+      recorder.addEventListener("stop",()=>{const rawType=recorder.mimeType||"audio/webm";const mime=rawType.toLowerCase().split(";")[0];const blob=new Blob(recorderChunksRef.current,{type:mime});const ext=mime.includes("mp4")?"mp4":mime.includes("ogg")?"ogg":"webm";selectAttachment(new File([blob],`voice-note-${Date.now()}.${ext}`,{type:mime}));stream.getTracks().forEach(track=>track.stop());recorderStreamRef.current=null;});
       recorder.start();setRecording(true);
     }catch{setNotice("Allow microphone access to record a voice note.");}
   }
