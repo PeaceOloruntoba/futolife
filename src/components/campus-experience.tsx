@@ -202,6 +202,7 @@ function AccountDialog({ email: currentEmail, profile, initialName, initialMessa
   const [recoveringPassword, setRecoveringPassword] = useState(false);
   const [email, setEmail] = useState(currentEmail ?? "");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [referralCode,setReferralCode] = useState(initialReferralCode);
   const [authenticated, setAuthenticated] = useState(Boolean(currentEmail));
   const [name, setName] = useState(profile?.display_name ?? initialName);
@@ -287,7 +288,7 @@ function AccountDialog({ email: currentEmail, profile, initialName, initialMessa
     {!supabase && <p className="error">Supabase credentials are not configured yet. Guest campus exploration is available.</p>}
     <form className="form" onSubmit={submit}>
       <label className="field">Email<input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" readOnly={hasSession} /></label>
-      {!hasSession && !recoveringPassword && <label className="field">Password<input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} autoComplete={mode === "signin" ? "current-password" : "new-password"} /></label>}
+      {!hasSession && !recoveringPassword && <label className="field">Password<div className="password-control"><input type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} autoComplete={mode === "signin" ? "current-password" : "new-password"} /><button type="button" className="password-toggle" onClick={() => setShowPassword(value => !value)} aria-label={showPassword ? "Hide password" : "Show password"} aria-pressed={showPassword}>{showPassword ? "Hide" : "Show"}</button></div></label>}
       {!hasSession && mode === "signup" && <label className="field">Referral code (optional)<input value={referralCode} onChange={e=>setReferralCode(e.target.value.trim())} maxLength={40} autoComplete="off" placeholder="Enter a classmate’s referral code"/></label>}
       {showProfileFields && <>
         <label className="field">Display name<input value={name} onChange={(e) => setName(e.target.value)} minLength={2} maxLength={48} required /></label>
