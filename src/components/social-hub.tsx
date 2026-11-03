@@ -7,6 +7,7 @@ import { FiArrowLeft, FiArrowUpRight, FiFileText, FiHeart, FiHome, FiImage, FiMe
 import { IoCheckmarkDone } from "react-icons/io5";
 import { createClient } from "@/lib/supabase/browser";
 import { notify } from "@/lib/notify";
+import { useAuthSession } from "@/components/auth-session-provider";
 
 type Person = { id: string; display_name: string; department: string | null; year_of_study: number | null; avatar_url: string | null; bio?: string | null; referral_code?: string; is_suspended?: boolean };
 type Friendship = { id: string; requester_id: string; addressee_id: string; status: string; created_at: string };
@@ -20,6 +21,7 @@ type ReportReason = "spam"|"harassment"|"hate_or_abuse"|"sexual_content"|"violen
 
 export default function SocialHub({ onClose = () => {}, onSignIn, onProfileChange = () => {}, standalone = false, initialTab = "feed", conversationId, profileId }: { onClose?: () => void; onSignIn?: () => void; onProfileChange?: (profile: Person) => void; standalone?: boolean; initialTab?: "feed"|"friends"|"messages"|"profile"; conversationId?: string; profileId?: string }) {
   const supabase = useMemo(() => createClient(), []);
+  const { status: authStatus, userId } = useAuthSession();
   const router=useRouter();
   const [me, setMe] = useState<Person | null>(null);
   const [people, setPeople] = useState<Person[]>([]);
@@ -47,7 +49,7 @@ export default function SocialHub({ onClose = () => {}, onSignIn, onProfileChang
   const [search, setSearch] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
-  const [loadingChats, setLoadingChats] = useState(false);
+  const [loadingChats, setLoadingChats] = useState(true);
   const [draftPost, setDraftPost] = useState("");
   const postInputRef=useRef<HTMLTextAreaElement>(null);
   const messageListRef=useRef<HTMLDivElement>(null);
@@ -61,10 +63,11 @@ export default function SocialHub({ onClose = () => {}, onSignIn, onProfileChang
   const [profileDraft, setProfileDraft] = useState({ display_name: "", department: "", year: "", bio: "" });
 
   const load = useCallback(async () => {
-    if (!supabase) return;
+    if (authStatus === "loading") return;
+    if (!supabase) { setLoadingChats(false); setNotice("Account services are unavailable. Please try again later."); return; }
+    if (authStatus === "signed-out" || !userId) { setLoadingChats(false); setNotice(""); return; }
     setLoadingChats(true);
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) { setLoadingChats(false);setNotice("Sign in to connect with FUTO students."); return; }
+    const user = { id: userId };
     const [profileResult, peopleResult, friendshipResult, postResult, memberResult] = await Promise.all([
       supabase.from("profiles").select("id,display_name,department,year_of_study,avatar_url,bio,referral_code,is_suspended").eq("id", user.id).maybeSingle(),
       supabase.from("profiles").select("id,display_name,department,year_of_study,avatar_url,bio").neq("id", user.id).order("display_name").limit(300),
@@ -118,7 +121,7 @@ export default function SocialHub({ onClose = () => {}, onSignIn, onProfileChang
     setUnreadCounts(Object.fromEntries(((unreadResult.data??[]) as {conversation_id:string;unread_count:number}[]).map(row=>[row.conversation_id,Number(row.unread_count)])));
     setChats(conversationRows.map((chat) => ({ ...chat, members: memberRows.filter(m => m.conversation_id === chat.id).map(m => profileMap.get(m.profile_id)).filter((p): p is Person => Boolean(p)), lastMessage: messageRows.find(m => m.conversation_id === chat.id) })));
     setLoadingChats(false);
-  }, [supabase]);
+  }, [authStatus, userId, supabase]);
 
   useEffect(() => { void load(); }, [load]);
   useEffect(()=>{setTab(initialTab);setActiveChat(conversationId??null);},[initialTab,conversationId]);
@@ -382,7 +385,7 @@ export default function SocialHub({ onClose = () => {}, onSignIn, onProfileChang
     if(profileId){const person=people.find(candidate=>candidate.id===profileId)??(me?.id===profileId?me:null);return <div className="social-backdrop social-standalone"><section className="social-window panel social-page-window profile-page-window"><header className="social-header"><button className="chat-back-button" onClick={()=>router.back()} aria-label="Back"><FiArrowLeft/></button><b>Student profile</b></header>{person?<StudentProfileCard person={person} onMessage={()=>void openDirect(person)}/>:<div className="social-empty">{loadingChats?"Loading profile…":"This profile could not be found."}</div>}</section></div>;}
   return <div className={`social-backdrop${standalone?" social-standalone":""}`} onMouseDown={e => {if(!standalone&&e.target===e.currentTarget)onClose();}}><section ref={socialWindowRef} className={`social-window panel${standalone?" social-page-window":""}${conversationId?" social-chat-screen":""}`} role={standalone?"main":"dialog"} aria-modal={standalone?undefined:true} aria-label="FUTO Life social">
     <header className={`social-header${conversationId?" chat-route-header":""}`}>{conversationId?<><button className="chat-back-button" onClick={()=>router.push("/community/messages")} aria-label="Back to conversations"><FiArrowLeft/></button><button className="chat-profile-trigger" onClick={()=>chatPartner&&router.push("/community/profile/"+chatPartner.id)} disabled={!chatPartner}><Avatar person={chatPartner}/><span><b>{currentChat?.kind==="group"?currentChat.title:chatPartner?.display_name??"Loading chat…"}</b><small>{chatPartner?.department??(currentChat?.kind==="group"?`${currentChat.members.length} members`:"Tap to view profile")}</small></span></button></>:<><div className="social-brand"><div className="eyebrow">FUTO LIFE · COMMUNITY</div><h2>{tab==="feed"?"Campus feed":tab==="friends"?"Friends":tab==="messages"?"Messages":"My profile"}</h2></div>{standalone?<Link className="secondary social-close-link" href="/explore">Campus</Link>:<button className="secondary social-close" onClick={onClose} aria-label="Close social"><FiX/></button>}</>}</header>
-    {!me ? <div className="social-empty">{notice || "Sign in and complete your profile to use the student community."}<br/>{standalone?<Link className="primary social-signin" href="/explore?auth=signin&next=%2Fcommunity">Sign in / create account</Link>:<button className="primary social-signin" onClick={onSignIn}>Sign in / create account</button>}</div> : <>
+    {loadingChats ? <div className="community-auth-loading social-loading" role="status" aria-live="polite"><span className="community-spinner"/><span>Loading your community…</span></div> : !me ? <div className="social-empty">{notice || "Sign in and complete your profile to use the student community."}<br/>{standalone?<Link className="primary social-signin" href="/explore?auth=signin&next=%2Fcommunity">Sign in / create account</Link>:<button className="primary social-signin" onClick={onSignIn}>Sign in / create account</button>}</div> : <>
       <div className={`social-content${tab==="messages"?" messages-content":""}`}>
         {tab === "feed" && <div className="feed-column">
           <form className="post-composer social-card" onSubmit={publishPost}><div className="composer-row"><Avatar person={me}/><div className="composer-input-wrap"><textarea ref={postInputRef} value={draftPost} onChange={e=>onPostDraftChange(e.target.value,e.target.selectionStart)} onClick={e=>onPostDraftChange(e.currentTarget.value,e.currentTarget.selectionStart)} maxLength={2000} placeholder="Share something with your FUTO friends…" aria-label="Write a post"/>{mentionSuggestions.length>0&&<div className="mention-suggestions" role="listbox" aria-label="Mention a friend">{mentionSuggestions.map(friend=><button type="button" key={friend.id} role="option" onMouseDown={e=>e.preventDefault()} onClick={()=>insertMention(friend)}><Avatar person={friend} small/><span><b>{friend.display_name}</b><small>{friend.department??"FUTO student"}</small></span></button>)}</div>}</div></div><div className="composer-footer"><span className="composer-hint">Type <b>@</b> to mention friends · add <b>#hashtags</b> to label your post</span><button className="primary" disabled={busy||!draftPost.trim()}>{busy?"Posting…":"Post"}</button></div></form>

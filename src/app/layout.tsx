@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 import "./globals.css";
 import { SonnerProvider } from "@/components/sonner-provider";
+import { AuthSessionProvider } from "@/components/auth-session-provider";
 
 export const metadata: Metadata = {
   title: "FUTO Life — Explore your campus",
@@ -17,5 +18,5 @@ export const viewport: Viewport = {
 };
 
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
-  return <html lang="en"><body>{children}<SonnerProvider/></body></html>;
+  return <html lang="en"><body><AuthSessionProvider>{children}</AuthSessionProvider><SonnerProvider/></body></html>;
 }
