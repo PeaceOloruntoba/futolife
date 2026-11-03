@@ -250,12 +250,12 @@ function AccountDialog({ email: currentEmail, profile, initialName, initialMessa
       if (mode === "signup") {
         if (!currentUser) {
           const { data, error } = await supabase.auth.signUp({ email, password, options: { data: { display_name: name.trim(), referral_code: referralCode.trim().toLowerCase() || null }, emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(redirectTo)}` } });
-          if (error) throw error;
+          if (error) { void supabase.rpc("record_user_activity",{p_action:"auth.signup_failed",p_contact_email:email.trim()}).then(()=>{}); throw error; }
           if (!data.session) { setCanResendConfirmation(true); setMessage("Check your email to confirm your account. Your display name is saved; you can finish your profile after confirmation."); return; }
         }
       } else if (!currentUser) {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
+        if (error) { void supabase.rpc("record_user_activity",{p_action:"auth.login_failed",p_contact_email:email.trim()}).then(()=>{}); throw error; }
         await supabase.rpc("record_user_activity",{p_action:"auth.login"});
         setAuthenticated(true);
       }

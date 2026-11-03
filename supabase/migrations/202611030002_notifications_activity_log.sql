@@ -63,12 +63,12 @@ create or replace function public.record_user_activity(
 ) returns void language plpgsql security definer set search_path = '' as $$
 declare caller uuid := auth.uid(); contact text := lower(trim(coalesce(p_contact_email,'')));
 begin
-  if p_action not in ('auth.login','auth.logout','auth.password_reset_requested','profile.viewed','chat.opened','place.viewed','admin.activity_log.viewed') then
+  if p_action not in ('auth.login','auth.logout','auth.password_reset_requested','auth.login_failed','auth.signup_failed','profile.viewed','chat.opened','place.viewed','admin.activity_log.viewed') then
     raise exception 'Unsupported activity event';
   end if;
-  if p_action='auth.password_reset_requested' then
+  if p_action in ('auth.password_reset_requested','auth.login_failed','auth.signup_failed') then
     if contact !~ '^[^[:space:]@]+@[^[:space:]@]+\.[^[:space:]@]+$' then raise exception 'A valid email is required'; end if;
-    if (select count(*) from public.activity_logs l where l.action=p_action and l.actor_email=contact and l.created_at>now()-interval '1 hour')>=5 then
+    if (select count(*) from public.activity_logs l where l.action=p_action and l.actor_email=contact and l.created_at>now()-interval '1 hour')>=10 then
       return;
     end if;
     perform public.insert_activity_log(caller,p_action,p_entity_type,p_entity_id,jsonb_build_object('source','password_recovery'),contact);
@@ -91,7 +91,7 @@ begin
   if tg_op='UPDATE' then old_data:=to_jsonb(old); end if;
   actor:=auth.uid();
   if actor is null then
-    begin actor:=coalesce(nullif(row_data->>'sender_id','')::uuid,nullif(row_data->>'author_id','')::uuid,nullif(row_data->>'profile_id','')::uuid,nullif(row_data->>'requester_id','')::uuid,nullif(row_data->>'created_by','')::uuid,nullif(row_data->>'referrer_id','')::uuid); exception when invalid_text_representation then actor:=null; end;
+    begin actor:=coalesce(nullif(row_data->>'sender_id','')::uuid,nullif(row_data->>'author_id','')::uuid,nullif(row_data->>'profile_id','')::uuid,nullif(row_data->>'requester_id','')::uuid,nullif(row_data->>'reporter_id','')::uuid,nullif(row_data->>'created_by','')::uuid,nullif(row_data->>'referred_id','')::uuid,nullif(row_data->>'referrer_id','')::uuid); exception when invalid_text_representation then actor:=null; end;
   end if;
   entity_key:=coalesce(row_data->>'id',row_data->>'conversation_id',row_data->>'post_id',row_data->>'message_id',row_data->>'profile_id',row_data->>'user_id');
   action_name:=tg_table_name||'.'||lower(tg_op);
