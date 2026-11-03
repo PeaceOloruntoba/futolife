@@ -47,6 +47,7 @@ export default function ResetPasswordPage() {
     const { error } = await supabase.auth.updateUser({ password });
     setBusy(false);
     if (error) { setMessage(error.message); return; }
+    await supabase.rpc("record_user_activity",{p_action:"auth.logout"});
     await supabase.auth.signOut();
     setMessage("Your password has been updated. You can now sign in with your new password.");
     setPassword("");

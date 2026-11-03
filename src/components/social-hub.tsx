@@ -8,6 +8,7 @@ import { IoCheckmarkDone } from "react-icons/io5";
 import { createClient } from "@/lib/supabase/browser";
 import { notify } from "@/lib/notify";
 import { useAuthSession } from "@/components/auth-session-provider";
+import { NotificationCenter } from "@/components/notification-center";
 
 type Person = { id: string; display_name: string; department: string | null; year_of_study: number | null; avatar_url: string | null; bio?: string | null; referral_code?: string; is_suspended?: boolean };
 type Friendship = { id: string; requester_id: string; addressee_id: string; status: string; created_at: string };
@@ -65,6 +66,7 @@ export default function SocialHub({ onClose = () => {}, onSignIn, onProfileChang
   const [draftMessage, setDraftMessage] = useState("");
   const [profileDraft, setProfileDraft] = useState({ display_name: "", department: "", year: "", bio: "" });
   const [viewedProfile, setViewedProfile] = useState<Person | null>(null);
+  const activityKeysRef=useRef(new Set<string>());
 
   const load = useCallback(async () => {
     if (authStatus === "loading") return;
@@ -134,6 +136,11 @@ export default function SocialHub({ onClose = () => {}, onSignIn, onProfileChang
   }, [authStatus, userId, profileId, supabase]);
 
   useEffect(() => { void load(); }, [load]);
+  useEffect(()=>{
+    if(!supabase||!userId||!profileId||!viewedProfile||activityKeysRef.current.has(`profile:${profileId}`))return;
+    activityKeysRef.current.add(`profile:${profileId}`);
+    void supabase.rpc("record_user_activity",{p_action:"profile.viewed",p_entity_type:"profile",p_entity_id:profileId}).then(()=>{});
+  },[profileId,supabase,userId,viewedProfile]);
   useEffect(()=>{setTab(initialTab);setActiveChat(conversationId??null);},[initialTab,conversationId]);
   useEffect(() => { if (notice) { notify(notice); setNotice(""); } }, [notice]);
   useEffect(() => {
@@ -234,6 +241,11 @@ export default function SocialHub({ onClose = () => {}, onSignIn, onProfileChang
   const filteredFriends = friends.filter((p) => `${p.display_name} ${p.department ?? ""}`.toLowerCase().includes(friendSearch.trim().toLowerCase()));
   const filteredChats = chats.filter((chat) => `${chat.title ?? ""} ${chat.members.map(member=>member.display_name).join(" ")} ${chat.lastMessage?.body ?? ""}`.toLowerCase().includes(conversationSearch.trim().toLowerCase()));
   const currentChat = chats.find((chat) => chat.id === activeChat);
+  useEffect(()=>{
+    if(!supabase||!userId||!activeChat||!currentChat||activityKeysRef.current.has(`chat:${activeChat}`))return;
+    activityKeysRef.current.add(`chat:${activeChat}`);
+    void supabase.rpc("record_user_activity",{p_action:"chat.opened",p_entity_type:"conversation",p_entity_id:activeChat}).then(()=>{});
+  },[activeChat,currentChat,supabase,userId]);
   const chatPartner=currentChat?.kind === "direct" ? currentChat.members.find(member=>member.id!==me?.id)??null : null;
   const unreadTotal=Object.values(unreadCounts).reduce((total,count)=>total+count,0);
   const otherPerson = (id: string) => people.find((p) => p.id === id) ?? (me?.id === id ? me : null);
@@ -397,7 +409,7 @@ export default function SocialHub({ onClose = () => {}, onSignIn, onProfileChang
 
     if(profileId){const person=viewedProfile??people.find(candidate=>candidate.id===profileId)??(me?.id===profileId?me:null);return <div className="social-backdrop social-standalone"><section className="social-window panel social-page-window profile-page-window"><header className="social-header"><button className="chat-back-button" onClick={()=>router.back()} aria-label="Back"><FiArrowLeft/></button><b>Student profile</b></header>{person?<StudentProfileCard person={person} onMessage={()=>void openDirect(person)}/>:<div className="social-empty">{bootstrapping?"Loading profile…":"This profile could not be found."}</div>}</section></div>;}
   return <div className={`social-backdrop${standalone?" social-standalone":""}`} onMouseDown={e => {if(!standalone&&e.target===e.currentTarget)onClose();}}><section ref={socialWindowRef} className={`social-window panel${standalone?" social-page-window":""}${conversationId?" social-chat-screen":""}`} role={standalone?"main":"dialog"} aria-modal={standalone?undefined:true} aria-label="FUTO Life social">
-    <header className={`social-header${conversationId?" chat-route-header":""}`}>{conversationId?<><button className="chat-back-button" onClick={()=>router.push("/community/messages")} aria-label="Back to conversations"><FiArrowLeft/></button><button className="chat-profile-trigger" onClick={()=>chatPartner&&router.push("/community/profile/"+chatPartner.id)} disabled={!chatPartner}><Avatar person={chatPartner}/><span><b>{currentChat?.kind==="group"?currentChat.title:chatPartner?.display_name??"Loading chat…"}</b><small>{chatPartner?.department??(currentChat?.kind==="group"?`${currentChat.members.length} members`:"Tap to view profile")}</small></span></button></>:<><div className="social-brand"><div className="eyebrow">FUTO LIFE · COMMUNITY</div><h2>{tab==="feed"?"Campus feed":tab==="friends"?"Friends":tab==="messages"?"Messages":"My profile"}</h2></div>{standalone?<Link className="secondary social-close-link" href="/explore">Campus</Link>:<button className="secondary social-close" onClick={onClose} aria-label="Close social"><FiX/></button>}</>}</header>
+    <header className={`social-header${conversationId?" chat-route-header":""}`}>{conversationId?<><button className="chat-back-button" onClick={()=>router.push("/community/messages")} aria-label="Back to conversations"><FiArrowLeft/></button><button className="chat-profile-trigger" onClick={()=>chatPartner&&router.push("/community/profile/"+chatPartner.id)} disabled={!chatPartner}><Avatar person={chatPartner}/><span><b>{currentChat?.kind==="group"?currentChat.title:chatPartner?.display_name??"Loading chat…"}</b><small>{chatPartner?.department??(currentChat?.kind==="group"?`${currentChat.members.length} members`:"Tap to view profile")}</small></span></button><NotificationCenter/></>:<><div className="social-brand"><div className="eyebrow">FUTO LIFE · COMMUNITY</div><h2>{tab==="feed"?"Campus feed":tab==="friends"?"Friends":tab==="messages"?"Messages":"My profile"}</h2></div>{standalone?<><NotificationCenter/><Link className="secondary social-close-link" href="/explore">Campus</Link></>:<button className="secondary social-close" onClick={onClose} aria-label="Close social"><FiX/></button>}</>}</header>
     {bootstrapping ? <div className="community-auth-loading social-loading" role="status" aria-live="polite"><span className="community-spinner"/><span>Loading your community…</span></div> : !me ? <div className="social-empty">{notice || "Sign in and complete your profile to use the student community."}<br/>{standalone?<Link className="primary social-signin" href="/explore?auth=signin&next=%2Fcommunity">Sign in / create account</Link>:<button className="primary social-signin" onClick={onSignIn}>Sign in / create account</button>}</div> : <>
       <div className={`social-content${tab==="messages"?" messages-content":""}`}>
         {tab === "feed" && <div className="feed-column">

@@ -6,6 +6,7 @@ import { locations, type CampusLocation } from "@/lib/locations";
 import { createClient } from "@/lib/supabase/browser";
 import { notify } from "@/lib/notify";
 import { FiEye, FiEyeOff } from "react-icons/fi";
+import { NotificationCenter } from "@/components/notification-center";
 
 type Profile = { id: string; display_name: string; department: string | null; year_of_study: number | null; avatar_url: string | null };
 type AuthMode = "signin" | "signup";
@@ -50,6 +51,8 @@ export default function CampusExperience() {
 
   function chooseLocation(place: CampusLocation) {
     setSelected(place);
+    const client=createClient();
+    if(client)void client.rpc("record_user_activity",{p_action:"place.viewed",p_entity_type:"campus_location",p_entity_id:place.id}).then(()=>{});
     if (typeof place.local_x === "number" && typeof place.local_z === "number") {
       worldFrame.current?.contentWindow?.postMessage({ type: "futo:walk-to", x: place.local_x, z: place.local_z }, window.location.origin);
     }
@@ -170,6 +173,7 @@ export default function CampusExperience() {
         <DockAction icon="map" label="Campus map" detail="View saved places" onClick={()=>{setMapOpen(true);setMenuOpen(false);}}/>
         <DockAction icon="pin" label={directoryOpen?"Hide places":"Campus directory"} detail={directoryOpen?"Collapse place list":"Search campus locations"} active={directoryOpen} onClick={()=>setDirectoryOpen(v=>!v)}/>
         <Link className="dock-action" href="/community"><DockGlyph icon="people"/><span><b>Community</b><small>Friends, posts and messages</small></span><span className="dock-arrow">↗</span></Link>
+        <NotificationCenter dock/>
         <button className="dock-action" onClick={()=>{setAccountOpen(true);setMenuOpen(false);}}><span className="dock-avatar">{profile?.avatar_url?<img src={profile.avatar_url} alt=""/>:profile?.display_name?.slice(0,1).toUpperCase()??"♙"}</span><span><b>{profile?.display_name??(email?"Finish profile":"Sign in")}</b><small>Account and profile</small></span><span className="dock-arrow">›</span></button>
         {isAdmin&&<Link className="dock-action" href="/admin"><DockGlyph icon="shield"/><span><b>Admin dashboard</b><small>Manage FUTO campus</small></span><span className="dock-arrow">↗</span></Link>}
       </nav>
@@ -237,6 +241,7 @@ function AccountDialog({ email: currentEmail, profile, initialName, initialMessa
           redirectTo: `${window.location.origin}/auth/callback?next=%2Freset-password`,
         });
         if (error) throw error;
+        await supabase.rpc("record_user_activity",{p_action:"auth.password_reset_requested",p_contact_email:email.trim()});
         setMessage("If an account exists for that email, a password reset link has been sent. Check your inbox and spam folder.");
         return;
       }
@@ -251,6 +256,7 @@ function AccountDialog({ email: currentEmail, profile, initialName, initialMessa
       } else if (!currentUser) {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
+        await supabase.rpc("record_user_activity",{p_action:"auth.login"});
         setAuthenticated(true);
       }
       const existing = await fetch("/api/profile", { cache: "no-store" });
@@ -271,7 +277,7 @@ function AccountDialog({ email: currentEmail, profile, initialName, initialMessa
   }
 
   async function signOut() {
-    if (supabase) await supabase.auth.signOut();
+    if (supabase) { await supabase.rpc("record_user_activity",{p_action:"auth.logout"}); await supabase.auth.signOut(); }
     onSignedIn("", null); onClose();
   }
 

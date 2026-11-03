@@ -1,8 +1,9 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { NotificationCenter } from "@/components/notification-center";
 
 export function SiteHeader() {
-  return <header className="site-header"><Link className="site-logo" href="/" aria-label="FUTO Life home"><span className="site-logo-mark">F</span><span>FUTO <b>LIFE</b></span></Link><nav aria-label="Main navigation"><Link href="/explore">Campus</Link><Link href="/community">Community</Link><Link className="site-header-cta" href="/explore?auth=signin">Join FUTO Life <span aria-hidden="true">↗</span></Link></nav></header>;
+  return <header className="site-header"><Link className="site-logo" href="/" aria-label="FUTO Life home"><span className="site-logo-mark">F</span><span>FUTO <b>LIFE</b></span></Link><nav aria-label="Main navigation"><Link href="/explore">Campus</Link><Link href="/community">Community</Link><NotificationCenter/><Link className="site-header-cta" href="/explore?auth=signin">Join FUTO Life <span aria-hidden="true">↗</span></Link></nav></header>;
 }
 
 export function SiteFooter() {
