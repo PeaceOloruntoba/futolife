@@ -1,0 +1,14 @@
+{
+  "id": "/",
+  "name": "FUTO Life — Explore your campus",
+  "short_name": "FUTO Life",
+  "description": "Explore FUTO, find your people, and make your story.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#10120f",
+  "theme_color": "#10120f",
+  "icons": [
+    { "src": "/futo-app-icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

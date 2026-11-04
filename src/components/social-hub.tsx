@@ -137,11 +137,22 @@ export default function SocialHub({ onClose = () => {}, onSignIn, onProfileChang
     ]);
     const messageRows = (messageResult.data ?? []) as Message[];
     setUnreadCounts(Object.fromEntries(((unreadResult.data??[]) as {conversation_id:string;unread_count:number}[]).map(row=>[row.conversation_id,Number(row.unread_count)])));
-    setChats(conversationRows.map((chat) => ({ ...chat, members: memberRows.filter(m => m.conversation_id === chat.id).map(m => profileMap.get(m.profile_id)).filter((p): p is Person => Boolean(p)), lastMessage: messageRows.find(m => m.conversation_id === chat.id) })));
+    setChats(conversationRows.map((chat) => ({ ...chat, members: memberRows.filter(m => m.conversation_id === chat.id).map(m => profileMap.get(m.profile_id)).filter((p): p is Person => Boolean(p)), lastMessage: messageRows.find(m => m.conversation_id === chat.id) })).sort((a,b)=>new Date(b.lastMessage?.created_at??b.created_at).getTime()-new Date(a.lastMessage?.created_at??a.created_at).getTime()));
     setLoadingChats(false);
   }, [authStatus, userId, profileId, supabase]);
 
   useEffect(() => { void load(); }, [load]);
+  useEffect(()=>{
+    if(!supabase||!userId)return;
+    const channel=supabase.channel(`conversation-order-${userId}`).on("postgres_changes",{event:"INSERT",schema:"public",table:"messages"},payload=>{
+      const message=payload.new as Message;
+      setChats(current=>{
+        if(!current.some(chat=>chat.id===message.conversation_id))return current;
+        return current.map(chat=>chat.id===message.conversation_id?{...chat,lastMessage:message}:chat).sort((a,b)=>new Date(b.lastMessage?.created_at??b.created_at).getTime()-new Date(a.lastMessage?.created_at??a.created_at).getTime());
+      });
+    }).subscribe();
+    return()=>{void supabase.removeChannel(channel);};
+  },[supabase,userId]);
   useEffect(()=>{
     if(!supabase||!userId||!profileId||!viewedProfile||activityKeysRef.current.has(`profile:${profileId}`))return;
     activityKeysRef.current.add(`profile:${profileId}`);

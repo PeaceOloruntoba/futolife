@@ -3,11 +3,13 @@ import type { ReactNode } from "react";
 import "./globals.css";
 import { SonnerProvider } from "@/components/sonner-provider";
 import { AuthSessionProvider } from "@/components/auth-session-provider";
+import { WelcomeGuide } from "@/components/welcome-guide";
 
 export const metadata: Metadata = {
   title: "FUTO Life — Explore your campus",
   description: "Explore your campus. Find your people. Make your story.",
   applicationName: "FUTO Life",
+  manifest: "/manifest.webmanifest",
 };
 
 export const viewport: Viewport = {
@@ -18,5 +20,5 @@ export const viewport: Viewport = {
 };
 
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
-  return <html lang="en"><body><AuthSessionProvider>{children}</AuthSessionProvider><SonnerProvider/></body></html>;
+  return <html lang="en"><body><AuthSessionProvider>{children}<WelcomeGuide/></AuthSessionProvider><SonnerProvider/></body></html>;
 }
