@@ -97,6 +97,7 @@ export function WelcomeGuide() {
     setNotificationStatus(permission);
     if (permission === "granted" && userId) {
       localStorage.setItem(`futolife:web-notifications:${userId}`, "enabled");
+      window.dispatchEvent(new Event("futolife-notification-preference"));
       notify("Browser notifications are enabled on this device.");
     } else if (permission === "denied") notify("Allow notifications in your browser’s site settings to turn them on.");
   }

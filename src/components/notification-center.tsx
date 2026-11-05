@@ -23,8 +23,13 @@ export function NotificationCenter({ dock = false }: { dock?: boolean }) {
 
   useEffect(()=>{
     if(typeof window==="undefined")return;
-    setBrowserPermission("Notification" in window?window.Notification.permission:"unsupported");
-    setBrowserNotificationsEnabled(Boolean(preferenceKey&&window.localStorage.getItem(preferenceKey)==="enabled"));
+    const syncPreference=()=>{
+      setBrowserPermission("Notification" in window?window.Notification.permission:"unsupported");
+      setBrowserNotificationsEnabled(Boolean(preferenceKey&&window.localStorage.getItem(preferenceKey)==="enabled"));
+    };
+    syncPreference();
+    window.addEventListener("futolife-notification-preference",syncPreference);
+    return()=>window.removeEventListener("futolife-notification-preference",syncPreference);
   },[preferenceKey]);
 
   const load=useCallback(async()=>{
