@@ -8,7 +8,7 @@ import { notify } from "@/lib/notify";
 import { FiEye, FiEyeOff } from "react-icons/fi";
 import { NotificationCenter } from "@/components/notification-center";
 
-type Profile = { id: string; display_name: string; department: string | null; year_of_study: number | null; avatar_url: string | null };
+type Profile = { id: string; display_name: string; department: string | null; year_of_study: number | null; member_type?: "student"|"alumni"|"visitor"; alumni_set?: string|null; avatar_url: string | null };
 type AuthMode = "signin" | "signup";
 
 export default function CampusExperience() {
@@ -214,6 +214,8 @@ function AccountDialog({ email: currentEmail, profile, initialName, initialMessa
   const [name, setName] = useState(profile?.display_name ?? initialName);
   const [department, setDepartment] = useState(profile?.department ?? "");
   const [year, setYear] = useState(profile?.year_of_study ? String(profile.year_of_study) : "");
+  const [memberType, setMemberType] = useState<"student"|"alumni"|"visitor">(profile?.member_type ?? "student");
+  const [alumniSet, setAlumniSet] = useState(profile?.alumni_set ?? "");
   const [message, setMessage] = useState(initialMessage);
   const [busy, setBusy] = useState(false);
   const [resendBusy, setResendBusy] = useState(false);
@@ -227,6 +229,8 @@ function AccountDialog({ email: currentEmail, profile, initialName, initialMessa
       setName(profile.display_name);
       setDepartment(profile.department ?? "");
       setYear(profile.year_of_study ? String(profile.year_of_study) : "");
+      setMemberType(profile.member_type ?? "student");
+      setAlumniSet(profile.alumni_set ?? "");
     } else if (initialName) setName((current) => current || initialName);
     if (initialMessage) setMessage(initialMessage);
   }, [initialMessage, initialName, profile]);
@@ -246,10 +250,11 @@ function AccountDialog({ email: currentEmail, profile, initialName, initialMessa
         return;
       }
       const { data: { user: currentUser } } = await supabase.auth.getUser();
+      if (showProfileFields && memberType === "alumni" && !/^[0-9]{2}\/[0-9]{2}$/.test(alumniSet.trim())) throw new Error("Enter your alumni set as YY/YY, for example 23/24.");
       if (currentUser) setAuthenticated(true);
       if (mode === "signup") {
         if (!currentUser) {
-          const { data, error } = await supabase.auth.signUp({ email, password, options: { data: { display_name: name.trim(), referral_code: referralCode.trim().toLowerCase() || null }, emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(redirectTo)}` } });
+          const { data, error } = await supabase.auth.signUp({ email, password, options: { data: { display_name: name.trim(), referral_code: referralCode.trim().toLowerCase() || null, member_type: memberType, alumni_set: memberType === "alumni" ? alumniSet.trim() : null, department: department.trim() || null, year_of_study: memberType === "student" && year ? Number(year) : null }, emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(redirectTo)}` } });
           if (error) { void supabase.rpc("record_user_activity",{p_action:"auth.signup_failed",p_contact_email:email.trim()}).then(()=>{}); throw error; }
           if (!data.session) { setCanResendConfirmation(true); setMessage("Check your email to confirm your account. Your display name is saved; you can finish your profile after confirmation."); return; }
         }
@@ -263,11 +268,16 @@ function AccountDialog({ email: currentEmail, profile, initialName, initialMessa
       const existingData = await existing.json();
       if (existing.ok && existingData.profile?.display_name && !currentEmail) { notify("You’re signed in. Welcome back!"); onSignedIn(email, existingData.profile); return; }
       if (mode === "signin" && !currentEmail) {
+        const metadata = currentUser?.user_metadata ?? {};
+        if (metadata.member_type === "alumni" || metadata.member_type === "visitor" || metadata.member_type === "student") setMemberType(metadata.member_type);
+        if (typeof metadata.alumni_set === "string") setAlumniSet(metadata.alumni_set);
+        if (typeof metadata.department === "string") setDepartment(metadata.department);
+        if (typeof metadata.year_of_study === "number") setYear(String(metadata.year_of_study));
         setMode("signup");
         setMessage("You’re signed in. Finish setting up your profile.");
         return;
       }
-      const response = await fetch("/api/profile", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ display_name: name.trim(), department, year_of_study: year ? Number(year) : null }) });
+      const response = await fetch("/api/profile", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ display_name: name.trim(), department, member_type: memberType, alumni_set: alumniSet.trim(), year_of_study: memberType === "student" && year ? Number(year) : null }) });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error ?? "Unable to save profile.");
       notify("Your FUTO Life profile is ready.");
@@ -303,7 +313,9 @@ function AccountDialog({ email: currentEmail, profile, initialName, initialMessa
       {showProfileFields && <>
         <label className="field">Display name<input value={name} onChange={(e) => setName(e.target.value)} minLength={2} maxLength={48} required /></label>
         <label className="field">Department (optional)<input value={department} onChange={(e) => setDepartment(e.target.value)} maxLength={80} placeholder="e.g. Computer Science" /></label>
-        <label className="field">Year of study (optional)<select value={year} onChange={(e) => setYear(e.target.value)} className="field input" style={{ background: "#10120f", color: "white", border: "1px solid #3b4037", borderRadius: 10, padding: 11 }}><option value="">Choose year</option>{[1,2,3,4,5,6,7].map((n) => <option key={n} value={n}>{n}</option>)}</select></label>
+        <label className="field">I am a<select value={memberType} onChange={e=>setMemberType(e.target.value as "student"|"alumni"|"visitor")}><option value="student">Current student</option><option value="alumni">FUTO alumni</option><option value="visitor">Visitor / guest</option></select></label>
+        {memberType === "student" && <label className="field">Year of study (optional)<select value={year} onChange={(e) => setYear(e.target.value)}><option value="">Choose year</option>{[1,2,3,4,5,6,7].map((n) => <option key={n} value={n}>{n}</option>)}</select></label>}
+        {memberType === "alumni" && <label className="field">Graduation set<input value={alumniSet} onChange={e=>setAlumniSet(e.target.value)} placeholder="23/24" pattern="[0-9]{2}/[0-9]{2}" title="Use YY/YY, for example 23/24" required/><small className="field-help">Enter your set as YY/YY. It will appear as “Alumni - 23/24 set”.</small></label>}
       </>}
       <button className="primary" disabled={busy || !supabase}>{busy ? "Please wait…" : recoveringPassword ? "Send reset link" : hasSession ? "Save profile" : mode === "signin" ? "Sign in" : "Create account"}</button>
       {canResendConfirmation && <button className="secondary" type="button" disabled={resendBusy || !supabase} onClick={() => void resendConfirmation()}>{resendBusy ? "Sending…" : "Resend confirmation email"}</button>}
