@@ -87,3 +87,7 @@ revoke all on function public.get_profile_details(uuid) from public;
 revoke all on function public.save_my_profile_details(text,text,smallint,text,text,date,text,text,text,text) from public;
 grant execute on function public.get_profile_details(uuid) to authenticated;
 grant execute on function public.save_my_profile_details(text,text,smallint,text,text,date,text,text,text,text) to authenticated;
+
+drop trigger if exists audit_profile_details on public.profile_details;
+create trigger audit_profile_details after insert or update or delete on public.profile_details
+for each row execute function public.audit_app_row_change();
