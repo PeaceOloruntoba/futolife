@@ -72,16 +72,22 @@ export default function CampusExperience() {
 
   useEffect(() => {
     let active = true;
-    void fetch("/api/locations", { cache: "no-store" }).then(async (response) => {
-      if (!response.ok) throw new Error("Location inventory request failed.");
-      return response.json();
-    }).then((result) => {
-      if (!active || !Array.isArray(result.locations)) return;
-      setCampusLocations(result.locations);
-      setLocationSource(result.source === "supabase" ? "supabase" : "bundled");
-      setLocationLoadError(false);
-    }).catch(() => { if (active) setLocationLoadError(true); });
-    return () => { active = false; };
+    const refreshLocations=async()=>{
+      try{
+        const response=await fetch("/api/locations",{cache:"no-store"});
+        if(!response.ok)throw new Error("Location inventory request failed.");
+        const result=await response.json();
+        if(!active||!Array.isArray(result.locations))return;
+        setCampusLocations(result.locations);
+        setSelected(current=>current?result.locations.find((place:CampusLocation)=>place.id===current.id)??null:null);
+        setLocationSource(result.source==="supabase"?"supabase":"bundled");
+        setLocationLoadError(false);
+      }catch{if(active)setLocationLoadError(true);}
+    };
+    void refreshLocations();
+    const supabase=createClient();
+    const channel=supabase?.channel("campus-location-updates").on("postgres_changes",{event:"*",schema:"public",table:"campus_locations"},()=>void refreshLocations()).subscribe();
+    return () => { active=false;if(channel&&supabase)void supabase.removeChannel(channel); };
   }, []);
 
   useEffect(() => {
@@ -184,7 +190,7 @@ export default function CampusExperience() {
       <header className="map-header"><div><div className="eyebrow">Campus map</div><h2 id="map-title">Places with saved positions</h2></div><button className="secondary map-close" onClick={() => setMapOpen(false)} aria-label="Close campus map">×</button></header>
       <div className="schematic-map" role="img" aria-label="Schematic map showing campus locations that have saved local positions">
         <span className="north-marker" aria-hidden="true">N ↑</span>
-        {plottedLocations.map(({ place, left, top }) => <button key={place.id} className={`map-marker status-${place.position_status ?? "unverified"}`} style={{ left: `${left}%`, top: `${top}%` }} onClick={() => { chooseLocation(place); setMapOpen(false); setDirectoryOpen(true); if(window.matchMedia("(max-width:640px)").matches)setMenuOpen(true); }} aria-label={`${place.name}, ${place.position_status === "provisional" ? "estimated position" : place.position_status === "verified" ? "verified position" : "unverified position"}`} title={place.name}><span className="map-marker-dot"/><span className="map-marker-name">{place.name}</span></button>)}
+        {plottedLocations.map(({ place, left, top }) => <button key={place.id} className={`map-marker status-${place.position_status ?? "unverified"}`} style={{ left: `${left}%`, top: `${top}%` }} onClick={() => { chooseLocation(place); setMapOpen(false); setDirectoryOpen(true); if(window.matchMedia("(max-width:640px)").matches)setMenuOpen(true); }} aria-label={`${place.name}, ${place.position_status === "provisional" ? "estimated position" : place.position_status === "verified" ? "verified position" : "unverified position"}`} title={place.name}>{place.image_url?<img className="map-marker-photo" src={place.image_url} alt=""/>:<span className="map-marker-dot"/>}<span className="map-marker-name">{place.name}</span></button>)}
         {!plottedLocations.length && <p className="empty-map">No campus places have map positions yet.</p>}
       </div>
       <p className="map-caveat">Schematic positions only. This view does not imply surveyed roads, boundaries, building footprints, or verified directions.</p>
