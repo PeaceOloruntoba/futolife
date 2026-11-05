@@ -1,7 +1,7 @@
 create table if not exists public.profile_details (
   profile_id uuid primary key references public.profiles(id) on delete cascade,
   gender text check (gender is null or gender in ('Male','Female')),
-  date_of_birth date check (date_of_birth is null or date_of_birth between date '1900-01-01' and current_date),
+  date_of_birth date check (date_of_birth is null or date_of_birth >= date '1900-01-01'),
   dob_visibility text not null default 'private' check (dob_visibility in ('private','friends','public')),
   hometown text check (hometown is null or char_length(hometown) <= 100),
   interests text check (interests is null or char_length(interests) <= 280),
