@@ -220,7 +220,7 @@ export default function SocialHub({ onClose = () => {}, onSignIn, onProfileChang
 
   useEffect(()=>{
     let active=true;
-    const attached=messages.filter(message=>message.attachment_bucket&&message.attachment_path);
+    const attached=messages.filter(message=>!message.is_deleted&&message.attachment_bucket&&message.attachment_path);
     if(!supabase||!attached.length)return;
     void Promise.all(attached.map(async message=>{const {data}=await supabase.storage.from(message.attachment_bucket!).createSignedUrl(message.attachment_path!,3600);return [message.id,data?.signedUrl] as const;})).then(entries=>{if(active)setAttachmentUrls(current=>({...current,...Object.fromEntries(entries.filter((entry):entry is readonly [string,string]=>Boolean(entry[1])))}));});
     return()=>{active=false;};
@@ -534,7 +534,7 @@ function ChatMessageBubble({message,mine,senderName,chatKind,readers,attachmentU
       </>}
       <div className="message-meta"><time>{new Date(message.created_at).toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"})}</time>{mine&&<span className={readers?"receipt-seen":"receipt-sent"} title={readers?chatKind==="group"?`Seen by ${readers} members`:"Read":"Sent"} aria-label={readers?"Read":"Sent"}>{readers?<IoCheckmarkDone/>:<FiCheck/>}{chatKind==="group"&&readers?` ${readers}`:""}</span>}</div>
     </div>
-    {groupedReactions.length>0&&!message.is_deleted&&<div className="message-reaction-summary">{groupedReactions.map(([reaction,rows])=><button type="button" key={reaction} className={rows.some(row=>row.profile_id===message.sender_id)?"":""} onClick={()=>onReact(reaction)} aria-label={`${reaction} reaction, ${rows.length} total`}>{reaction}<small>{rows.length}</small></button>)}</div>}
+    {groupedReactions.length>0&&!message.is_deleted&&<div className="message-reaction-summary">{groupedReactions.map(([reaction,rows])=><button type="button" key={reaction} className={myReaction===reaction?"active":""} onClick={()=>onReact(reaction)} aria-label={`${reaction} reaction, ${rows.length} total`}>{reaction}<small>{rows.length}</small></button>)}</div>}
     {selected&&<div className="message-action-bar" onClick={event=>event.stopPropagation()}><div className="message-reaction-picker" aria-label="React to message">{reactionChoices.map(reaction=><button type="button" key={reaction} className={myReaction===reaction?"active":""} onClick={()=>onReact(reaction)} aria-label={`React ${reaction}`}>{reaction}</button>)}</div><button type="button" onClick={onReply} disabled={message.is_deleted}><FiCornerUpLeft/>Reply</button>{mine&&message.message_kind==="text"&&!message.is_deleted&&<button type="button" onClick={onEdit}><FiEdit2/>Edit</button>}{mine&&!message.is_deleted&&<button type="button" className="message-delete-action" onClick={onDelete}><FiTrash2/>Delete</button>}</div>}
   </div>;
 }
