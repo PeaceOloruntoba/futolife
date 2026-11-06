@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent, Fragment } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FiArrowLeft, FiArrowUpRight, FiFileText, FiHeart, FiHome, FiImage, FiMessageCircle, FiMic, FiPlus, FiSmile, FiUser, FiUsers, FiVideo, FiX, FiCheck, FiZoomIn, FiZoomOut, FiPlay, FiPause } from "react-icons/fi";
+import { FiArrowLeft, FiArrowUpRight, FiFileText, FiHeart, FiHome, FiImage, FiMessageCircle, FiMic, FiPlus, FiSmile, FiUser, FiUsers, FiVideo, FiX, FiCheck, FiZoomIn, FiZoomOut, FiPlay, FiPause, FiEdit2, FiTrash2, FiCornerUpLeft } from "react-icons/fi";
 import { IoCheckmarkDone } from "react-icons/io5";
 import { createClient } from "@/lib/supabase/browser";
 import { notify } from "@/lib/notify";
@@ -14,8 +14,9 @@ type ProfileDetails = { gender: "Male"|"Female"|null; date_of_birth: string|null
 type Person = { id: string; display_name: string; department: string | null; year_of_study: number | null; member_type?: "student"|"alumni"|"visitor"; alumni_set?: string|null; avatar_url: string | null; bio?: string | null; referral_code?: string; is_suspended?: boolean } & Partial<ProfileDetails>;
 type Friendship = { id: string; requester_id: string; addressee_id: string; status: string; created_at: string };
 type Post = { id: string; author_id: string; body: string; created_at: string };
-type Message = { id: string; conversation_id: string; sender_id: string; body: string; created_at: string; message_kind?: "text"|"image"|"video"|"document"|"voice"; attachment_bucket?: string|null; attachment_path?: string|null; attachment_name?: string|null; attachment_size?: number|null; attachment_mime?: string|null };
+type Message = { id: string; conversation_id: string; sender_id: string; body: string; created_at: string; edited_at?:string|null;is_deleted?:boolean;reply_to_id?:string|null;message_kind?: "text"|"image"|"video"|"document"|"voice"; attachment_bucket?: string|null; attachment_path?: string|null; attachment_name?: string|null; attachment_size?: number|null; attachment_mime?: string|null };
 type MessageRead = { message_id: string; profile_id: string; read_at: string };
+type MessageReaction={message_id:string;profile_id:string;reaction:string;created_at:string};
 type PendingAttachment = { file: File; kind: "image"|"video"|"document"|"voice"; bucket: "chat-images"|"chat-attachments" };
 type Chat = { id: string; kind: "direct" | "group"; title: string | null; created_at: string; members: Person[]; lastMessage?: Message };
 type ReferralRow = {profile_id:string;display_name:string;depth:number;joined_at:string};
@@ -33,6 +34,11 @@ export default function SocialHub({ onClose = () => {}, onSignIn, onProfileChang
   const [messages, setMessages] = useState<Message[]>([]);
   const [totalMessageCount, setTotalMessageCount] = useState(0);
   const [messageReads, setMessageReads] = useState<Record<string, MessageRead[]>>({});
+  const [messageReactions,setMessageReactions]=useState<Record<string,MessageReaction[]>>({});
+  const [selectedMessageId,setSelectedMessageId]=useState<string|null>(null);
+  const [replyToMessageId,setReplyToMessageId]=useState<string|null>(null);
+  const [editingMessageId,setEditingMessageId]=useState<string|null>(null);
+  const [deleteMessageId,setDeleteMessageId]=useState<string|null>(null);
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
   const [pendingAttachment, setPendingAttachment] = useState<PendingAttachment|null>(null);
   const [attachmentUrls, setAttachmentUrls] = useState<Record<string, string>>({});
@@ -58,6 +64,7 @@ export default function SocialHub({ onClose = () => {}, onSignIn, onProfileChang
   const [draftPost, setDraftPost] = useState("");
   const postInputRef=useRef<HTMLTextAreaElement>(null);
   const messageListRef=useRef<HTMLDivElement>(null);
+  const messageInputRef=useRef<HTMLInputElement>(null);
   const shouldStickToBottomRef=useRef(true);
   const lastScrolledChatRef=useRef<string|null>(null);
   const socialWindowRef=useRef<HTMLElement>(null);
@@ -167,7 +174,7 @@ export default function SocialHub({ onClose = () => {}, onSignIn, onProfileChang
   useEffect(() => { if (notice) { notify(notice); setNotice(""); } }, [notice]);
   useEffect(() => {
     if (!supabase || !activeChat) return;
-    setMessages([]);setTotalMessageCount(0);setMessageReads({});setAttachmentUrls({});
+    setMessages([]);setTotalMessageCount(0);setMessageReads({});setMessageReactions({});setAttachmentUrls({});setSelectedMessageId(null);setReplyToMessageId(null);setEditingMessageId(null);setDeleteMessageId(null);
     const refreshUnread = async () => {
       const {data}=await supabase.rpc("get_my_unread_counts");
       setUnreadCounts(Object.fromEntries(((data??[]) as {conversation_id:string;unread_count:number}[]).map(row=>[row.conversation_id,Number(row.unread_count)])));
@@ -177,11 +184,11 @@ export default function SocialHub({ onClose = () => {}, onSignIn, onProfileChang
       await refreshUnread();
     };
     const refresh = async () => {
-      const { data, count } = await supabase.from("messages").select("id,conversation_id,sender_id,body,created_at,message_kind,attachment_bucket,attachment_path,attachment_name,attachment_size,attachment_mime",{count:"exact"}).eq("conversation_id", activeChat).order("created_at").limit(300);
+      const { data, count } = await supabase.from("messages").select("id,conversation_id,sender_id,body,created_at,edited_at,is_deleted,reply_to_id,message_kind,attachment_bucket,attachment_path,attachment_name,attachment_size,attachment_mime",{count:"exact"}).eq("conversation_id", activeChat).order("created_at").limit(300);
       const rows=(data??[]) as Message[];setMessages(rows);
       setTotalMessageCount(count??rows.length);
       if(tab==="messages"&&document.visibilityState==="visible")await markRead();
-      if(rows.length){const {data:reads}=await supabase.from("message_reads").select("message_id,profile_id,read_at").in("message_id",rows.map(row=>row.id));const grouped=(reads??[] as MessageRead[]).reduce<Record<string,MessageRead[]>>((acc,row)=>{(acc[row.message_id]??=[]).push(row as MessageRead);return acc;},{});setMessageReads(grouped);}
+      if(rows.length){const [readResult,reactionResult]=await Promise.all([supabase.from("message_reads").select("message_id,profile_id,read_at").in("message_id",rows.map(row=>row.id)),supabase.from("message_reactions").select("message_id,profile_id,reaction,created_at").in("message_id",rows.map(row=>row.id))]);const grouped=(readResult.data??[] as MessageRead[]).reduce<Record<string,MessageRead[]>>((acc,row)=>{(acc[row.message_id]??=[]).push(row as MessageRead);return acc;},{});setMessageReads(grouped);const groupedReactions=(reactionResult.data??[] as MessageReaction[]).reduce<Record<string,MessageReaction[]>>((acc,row)=>{(acc[row.message_id]??=[]).push(row as MessageReaction);return acc;},{});setMessageReactions(groupedReactions);}
     };
     const handleVisibility=()=>{if(document.visibilityState==="visible"&&tab==="messages")void markRead();};
     void refresh();
@@ -193,10 +200,20 @@ export default function SocialHub({ onClose = () => {}, onSignIn, onProfileChang
         setTotalMessageCount(current=>current+1);
         if(incoming.sender_id!==me?.id)void markRead();
       }else void refreshUnread();
+    }).on("postgres_changes",{event:"UPDATE",schema:"public",table:"messages",filter:`conversation_id=eq.${activeChat}`},payload=>{
+      const updated=payload.new as Message;
+      setMessages(current=>current.map(message=>message.id===updated.id?updated:message));
     }).on("postgres_changes",{event:"INSERT",schema:"public",table:"message_reads"},payload=>{
       const receipt=payload.new as MessageRead;
       setMessageReads(current=>({...current,[receipt.message_id]:[...(current[receipt.message_id]??[]).filter(row=>row.profile_id!==receipt.profile_id),receipt]}));
       void refreshUnread();
+    }).on("postgres_changes",{event:"*",schema:"public",table:"message_reactions"},payload=>{
+      const reaction=(payload.eventType==="DELETE"?payload.old:payload.new) as MessageReaction;
+      setMessageReactions(current=>{
+        const existing=current[reaction.message_id]??[];
+        const remaining=existing.filter(row=>row.profile_id!==reaction.profile_id);
+        return {...current,[reaction.message_id]:payload.eventType==="DELETE"?remaining:[...remaining,reaction]};
+      });
     }).subscribe();
     return () => { document.removeEventListener("visibilitychange",handleVisibility);void supabase.removeChannel(channel); };
   }, [activeChat, supabase, tab, me?.id]);
@@ -269,6 +286,8 @@ export default function SocialHub({ onClose = () => {}, onSignIn, onProfileChang
   const filteredFriends = friends.filter((p) => `${p.display_name} ${p.department ?? ""}`.toLowerCase().includes(friendSearch.trim().toLowerCase()));
   const filteredChats = chats.filter((chat) => `${chat.title ?? ""} ${chat.members.map(member=>member.display_name).join(" ")} ${chat.lastMessage?.body ?? ""}`.toLowerCase().includes(conversationSearch.trim().toLowerCase()));
   const currentChat = chats.find((chat) => chat.id === activeChat);
+  const replyTarget=messages.find(message=>message.id===replyToMessageId)??null;
+  const editingTarget=messages.find(message=>message.id===editingMessageId)??null;
   useEffect(()=>{
     if(!supabase||!userId||!activeChat||!currentChat||activityKeysRef.current.has(`chat:${activeChat}`))return;
     activityKeysRef.current.add(`chat:${activeChat}`);
@@ -379,6 +398,11 @@ export default function SocialHub({ onClose = () => {}, onSignIn, onProfileChang
   async function sendMessage(event: FormEvent) {
     event.preventDefault(); if (!supabase || !me || !activeChat || (!draftMessage.trim()&&!pendingAttachment) || busy) return;
     setBusy(true);
+    if(editingMessageId){
+      const {data,error}=await supabase.rpc("edit_my_message",{target_message:editingMessageId,new_body:draftMessage.trim()});
+      if(error)setNotice(error.message);else{setMessages(current=>current.map(message=>message.id===editingMessageId?data as Message:message));setDraftMessage("");setEditingMessageId(null);setSelectedMessageId(null);setNotice("Message edited.");}
+      setBusy(false);return;
+    }
     let attachment:{bucket:string;path:string;name:string;size:number;mime:string;kind:string}|null=null;
     if(pendingAttachment){
       const {file,kind,bucket}=pendingAttachment;
@@ -388,10 +412,40 @@ export default function SocialHub({ onClose = () => {}, onSignIn, onProfileChang
       attachment={bucket,path,name:file.name,size:file.size,mime:file.type,kind};
     }
     const body=draftMessage.trim()||(attachment?.kind==="voice"?"Voice note":attachment?.name??"");
-    const { error } = await supabase.from("messages").insert({conversation_id:activeChat,sender_id:me.id,body,message_kind:attachment?.kind??"text",attachment_bucket:attachment?.bucket??null,attachment_path:attachment?.path??null,attachment_name:attachment?.name??null,attachment_size:attachment?.size??null,attachment_mime:attachment?.mime??null});
+    const { error } = await supabase.from("messages").insert({conversation_id:activeChat,sender_id:me.id,body,reply_to_id:replyToMessageId,message_kind:attachment?.kind??"text",attachment_bucket:attachment?.bucket??null,attachment_path:attachment?.path??null,attachment_name:attachment?.name??null,attachment_size:attachment?.size??null,attachment_mime:attachment?.mime??null});
     if(error&&attachment)await supabase.storage.from(attachment.bucket).remove([attachment.path]);
-    if (error) setNotice(error.message); else { setDraftMessage("");setPendingAttachment(null);setEmojiOpen(false); const {data,count} = await supabase.from("messages").select("id,conversation_id,sender_id,body,created_at,message_kind,attachment_bucket,attachment_path,attachment_name,attachment_size,attachment_mime",{count:"exact"}).eq("conversation_id",activeChat).order("created_at").limit(300); setMessages((data ?? []) as Message[]);setTotalMessageCount(count??data?.length??0); }
+    if (error) setNotice(error.message); else { setDraftMessage("");setPendingAttachment(null);setEmojiOpen(false);setReplyToMessageId(null);setSelectedMessageId(null); const {data,count} = await supabase.from("messages").select("id,conversation_id,sender_id,body,created_at,edited_at,is_deleted,reply_to_id,message_kind,attachment_bucket,attachment_path,attachment_name,attachment_size,attachment_mime",{count:"exact"}).eq("conversation_id",activeChat).order("created_at").limit(300); setMessages((data ?? []) as Message[]);setTotalMessageCount(count??data?.length??0); }
     setBusy(false);
+  }
+
+  function replyToMessage(message:Message){
+    if(message.is_deleted)return;
+    setEditingMessageId(null);setReplyToMessageId(message.id);setSelectedMessageId(null);
+    requestAnimationFrame(()=>messageInputRef.current?.focus());
+  }
+  function editMessage(message:Message){
+    if(message.sender_id!==me?.id||message.message_kind!=="text"||message.is_deleted)return;
+    setReplyToMessageId(null);setEditingMessageId(message.id);setDraftMessage(message.body);setSelectedMessageId(null);setPendingAttachment(null);
+    requestAnimationFrame(()=>{messageInputRef.current?.focus();messageInputRef.current?.setSelectionRange(message.body.length,message.body.length);});
+  }
+  function cancelMessageAction(){setReplyToMessageId(null);setEditingMessageId(null);setDraftMessage("");setPendingAttachment(null);}
+  async function confirmDeleteMessage(){
+    if(!supabase||!deleteMessageId||busy)return;
+    setBusy(true);const targetId=deleteMessageId;
+    const {data,error}=await supabase.rpc("delete_my_message",{target_message:targetId});
+    if(error)setNotice(error.message);else{setMessages(current=>current.map(message=>message.id===targetId?data as Message:message));setMessageReactions(current=>({...current,[targetId]:[]}));setNotice("Message deleted for everyone.");}
+    setDeleteMessageId(null);setSelectedMessageId(null);setBusy(false);
+  }
+  async function toggleMessageReaction(message:Message,reaction:string){
+    if(!supabase||!me||message.is_deleted||busy)return;
+    const current=(messageReactions[message.id]??[]).find(row=>row.profile_id===me.id);
+    if(current?.reaction===reaction){
+      const {error}=await supabase.from("message_reactions").delete().eq("message_id",message.id).eq("profile_id",me.id);
+      if(error)setNotice(error.message);else setMessageReactions(rows=>({...rows,[message.id]:(rows[message.id]??[]).filter(row=>row.profile_id!==me.id)}));
+    }else{
+      const {data,error}=await supabase.from("message_reactions").upsert({message_id:message.id,profile_id:me.id,reaction},{onConflict:"message_id,profile_id"}).select("message_id,profile_id,reaction,created_at").single();
+      if(error)setNotice(error.message);else setMessageReactions(rows=>({...rows,[message.id]:[...(rows[message.id]??[]).filter(row=>row.profile_id!==me.id),data as MessageReaction]}));
+    }
   }
 
   function selectAttachment(file?:File){
