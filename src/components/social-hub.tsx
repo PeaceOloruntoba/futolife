@@ -156,7 +156,7 @@ export default function SocialHub({ onClose = () => {}, onSignIn, onProfileChang
   useEffect(() => { void load(); }, [load]);
   useEffect(()=>{
     if(!supabase||!userId)return;
-    const channel=supabase.channel(`conversation-order-${userId}`).on("postgres_changes",{event:"INSERT",schema:"public",table:"messages"},payload=>{
+    const channel=supabase.channel(`conversation-order-${userId}`).on("postgres_changes",{event:"*",schema:"public",table:"messages"},payload=>{
       const message=payload.new as Message;
       setChats(current=>{
         if(!current.some(chat=>chat.id===message.conversation_id))return current;
@@ -524,10 +524,10 @@ function ChatMessageBubble({message,mine,senderName,chatKind,readers,attachmentU
   const reactionChoices=["👍","❤️","😂","😮","😢","🙏"];
   const groupedReactions=Array.from(reactions.reduce((groups,row)=>groups.set(row.reaction,(groups.get(row.reaction)??[]).concat(row)),new Map<string,MessageReaction[]>()).entries());
   const messageText=message.is_deleted?"This message was deleted":message.body&&message.body!==message.attachment_name&&!(message.message_kind==="voice"&&message.body==="Voice note")?message.body:null;
-  return <div className={`message-item${mine?" mine":""}${selected?" selected":""}`} onTouchStart={event=>{touchStart.current={x:event.changedTouches[0].clientX,y:event.changedTouches[0].clientY};}} onTouchEnd={event=>{const start=touchStart.current;touchStart.current=null;if(!start)return;const dx=event.changedTouches[0].clientX-start.x,dy=event.changedTouches[0].clientY-start.y;if(dx>58&&Math.abs(dy)<44&&!message.is_deleted)onReply();}}>
+  return <div className={`message-item${mine?" mine":""}${selected?" selected":""}`} onTouchStart={event=>{touchStart.current={x:event.changedTouches[0].clientX,y:event.changedTouches[0].clientY};}} onTouchEnd={event=>{const start=touchStart.current;touchStart.current=null;if(!start)return;const dx=event.changedTouches[0].clientX-start.x,dy=event.changedTouches[0].clientY-start.y;if(dx>58&&Math.abs(dy)<44&&!message.is_deleted){event.preventDefault();onReply();}}}>
     <div className={`message-bubble ${mine?"mine":""}`} onClick={event=>{if((event.target as HTMLElement).closest("button,a,input,video"))return;onSelect();}}>
       <small><button className="message-sender-profile" onClick={onSender}>{senderName}</button></small>
-      {replyMessage&&<div className="message-reply-quote"><b>{replyMessage.sender_id===message.sender_id?"Replied message":replyMessage.is_deleted?"Deleted message":"Reply"}</b><span>{replyMessage.is_deleted?"This message was deleted":replyMessage.body||replyMessage.attachment_name||"Voice note"}</span></div>}
+      {replyMessage&&!message.is_deleted&&<div className="message-reply-quote"><b>{replyMessage.is_deleted?"Deleted message":"Reply"}</b><span>{replyMessage.is_deleted?"This message was deleted":replyMessage.body||replyMessage.attachment_name||"Voice note"}</span></div>}
       {message.is_deleted?<p className="message-deleted-label"><FiTrash2/> This message was deleted</p>:<>
         {messageText&&<p>{messageText}{message.edited_at&&<small className="message-edited-label">edited</small>}</p>}
         {message.attachment_path&&attachmentUrl&&<div className="message-attachment">{message.message_kind==="image"?<a href={attachmentUrl} target="_blank" rel="noreferrer"><img src={attachmentUrl} alt={message.attachment_name??"Chat image"} onLoad={onImageLoad}/></a>:message.message_kind==="video"?<video controls preload="metadata" src={attachmentUrl} onLoadedMetadata={onImageLoad}/>:message.message_kind==="voice"?<VoiceNotePlayer src={attachmentUrl} mine={mine}/>:<a className="document-attachment" href={attachmentUrl} target="_blank" rel="noreferrer" download={message.attachment_name}><FiFileText/>{message.attachment_name}</a>}</div>}
