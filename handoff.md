@@ -131,3 +131,21 @@ npm run dev -- --hostname 0.0.0.0
 ```
 
 Use the computer’s LAN IP on the phone. Supabase email callbacks also need the phone-accessible URL in the Auth redirect allow-list when testing email links.
+
+## Latest update — conversation message actions (2026-11-08)
+
+Implemented WhatsApp-style message interactions in the conversation view:
+
+- Select/tap a message to reveal contextual actions and quick reactions; swipe a message right on touch screens to reply.
+- Reply previews link to the selected message. Users can edit their own text messages and delete their own messages for everyone; deleted messages render as “This message was deleted”.
+- Reactions are stored per user and message, with live updates through Supabase Realtime.
+- Database migration `supabase/migrations/202611080001_chat_message_actions.sql` adds edit/deletion/reply fields, message reaction storage and RLS, authorized edit/delete RPCs, and activity audit events that omit message contents.
+- Editing is text-only. Any message can be replied to or reacted to; media messages can be deleted by their sender.
+
+### Rollout steps
+
+1. Preview the linked Supabase migration: `npx supabase@latest db push --dry-run --linked`.
+2. Apply it to the linked project: `npx supabase@latest db push --linked`.
+3. Deploy the app after the migration completes. Verify using two accounts: edit/delete own messages, reply by action and swipe, toggle reactions, and confirm other conversation members receive realtime updates.
+
+TypeScript check (`npx tsc --noEmit`) passes. Full functional testing remains pending.
