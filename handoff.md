@@ -1,58 +1,171 @@
-# FUTO Life — Handoff
+# FUTO Life — Product and Implementation Handoff
 
-## Current state
+## Product direction
 
-- Next.js + TypeScript app with Supabase/Postgres at `/`; campus explorer at `/explore`; student community at `/community`; admin tools at `/admin`.
-- Community includes friend requests, friends-only chats, group chats, posts, `@friend` tagging, indexed `#hashtags`, likes, comments, reports, and profile/referral management.
-- Email confirmation and forgot-password recovery are implemented. Password reset uses `/reset-password`.
-- Campus explorer includes a collapsible directory, schematic map, touch joystick and swipe look; desktop uses WASD, arrows and Shift; mobile has a hold-to-run button.
-- Recent UI work separates chat list/thread scrolling, follows the newest messages, and resizes the chat view for the mobile keyboard.
-- Latest controls/auth update: moved the mobile movement stick to the bottom-left with safe-area spacing; sign-in and signup password fields now have accessible Show/Hide buttons.
-- Latest platform feedback update: added a global Sonner toaster (color-coded, top-right) and routed account confirmation/recovery, social, admin, and reset-password notices into it. Added/extended pending labels and disabled states for chat actions and admin confirmations, plus initial loading labels for admin data.
-- Latest messaging update: added per-message read receipts, RPC-backed unread totals and conversation badges, friend-request-only tab badges, friend/chat/message totals, private image/video/document uploads, voice recordings, and an in-app emoji picker. New migration: `202611030001_chat_receipts_media.sql`.
-- Latest community UI update: split Feed, Friends, Messages, and Profile into independent routes with a bottom icon bar; chats now open at `/community/messages/<id>` as a full-screen conversation with a back button and links to student profiles. Replaced receipt, composer, reaction, navigation, and password visibility glyphs with `react-icons`. Voice recorder MIME types are normalized (codec parameters removed) before validation/upload to fix unsupported voice-note formats.
-- Latest routing/auth fix: removed the Vercel catch-all rewrite that sent every route to `/` (the cause of chat deep links rendering the landing page). Added a root-level Supabase auth session provider that subscribes once and persists through client navigation; community views now block with a full-screen session restore indicator and a page-level loading state until profile data is ready.
-- Latest community usability update: message threads jump to the newest message after chat/message changes; profile photos on student detail pages open in an image viewer with zoom controls and wheel zoom; community scrollbars use a slim themed style; Friends and Messages list pages now have independent search fields. Auth/profile bootstrap now fetches the current profile first and releases the blocking loader before loading larger feed, directory, referral, and chat datasets in parallel.
-- Latest media presentation update: image and video messages no longer render their stored filename as message text; document names remain visible. Replaced the native voice-note audio controls with a responsive custom player featuring a large play/pause control, animated-style waveform, seek interaction, elapsed/total duration, and no browser overflow menu.
-- Latest notification/audit update: added persistent in-app notifications for incoming friend requests, accepted requests, and new direct/group messages, with realtime badges/toasts, mark-read actions, and navigation to the relevant screen. Added migration `202611030002_notifications_activity_log.sql`: notification records are recipient-private; audit history is append-only and admin-readable only. Database triggers record signups, confirmation, profile changes, friendship changes, posts/comments/reactions/reports, messages and per-message reads, conversations/members, referrals, admin role changes, campus place changes, and notification reads. App events record login/logout, password reset requests/changes, profile/chat/place views, and opening the audit tab. Logs exclude message contents and passwords. Added an Activity tab to the admin dashboard and updated the Privacy page.
-- Latest chat notification/scroll update: chat threads now remain pinned to the latest message on open and while new content/media sizes load, but stop auto-following if the user scrolls up. Added user opt-in for OS/browser notifications while FUTO Life is open or backgrounded, including per-account device preference, persisted browser permission, service-worker notification clicks, and a notification control in campus/community/admin surfaces. Supabase auth remains rooted in the app layout; notification permission/preferences persist separately per browser and account.
-- Latest discovery/install/onboarding update: conversation lists now sort by their most recent message and update their order through Supabase Realtime. Added a web app manifest and app icon for home-screen installation, plus a delayed install/notification invitation after sign-in (per-account dismissal state). Added a first-login guided overlay covering campus exploration, the campus directory, community feed, conversations, and profile; users can skip it and the completion choice is saved per account. Notification permission is requested only after the user presses Enable.
-- Latest profile update: expanded profile editing with gender (Male/Female), birth date and selectable visibility (private by default, accepted friends, or all signed-in members), hometown, interests, and an HTTPS website/social link. Added `202611050001_profile_social_details.sql`; profile details are stored separately from discoverable profile data, and a database function enforces birth-date visibility when viewing another student's profile. The profile privacy text is updated. Apply the migration before using the new profile fields.
-- Latest friends-list update: friend names and avatars now open the student profile page from accepted friends, incoming friend requests, and student suggestions. That profile view includes the photo viewer with zoom controls and applies the configured date-of-birth visibility.
-- Latest community access update: signup and profile editing now classify accounts as current student, FUTO alumni, or visitor/guest. Students can select year 1–7; alumni enter a `YY/YY` set (for example `23/24`) and profiles display `Alumni - 23/24 set`; visitors are labeled Visitor. Added `202611050002_profile_community_type.sql` and surfaced account classifications in student profiles, directory suggestions, and the admin user list. Replaced the landing-page illustration with the supplied FUTO main gate photo at `public/futo-main-gate.jpeg`.
-- Latest chat history polish: message threads now insert compact day separators for Today, Yesterday, weekday names within the past week, and `dd/mm/yyyy` for older days. Message timestamps and read receipts remain inside each message bubble.
-- Latest campus photo/live update: admins can already add or edit seeded locations and upload a JPG, PNG, or WebP photo (up to 10 MB). Location photos now appear in directory details and as thumbnails on positioned schematic map markers. Added `202611050004_live_campus_location_updates.sql` and a client Realtime listener so open campus pages refresh location additions, edits, and deletions immediately after that migration is applied. Images do not change the 3D campus model.
-- Latest profile-save compatibility fix: added `202611050003_profile_rpc_compatibility.sql` with a legacy 10-argument `save_my_profile_details` overload that forwards to the current profile save function, so older deployed clients can update extended fields during rollout. The migration also asks PostgREST to reload its schema cache.
-- Supabase migrations are in `supabase/migrations/`, through `202611030002_notifications_activity_log.sql` (pending application to the linked project).
+Build FUTO Life as a campus exploration game first, with the student community as a connected but separate feature. Keep the current stack: Next.js + TypeScript for the app and server routes, Supabase Auth/Postgres/Storage/Realtime for accounts and persistent data, and Three.js for the interactive 3D campus. Do not replace the stack to add game features.
 
-## Known gaps / outstanding bugs
+The game loop should be: **explore → discover a real campus place → complete a challenge → earn non-cash coins/XP → unlock cosmetic rewards → explore further**. Guests can explore, but only signed-in accounts earn and save rewards. Treat coins as in-app game points with no cash value, transfer, or withdrawal at launch.
 
-- **Campus data is not launch-ready for navigation:** many places have null, provisional or unverified coordinates. The 3D campus is a prototype; the schematic map is not a verified geographic map. A sourced, georeferenced campus dataset and review of place names/positions are still needed.
-- **Mobile chat, controls, attachments, voice recording, and toast placement need device verification:** verify the new bottom navigation, full-screen chat/back flow and profile details; keyboard resizing and scrolling; media previews/downloads; microphone permission and normalized recording formats; upload limits; touch movement; RUN; and toast fit. Cross-user read receipt/unread synchronization needs testing with two accounts and Realtime enabled.
-- **Production routing change needs deployment:** redeploy to Vercel after the `vercel.json` rewrite removal, then open a known `/community/messages/<conversation-id>` link directly to verify deep-link routing in the deployed build.
-- **Apply the latest notification/audit migration:** run `npx supabase@latest db push --linked` to create notification and audit tables/functions/triggers. Then verify message/friend notifications with two accounts and confirm the Activity tab is visible only to the admin account.
-- **Apply profile details migration:** run `npx supabase@latest db push --dry-run --linked`, review the pending migration plan, then `npx supabase@latest db push --linked`. Verify the new profile fields save and confirm private, friends-only, and public birthday visibility using separate accounts.
-- **Apply community type migration:** the same linked `db push` also applies `202611050002_profile_community_type.sql`. Verify student, alumni set formatting/validation, and visitor profiles on signup and in the admin list.
-- **Apply profile RPC compatibility migration:** run `npx supabase@latest db push --dry-run --linked`, review, then `npx supabase@latest db push --linked`. This applies `202611050003_profile_rpc_compatibility.sql` and refreshes the RPC schema cache.
-- **Apply live campus location updates migration:** the linked database push also applies `202611050004_live_campus_location_updates.sql`. Verify a saved admin location/photo appears in an already-open campus page; confirm positions are set for a map thumbnail to appear on the schematic map.
-- **Browser alerts require opt-in per browser/device:** test on HTTPS (or localhost), allow notifications from the bell’s Enable control, then background the tab and receive a message or friend request. Closed-browser push delivery needs a push-subscription sender and VAPID configuration; the current web alert works while the app tab is open or backgrounded.
-- **Install and onboarding need device checks:** verify the manifest/home-screen install prompt on current Android Chrome and iOS Safari. iOS uses the browser Share menu’s “Add to Home Screen” flow; its install prompt is not controlled by Chromium’s `beforeinstallprompt` event. Walk the tutorial on mobile and desktop, including Skip, and confirm the account-scoped completion/dismissal state.
-- **Operational setup remains:** apply any unapplied migrations to the linked Supabase project; configure production Site URL, auth callback/recovery redirect allow-list, email delivery, and Realtime for `messages`.
-- Replace the sample `hello@futolife.com` contact address on legal pages with a monitored address before public launch. Review Privacy/Terms text for the actual operator and policies.
-- Admin access requires the verified `admin@futolife.com` account to be created through normal signup; there is no built-in default password. Use a private password.
+## Current state and constraints
 
-## Immediate next steps
+- Campus is at `/explore`. The 3D world is a Three.js prototype in `public/campus/index.html`; Next.js wraps it in an iframe and sends movement/place-selection messages.
+- The separate 2D “map” is currently a schematic plot of saved local X/Z points. It is not a surveyed road map or geographic map. Map positions are normalized to the available points, so visual spacing is not a reliable scale.
+- `public/campus/locations.json` records that the Main Gate has no verified GPS origin and most named places have no coordinates or footprints. Some 3D route/building details are illustrative or unidentified. Treat them as prototypes, not navigation facts.
+- Admins can create/edit campus place points, upload photos, and save geographic and local coordinates. `campus_locations` currently stores point-like fields, position status, evidence, and image URL; it does not yet model building polygons, pedestrian paths, terrain, or shuttle routes.
+- Current controls: desktop WASD movement, arrow-key look, Shift sprint; mobile joystick, touch look, and hold-to-run. There is no persistent movement progression, coin wallet, challenge engine, bike, or shuttle feature yet.
+- Auth, profiles (student/alumni/visitor), community, admin tools, notifications, and Supabase migrations already exist. The linked production database’s migration state must be checked before any feature rollout.
 
-1. Apply pending migrations (including `202611030001_chat_receipts_media.sql` and `202611030002_notifications_activity_log.sql`): `npx supabase@latest db push --dry-run --linked`, inspect the plan, then `npx supabase@latest db push --linked`.
-2. Configure Supabase Auth URLs and email delivery for the deployed domain; verify signup, forgot-password, and reset links end to end.
-3. Do a two-account messaging pass, then a focused mobile pass on Android and iOS: check read/unread counts and receipts, newest-conversation ordering after realtime messages, each accepted file type/size boundary, voice notes and microphone denial, emoji, keyboard open, conversation switching, long-history scrolling, swipe look, and hold-to-run. Verify the install prompt and first-login walkthrough on each platform.
-4. Obtain a current campus map or surveyed coordinates, confirm locations with FUTO, and import/review the data in the admin dashboard. Keep uncertain entries visibly unverified.
-5. Replace legal contact details, then run the planned comprehensive end-to-end and production deployment checks.
+## Recommended campus mapping approach
 
-## Local run
+### 1. Obtain a source that can legally become FUTO Life map data
+
+First request the current campus master plan or site plan from FUTO Physical Planning, Works/Services, or the relevant campus authority. Ask for a georeferenced GIS/CAD export if available (GeoPackage, SHP, DXF/DWG with coordinate reference, or GeoPDF), plus permission to use it in FUTO Life. Record the edition/date and terms.
+
+If no usable digital plan exists, georeference an approved paper/image plan in QGIS using several well-distributed control points, then validate it during a campus walk. Use QField/QGIS or a small survey form to record points, paths, entrances, accuracy estimate, collector, time, photos, and notes. Phone GPS is useful for reconnaissance but can drift near buildings/trees; record the device-reported accuracy and keep uncertain results provisional. For tighter building/road accuracy, work with a surveyor or use RTK GNSS/control points and a total-station survey where authorized.
+
+Use public OpenStreetMap data only under its attribution and ODbL requirements, and retain the source/provenance for imported features. Google Maps can be an in-app reference/base-map option only under the applicable Maps Platform terms: do not trace Google imagery or export/cache Google map/photo content into the Three.js world or a permanent FUTO Life dataset. Google Places photos require their own API use and attribution. See [Google Places policies](https://developers.google.com/maps/documentation/places/web-service/policies?hl=en) and [OpenStreetMap attribution guidance](https://osmfoundation.org/wiki/Attribution_Guidelines).
+
+### 2. Collect a small, verified pilot before mapping the whole campus
+
+Start with a continuous playable route: Main Gate, major junction/roundabout, Senate, library, one academic/department area, one eatery/student-life area, and one fellowship or practical venue. For every feature, collect:
+
+- Stable ID, official/common name, category, and alias/search terms.
+- Geometry type: point for entrance/POI, polygon for building footprint, line for walkways/roads/shuttle routes.
+- WGS84 longitude/latitude or GeoJSON geometry, plus a projected local coordinate for Three.js.
+- Source, license/permission, collection date, collector, accuracy estimate, verification status, and review notes.
+- For buildings: footprint, entrance side, approximate height/floors, and licensed front/side photos if the game model will use them.
+- For paths/routes: surface/accessibility notes, safe crossings, and connectivity to adjacent paths.
+
+Use GeoJSON as the exchange format and QGIS as the review/editing tool. Preserve source geometry in WGS84/EPSG:4326; transform to a local metric CRS (likely UTM Zone 32N for FUTO; confirm against the authoritative source) for world X/Z. Keep coordinate conversion in one documented importer so the web map and Three.js world cannot drift apart. Do not set `verified` just because a feature appears in a public map. Define and test accuracy thresholds with the survey source, and show provisional/unverified labels until an admin/reviewer approves the evidence.
+
+### 3. Build an import and review workflow
+
+Extend the admin map tool to preview imported points, polygons, and paths against the source, show missing/poor provenance, compare duplicate names/IDs, and reject invalid geometry. Import as a versioned dataset with a review summary; allow an admin to publish a reviewed version. Keep photos in Supabase Storage with an explicit source/permission note. Never silently overwrite reviewed coordinates from an unverified import.
+
+### Google Maps decision
+
+Use Google Maps/Places only if the product needs a Google-rendered map or live Places content and the budget/terms work. It is not a shortcut for creating a persistent, editable, Three.js campus map: Google’s policies prohibit extracting or tracing map imagery/content for a separate dataset/model. For an owned navigable game world, use FUTO-authorized plans plus field survey, with OSM data where license-compatible.
+
+## Game design recommendation
+
+### Core loop and rewards
+
+- Add onboarding discovery missions: find the Main Gate, locate a landmark, visit a lecture/department area, and learn the map controls.
+- Add short daily/weekly challenges: discover N new places, follow a verified route, visit a themed set (food, study, fellowship), or finish a timed obstacle course.
+- Reward coins and XP for verified game events; reward cosmetics first (avatar outfits, trails, emotes, bike styles, profile badges). Add opt-in leaderboards after anti-cheat and privacy rules are tested.
+- Make the Temple Run-like activity a separate replayable timed course/mini-game, not the default campus navigation. This preserves the social/campus exploration loop and avoids turning every location into an obstacle course.
+- Coins have no monetary value at launch: no purchase, cash-out, peer transfer, or real-world prize. Reassess only with explicit policy, legal, fraud, and financial review.
+
+### Server authority and abuse controls
+
+The browser/Three.js client is untrusted. It may animate the player and report checkpoint events, but it must not directly award coin balances. Put wallet changes in an append-only Postgres ledger and expose narrowly scoped server/SQL functions that validate challenge rules, unique completion, cooldowns, account eligibility, and reward limits before writing a transaction. Calculate balance from the ledger or maintain a balance updated only by the protected transaction function. Log admin challenge changes and reward grants. Add idempotency keys so retries cannot duplicate rewards. Do not require background GPS for the virtual game; if optional real-world check-ins are later added, request permission clearly and minimize location retention.
+
+## Bikes and shuttles
+
+1. **Bikes first:** add marked spawn/rack points, mount/dismount interaction, different acceleration/top speed, camera follow, turning/braking, collision with buildings, and clear mobile controls. Keep walking useful for interiors, narrow routes, and discovery interactions. Balance speed so bikes feel faster without skipping all challenge checkpoints.
+2. **Shuttles second:** add verified stops and route LineStrings. At stops, let the player board an animated shuttle and travel between stops with a short, skippable transition. It is a game fast-travel service, not a promise of live FUTO transport timetables until those are sourced and maintained.
+3. Add stamina/fuel only if playtesting shows it improves choices; avoid a punishment mechanic that blocks exploration. Vehicle unlocks should initially be cosmetic or earned through play, not pay-to-win.
+
+## Phased implementation plan
+
+### Phase 0 — Decisions and map-data acquisition
+
+- Request a FUTO-authorized campus map/site plan and use terms; identify a FUTO contact or survey partner.
+- Approve the pilot route/place list and data accuracy/status rubric.
+- Decide that coins are non-cash, non-transferable game points for the initial release.
+- Deliverable: source inventory, licensed sample data, field-survey plan, and a small pilot GeoJSON.
+
+### Phase 1 — Reliable, playable campus map
+
+- Expand location schema/import pipeline for point, polygon, and line geometry; preserve source, license, accuracy, survey date, and review state.
+- Add admin preview/review/publish for GeoJSON and a way to correct one feature without re-importing the whole campus.
+- Generate the 2D map from real geometry with a scale/north indicator, route/path layer, legend, place search, and clear confidence labels. Use a compatible tile/map source only with attribution and terms.
+- Refactor the Three.js data boundary so verified map data generates the walkable roads, building footprints, collision boundaries, navigation targets, and landmarks. Keep illustrative geometry visually marked until replaced.
+- Acceptance: pilot features align with source/field checks; route is connected; positions have provenance/status; map and 3D transforms agree; mobile map remains usable.
+
+### Phase 2 — Game foundations
+
+- Extract the current iframe game messaging into a typed, versioned bridge (player position, speed, nearby place, checkpoint, mount state) with bounds validation.
+- Add challenge definitions, per-user progress, reward ledger, and protected completion/claim functions in Supabase migrations.
+- Build first-login tutorial and onboarding missions; guests may play/explore but reward claims require a signed-in, verified account.
+- Add a player HUD for coin/XP totals and active challenge progress without covering movement controls.
+- Acceptance: server rejects duplicate/forged/out-of-order claims; only allowed account earns; disconnect/retry cannot duplicate coins; admin audit trail records reward operations.
+
+### Phase 3 — Challenges and retention
+
+- Release discovery badges and repeatable daily/weekly challenge templates.
+- Add the separate timed obstacle/runner course with clear start/finish, reset, and accessibility options; save best times server-side.
+- Add cosmetics as the first coin sink; test reward pacing and leaderboards with a small group before campus-wide rollout.
+- Acceptance: meaningful progression without requiring spending, no unbounded coin farming, and mobile performance is acceptable on mid-range Android devices.
+
+### Phase 4 — Bikes and shuttle travel
+
+- Implement bikes after collision/path geometry is stable; pilot on a short route and add accessible mount controls.
+- Implement shuttle stops/routes after they are verified; animate travel and allow skip/exit at safe stops.
+- Acceptance: no driving through buildings, all routes have provenance, movement remains controllable on touch and keyboard, and fast travel does not bypass challenge checks.
+
+### Phase 5 — Soft launch, observe, expand
+
+- Pilot with freshers and a small test group; monitor crashes, frame rate, route misses, challenge completion, reward anomalies, and user feedback.
+- Publish new districts/features in small scheduled releases; keep uncertain map areas explicitly provisional.
+- Expand map coverage only when data is sourced and reviewed. Add social/competitive mechanics only after privacy and moderation design is ready.
+
+## Next actions
+
+1. Get the FUTO map/site-plan permission and choose a survey owner/contact.
+2. Agree on the first 8–12 pilot locations and one connected walking route.
+3. Confirm the coin policy: non-cash, non-transferable, earned only by signed-in users (recommended).
+4. Collect/import the pilot map data, then implement Phase 1 before adding vehicles or reward claims.
+5. Check linked Supabase migration status and deployment before applying any new schema.
+
+## Existing local run commands
 
 ```powershell
 npm run dev
 ```
 
-For a phone on the same Wi-Fi, run `npm run dev -- --hostname 0.0.0.0`, find the computer's IPv4 address with `ipconfig`, and browse to `http://<computer-ip>:3000` on the phone. Add the phone-accessible callback URL to Supabase Auth redirects if testing email links that way.
+For phone testing on the same Wi-Fi:
+
+```powershell
+npm run dev -- --hostname 0.0.0.0
+```
+
+Use the computer’s LAN IP on the phone. Supabase email callbacks also need the phone-accessible URL in the Auth redirect allow-list when testing email links.
+
+## Latest update — conversation message actions (2026-11-08)
+
+Implemented WhatsApp-style message interactions in the conversation view:
+
+- Select/tap a message to reveal contextual actions and quick reactions; swipe a message right on touch screens to reply.
+- Reply previews link to the selected message. Users can edit their own text messages and delete their own messages for everyone; deleted messages render as “This message was deleted”.
+- Reactions are stored per user and message, with live updates through Supabase Realtime.
+- Database migration `supabase/migrations/202611080001_chat_message_actions.sql` adds edit/deletion/reply fields, message reaction storage and RLS, authorized edit/delete RPCs, and activity audit events that omit message contents.
+- Editing is text-only. Any message can be replied to or reacted to; media messages can be deleted by their sender.
+
+### Rollout steps
+
+1. Preview the linked Supabase migration: `npx supabase@latest db push --dry-run --linked`.
+2. Apply it to the linked project: `npx supabase@latest db push --linked`.
+3. Deploy the app after the migration completes. Verify using two accounts: edit/delete own messages, reply by action and swipe, toggle reactions, and confirm other conversation members receive realtime updates.
+
+TypeScript check (`npx tsc --noEmit`) passes. Full functional testing remains pending.
+
+## Latest update — stable chat composer on mobile and desktop (2026-11-08)
+
+- Tightened the full-screen conversation flex layout so the message list takes the available height while the composer stays visible at the bottom and does not shrink.
+- Removed the input focus `scrollIntoView` page jump; focus now keeps the message stream at the latest message.
+- Improved mobile keyboard detection by comparing the visual viewport against the device screen height, so the chat view follows the visible area when the software keyboard opens.
+- TypeScript check and visual testing are pending for this layout adjustment.
+
+## Latest update — persistent profile device settings (2026-11-08)
+
+- Added an **App & notifications** section to the signed-in profile with persistent home-screen install and browser notification controls.
+- Install requests are routed through the existing PWA prompt handler, preserving the native install prompt when available and the browser-menu guidance fallback.
+- Notification permission and the per-device preference stay synchronized with the notification center; the profile shows enabled, unsupported, and browser-blocked states.
+
+## Latest update — private message deletion (2026-11-08)
+
+- Message actions now offer **Delete for me** for received messages. The sender can choose **Delete for me** or **Delete for everyone**; edit remains available only on the sender’s own text messages.
+- Added `supabase/migrations/202611080002_message_delete_for_me.sql` with a private per-profile hidden-message table, RLS, a membership-checked `hide_my_message` RPC, audit event, and Realtime publication.
+- Hidden messages are filtered from the current conversation and conversation previews and stay hidden for that user after reload or on another device. Delete-for-everyone continues to replace the message with the shared deletion notice.
+- Apply both pending chat migrations with `npx supabase@latest db push --dry-run --linked`, then `npx supabase@latest db push --linked`.

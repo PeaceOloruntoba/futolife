@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent, Fragment } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FiArrowLeft, FiArrowUpRight, FiFileText, FiHeart, FiHome, FiImage, FiMessageCircle, FiMic, FiPlus, FiSmile, FiUser, FiUsers, FiVideo, FiX, FiCheck, FiZoomIn, FiZoomOut, FiPlay, FiPause } from "react-icons/fi";
+import { FiArrowLeft, FiArrowUpRight, FiBell, FiDownload, FiFileText, FiHeart, FiHome, FiImage, FiMessageCircle, FiMic, FiPlus, FiSmile, FiUser, FiUsers, FiVideo, FiX, FiCheck, FiZoomIn, FiZoomOut, FiPlay, FiPause, FiEdit2, FiTrash2, FiCornerUpLeft } from "react-icons/fi";
 import { IoCheckmarkDone } from "react-icons/io5";
 import { createClient } from "@/lib/supabase/browser";
 import { notify } from "@/lib/notify";
@@ -14,8 +14,9 @@ type ProfileDetails = { gender: "Male"|"Female"|null; date_of_birth: string|null
 type Person = { id: string; display_name: string; department: string | null; year_of_study: number | null; member_type?: "student"|"alumni"|"visitor"; alumni_set?: string|null; avatar_url: string | null; bio?: string | null; referral_code?: string; is_suspended?: boolean } & Partial<ProfileDetails>;
 type Friendship = { id: string; requester_id: string; addressee_id: string; status: string; created_at: string };
 type Post = { id: string; author_id: string; body: string; created_at: string };
-type Message = { id: string; conversation_id: string; sender_id: string; body: string; created_at: string; message_kind?: "text"|"image"|"video"|"document"|"voice"; attachment_bucket?: string|null; attachment_path?: string|null; attachment_name?: string|null; attachment_size?: number|null; attachment_mime?: string|null };
+type Message = { id: string; conversation_id: string; sender_id: string; body: string; created_at: string; edited_at?:string|null;is_deleted?:boolean;reply_to_id?:string|null;message_kind?: "text"|"image"|"video"|"document"|"voice"; attachment_bucket?: string|null; attachment_path?: string|null; attachment_name?: string|null; attachment_size?: number|null; attachment_mime?: string|null };
 type MessageRead = { message_id: string; profile_id: string; read_at: string };
+type MessageReaction={message_id:string;profile_id:string;reaction:string;created_at:string};
 type PendingAttachment = { file: File; kind: "image"|"video"|"document"|"voice"; bucket: "chat-images"|"chat-attachments" };
 type Chat = { id: string; kind: "direct" | "group"; title: string | null; created_at: string; members: Person[]; lastMessage?: Message };
 type ReferralRow = {profile_id:string;display_name:string;depth:number;joined_at:string};
@@ -33,6 +34,11 @@ export default function SocialHub({ onClose = () => {}, onSignIn, onProfileChang
   const [messages, setMessages] = useState<Message[]>([]);
   const [totalMessageCount, setTotalMessageCount] = useState(0);
   const [messageReads, setMessageReads] = useState<Record<string, MessageRead[]>>({});
+  const [messageReactions,setMessageReactions]=useState<Record<string,MessageReaction[]>>({});
+  const [selectedMessageId,setSelectedMessageId]=useState<string|null>(null);
+  const [replyToMessageId,setReplyToMessageId]=useState<string|null>(null);
+  const [editingMessageId,setEditingMessageId]=useState<string|null>(null);
+  const [deleteMessageId,setDeleteMessageId]=useState<string|null>(null);
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
   const [pendingAttachment, setPendingAttachment] = useState<PendingAttachment|null>(null);
   const [attachmentUrls, setAttachmentUrls] = useState<Record<string, string>>({});
@@ -58,6 +64,8 @@ export default function SocialHub({ onClose = () => {}, onSignIn, onProfileChang
   const [draftPost, setDraftPost] = useState("");
   const postInputRef=useRef<HTMLTextAreaElement>(null);
   const messageListRef=useRef<HTMLDivElement>(null);
+  const messageInputRef=useRef<HTMLInputElement>(null);
+  const hiddenMessageIdsRef=useRef<Set<string>>(new Set());
   const shouldStickToBottomRef=useRef(true);
   const lastScrolledChatRef=useRef<string|null>(null);
   const socialWindowRef=useRef<HTMLElement>(null);
@@ -79,6 +87,7 @@ export default function SocialHub({ onClose = () => {}, onSignIn, onProfileChang
     if (authStatus === "loading") return;
     if (!supabase) { setBootstrapping(false); setLoadingChats(false); setNotice("Account services are unavailable. Please try again later."); return; }
     if (authStatus === "signed-out" || !userId) { setBootstrapping(false); setLoadingChats(false); setMe(null); setNotice(""); return; }
+    hiddenMessageIdsRef.current=new Set();
     setLoadingChats(true);
     setBootstrapping(true);
     const user = { id: userId };
@@ -136,11 +145,14 @@ export default function SocialHub({ onClose = () => {}, onSignIn, onProfileChang
     const memberRows = (memberships.data ?? []) as {conversation_id:string;profile_id:string}[];
     const profileMap = new Map<string,Person>([...(peopleResult.data ?? []) as Person[], ...(profileResult.data ? [profileResult.data as Person] : [])].map(p => [p.id,p]));
     const conversationRows = (conversationResult.data ?? []) as Omit<Chat,"members"|"lastMessage">[];
-    const [messageResult, unreadResult] = await Promise.all([
+    const [messageResult, unreadResult, hiddenResult] = await Promise.all([
       supabase.from("messages").select("id,conversation_id,sender_id,body,created_at,message_kind,attachment_bucket,attachment_path,attachment_name,attachment_size,attachment_mime").in("conversation_id", conversationIds).order("created_at", { ascending: false }).limit(conversationIds.length * 3),
       supabase.rpc("get_my_unread_counts"),
+      supabase.from("message_hidden_for_profiles").select("message_id").eq("profile_id",userId).in("conversation_id",conversationIds),
     ]);
-    const messageRows = (messageResult.data ?? []) as Message[];
+    const hiddenIds=new Set(((hiddenResult.data??[]) as {message_id:string}[]).map(row=>row.message_id));
+    hiddenMessageIdsRef.current=hiddenIds;
+    const messageRows = ((messageResult.data ?? []) as Message[]).filter(message=>!hiddenIds.has(message.id));
     setUnreadCounts(Object.fromEntries(((unreadResult.data??[]) as {conversation_id:string;unread_count:number}[]).map(row=>[row.conversation_id,Number(row.unread_count)])));
     setChats(conversationRows.map((chat) => ({ ...chat, members: memberRows.filter(m => m.conversation_id === chat.id).map(m => profileMap.get(m.profile_id)).filter((p): p is Person => Boolean(p)), lastMessage: messageRows.find(m => m.conversation_id === chat.id) })).sort((a,b)=>new Date(b.lastMessage?.created_at??b.created_at).getTime()-new Date(a.lastMessage?.created_at??a.created_at).getTime()));
     setLoadingChats(false);
@@ -149,8 +161,9 @@ export default function SocialHub({ onClose = () => {}, onSignIn, onProfileChang
   useEffect(() => { void load(); }, [load]);
   useEffect(()=>{
     if(!supabase||!userId)return;
-    const channel=supabase.channel(`conversation-order-${userId}`).on("postgres_changes",{event:"INSERT",schema:"public",table:"messages"},payload=>{
+    const channel=supabase.channel(`conversation-order-${userId}`).on("postgres_changes",{event:"*",schema:"public",table:"messages"},payload=>{
       const message=payload.new as Message;
+      if(hiddenMessageIdsRef.current.has(message.id))return;
       setChats(current=>{
         if(!current.some(chat=>chat.id===message.conversation_id))return current;
         return current.map(chat=>chat.id===message.conversation_id?{...chat,lastMessage:message}:chat).sort((a,b)=>new Date(b.lastMessage?.created_at??b.created_at).getTime()-new Date(a.lastMessage?.created_at??a.created_at).getTime());
@@ -166,8 +179,8 @@ export default function SocialHub({ onClose = () => {}, onSignIn, onProfileChang
   useEffect(()=>{setTab(initialTab);setActiveChat(conversationId??null);},[initialTab,conversationId]);
   useEffect(() => { if (notice) { notify(notice); setNotice(""); } }, [notice]);
   useEffect(() => {
-    if (!supabase || !activeChat) return;
-    setMessages([]);setTotalMessageCount(0);setMessageReads({});setAttachmentUrls({});
+    if (!supabase || !userId || !activeChat) return;
+    setMessages([]);setTotalMessageCount(0);setMessageReads({});setMessageReactions({});setAttachmentUrls({});setSelectedMessageId(null);setReplyToMessageId(null);setEditingMessageId(null);setDeleteMessageId(null);
     const refreshUnread = async () => {
       const {data}=await supabase.rpc("get_my_unread_counts");
       setUnreadCounts(Object.fromEntries(((data??[]) as {conversation_id:string;unread_count:number}[]).map(row=>[row.conversation_id,Number(row.unread_count)])));
@@ -177,11 +190,16 @@ export default function SocialHub({ onClose = () => {}, onSignIn, onProfileChang
       await refreshUnread();
     };
     const refresh = async () => {
-      const { data, count } = await supabase.from("messages").select("id,conversation_id,sender_id,body,created_at,message_kind,attachment_bucket,attachment_path,attachment_name,attachment_size,attachment_mime",{count:"exact"}).eq("conversation_id", activeChat).order("created_at").limit(300);
-      const rows=(data??[]) as Message[];setMessages(rows);
-      setTotalMessageCount(count??rows.length);
+      const [{data,count},{data:hiddenData}]=await Promise.all([
+        supabase.from("messages").select("id,conversation_id,sender_id,body,created_at,edited_at,is_deleted,reply_to_id,message_kind,attachment_bucket,attachment_path,attachment_name,attachment_size,attachment_mime",{count:"exact"}).eq("conversation_id", activeChat).order("created_at").limit(300),
+        supabase.from("message_hidden_for_profiles").select("message_id").eq("profile_id",userId).eq("conversation_id",activeChat),
+      ]);
+      const hiddenIds=new Set(((hiddenData??[]) as {message_id:string}[]).map(row=>row.message_id));
+      for(const id of hiddenIds)hiddenMessageIdsRef.current.add(id);
+      const allRows=(data??[]) as Message[];const rows=allRows.filter(message=>!hiddenIds.has(message.id));setMessages(rows);
+      setTotalMessageCount(Math.max(0,(count??allRows.length)-allRows.filter(message=>hiddenIds.has(message.id)).length));
       if(tab==="messages"&&document.visibilityState==="visible")await markRead();
-      if(rows.length){const {data:reads}=await supabase.from("message_reads").select("message_id,profile_id,read_at").in("message_id",rows.map(row=>row.id));const grouped=(reads??[] as MessageRead[]).reduce<Record<string,MessageRead[]>>((acc,row)=>{(acc[row.message_id]??=[]).push(row as MessageRead);return acc;},{});setMessageReads(grouped);}
+      if(rows.length){const [readResult,reactionResult]=await Promise.all([supabase.from("message_reads").select("message_id,profile_id,read_at").in("message_id",rows.map(row=>row.id)),supabase.from("message_reactions").select("message_id,profile_id,reaction,created_at").in("message_id",rows.map(row=>row.id))]);const grouped=(readResult.data??[] as MessageRead[]).reduce<Record<string,MessageRead[]>>((acc,row)=>{(acc[row.message_id]??=[]).push(row as MessageRead);return acc;},{});setMessageReads(grouped);const groupedReactions=(reactionResult.data??[] as MessageReaction[]).reduce<Record<string,MessageReaction[]>>((acc,row)=>{(acc[row.message_id]??=[]).push(row as MessageReaction);return acc;},{});setMessageReactions(groupedReactions);}
     };
     const handleVisibility=()=>{if(document.visibilityState==="visible"&&tab==="messages")void markRead();};
     void refresh();
@@ -193,17 +211,32 @@ export default function SocialHub({ onClose = () => {}, onSignIn, onProfileChang
         setTotalMessageCount(current=>current+1);
         if(incoming.sender_id!==me?.id)void markRead();
       }else void refreshUnread();
+    }).on("postgres_changes",{event:"UPDATE",schema:"public",table:"messages",filter:`conversation_id=eq.${activeChat}`},payload=>{
+      const updated=payload.new as Message;
+      setMessages(current=>current.map(message=>message.id===updated.id?updated:message));
     }).on("postgres_changes",{event:"INSERT",schema:"public",table:"message_reads"},payload=>{
       const receipt=payload.new as MessageRead;
       setMessageReads(current=>({...current,[receipt.message_id]:[...(current[receipt.message_id]??[]).filter(row=>row.profile_id!==receipt.profile_id),receipt]}));
       void refreshUnread();
+    }).on("postgres_changes",{event:"*",schema:"public",table:"message_reactions"},payload=>{
+      const reaction=(payload.eventType==="DELETE"?payload.old:payload.new) as MessageReaction;
+      setMessageReactions(current=>{
+        const existing=current[reaction.message_id]??[];
+        const remaining=existing.filter(row=>row.profile_id!==reaction.profile_id);
+        return {...current,[reaction.message_id]:payload.eventType==="DELETE"?remaining:[...remaining,reaction]};
+      });
+    }).on("postgres_changes",{event:"INSERT",schema:"public",table:"message_hidden_for_profiles",filter:`profile_id=eq.${userId}`},payload=>{
+      const hidden=payload.new as {message_id:string;conversation_id:string;profile_id:string};
+      if(hiddenMessageIdsRef.current.has(hidden.message_id))return;
+      hiddenMessageIdsRef.current.add(hidden.message_id);
+      if(hidden.conversation_id===activeChat){setMessages(current=>current.filter(message=>message.id!==hidden.message_id));setTotalMessageCount(current=>Math.max(0,current-1));}
     }).subscribe();
     return () => { document.removeEventListener("visibilitychange",handleVisibility);void supabase.removeChannel(channel); };
-  }, [activeChat, supabase, tab, me?.id]);
+  }, [activeChat, supabase, tab, me?.id, userId]);
 
   useEffect(()=>{
     let active=true;
-    const attached=messages.filter(message=>message.attachment_bucket&&message.attachment_path);
+    const attached=messages.filter(message=>!message.is_deleted&&message.attachment_bucket&&message.attachment_path);
     if(!supabase||!attached.length)return;
     void Promise.all(attached.map(async message=>{const {data}=await supabase.storage.from(message.attachment_bucket!).createSignedUrl(message.attachment_path!,3600);return [message.id,data?.signedUrl] as const;})).then(entries=>{if(active)setAttachmentUrls(current=>({...current,...Object.fromEntries(entries.filter((entry):entry is readonly [string,string]=>Boolean(entry[1])))}));});
     return()=>{active=false;};
@@ -236,7 +269,7 @@ export default function SocialHub({ onClose = () => {}, onSignIn, onProfileChang
     const syncKeyboardViewport = () => {
       const element = socialWindowRef.current;
       if (!element || !standalone || tab !== "messages") return;
-      const keyboardOpen = window.innerWidth <= 720 && viewport && viewport.height < window.innerHeight - 100;
+      const keyboardOpen = window.innerWidth <= 720 && viewport && viewport.height < Math.min(window.screen.height, window.innerHeight) - 100;
       if (keyboardOpen && viewport) {
         element.style.position = "fixed";
         element.style.top = `${viewport.offsetTop}px`;
@@ -269,6 +302,10 @@ export default function SocialHub({ onClose = () => {}, onSignIn, onProfileChang
   const filteredFriends = friends.filter((p) => `${p.display_name} ${p.department ?? ""}`.toLowerCase().includes(friendSearch.trim().toLowerCase()));
   const filteredChats = chats.filter((chat) => `${chat.title ?? ""} ${chat.members.map(member=>member.display_name).join(" ")} ${chat.lastMessage?.body ?? ""}`.toLowerCase().includes(conversationSearch.trim().toLowerCase()));
   const currentChat = chats.find((chat) => chat.id === activeChat);
+  const otherPerson = (id: string) => people.find((p) => p.id === id) ?? (me?.id === id ? me : null);
+  const replyTarget=messages.find(message=>message.id===replyToMessageId)??null;
+  const editingTarget=messages.find(message=>message.id===editingMessageId)??null;
+  const replyTargetName=replyTarget?otherPerson(replyTarget.sender_id)?.display_name??"message":"message";
   useEffect(()=>{
     if(!supabase||!userId||!activeChat||!currentChat||activityKeysRef.current.has(`chat:${activeChat}`))return;
     activityKeysRef.current.add(`chat:${activeChat}`);
@@ -276,8 +313,7 @@ export default function SocialHub({ onClose = () => {}, onSignIn, onProfileChang
   },[activeChat,currentChat,supabase,userId]);
   const chatPartner=currentChat?.kind === "direct" ? currentChat.members.find(member=>member.id!==me?.id)??null : null;
   const unreadTotal=Object.values(unreadCounts).reduce((total,count)=>total+count,0);
-  const otherPerson = (id: string) => people.find((p) => p.id === id) ?? (me?.id === id ? me : null);
-  const communityLabel = (person: Person) => person.member_type === "alumni" ? `Alumni - ${person.alumni_set ?? "Set not provided"} set` : person.member_type === "visitor" ? "Visitor" : person.year_of_study ? `Year ${person.year_of_study}` : "FUTO student";
+ const communityLabel = (person: Person) => person.member_type === "alumni" ? `Alumni - ${person.alumni_set ?? "Set not provided"} set` : person.member_type === "visitor" ? "Visitor" : person.year_of_study ? `Year ${person.year_of_study}` : "FUTO student";
   const openProfile = (person: Person | null | undefined) => { if (person) router.push(`/community/profile/${person.id}`); };
   const mentionSuggestions=mentionQuery===null?[]:friends.filter(friend=>friend.display_name.toLocaleLowerCase().includes(mentionQuery.toLocaleLowerCase())).slice(0,7);
 
@@ -379,6 +415,11 @@ export default function SocialHub({ onClose = () => {}, onSignIn, onProfileChang
   async function sendMessage(event: FormEvent) {
     event.preventDefault(); if (!supabase || !me || !activeChat || (!draftMessage.trim()&&!pendingAttachment) || busy) return;
     setBusy(true);
+    if(editingMessageId){
+      const {data,error}=await supabase.rpc("edit_my_message",{target_message:editingMessageId,new_body:draftMessage.trim()});
+      if(error)setNotice(error.message);else{setMessages(current=>current.map(message=>message.id===editingMessageId?data as Message:message));setDraftMessage("");setEditingMessageId(null);setSelectedMessageId(null);setNotice("Message edited.");}
+      setBusy(false);return;
+    }
     let attachment:{bucket:string;path:string;name:string;size:number;mime:string;kind:string}|null=null;
     if(pendingAttachment){
       const {file,kind,bucket}=pendingAttachment;
@@ -388,10 +429,53 @@ export default function SocialHub({ onClose = () => {}, onSignIn, onProfileChang
       attachment={bucket,path,name:file.name,size:file.size,mime:file.type,kind};
     }
     const body=draftMessage.trim()||(attachment?.kind==="voice"?"Voice note":attachment?.name??"");
-    const { error } = await supabase.from("messages").insert({conversation_id:activeChat,sender_id:me.id,body,message_kind:attachment?.kind??"text",attachment_bucket:attachment?.bucket??null,attachment_path:attachment?.path??null,attachment_name:attachment?.name??null,attachment_size:attachment?.size??null,attachment_mime:attachment?.mime??null});
+    const { error } = await supabase.from("messages").insert({conversation_id:activeChat,sender_id:me.id,body,reply_to_id:replyToMessageId,message_kind:attachment?.kind??"text",attachment_bucket:attachment?.bucket??null,attachment_path:attachment?.path??null,attachment_name:attachment?.name??null,attachment_size:attachment?.size??null,attachment_mime:attachment?.mime??null});
     if(error&&attachment)await supabase.storage.from(attachment.bucket).remove([attachment.path]);
-    if (error) setNotice(error.message); else { setDraftMessage("");setPendingAttachment(null);setEmojiOpen(false); const {data,count} = await supabase.from("messages").select("id,conversation_id,sender_id,body,created_at,message_kind,attachment_bucket,attachment_path,attachment_name,attachment_size,attachment_mime",{count:"exact"}).eq("conversation_id",activeChat).order("created_at").limit(300); setMessages((data ?? []) as Message[]);setTotalMessageCount(count??data?.length??0); }
+    if (error) setNotice(error.message); else { setDraftMessage("");setPendingAttachment(null);setEmojiOpen(false);setReplyToMessageId(null);setSelectedMessageId(null); const {data,count} = await supabase.from("messages").select("id,conversation_id,sender_id,body,created_at,edited_at,is_deleted,reply_to_id,message_kind,attachment_bucket,attachment_path,attachment_name,attachment_size,attachment_mime",{count:"exact"}).eq("conversation_id",activeChat).order("created_at").limit(300); setMessages((data ?? []) as Message[]);setTotalMessageCount(count??data?.length??0); }
     setBusy(false);
+  }
+
+  function replyToMessage(message:Message){
+    if(message.is_deleted)return;
+    setEditingMessageId(null);setReplyToMessageId(message.id);setSelectedMessageId(null);
+    requestAnimationFrame(()=>messageInputRef.current?.focus());
+  }
+  function editMessage(message:Message){
+    if(message.sender_id!==me?.id||message.message_kind!=="text"||message.is_deleted)return;
+    setReplyToMessageId(null);setEditingMessageId(message.id);setDraftMessage(message.body);setSelectedMessageId(null);setPendingAttachment(null);
+    requestAnimationFrame(()=>{messageInputRef.current?.focus();messageInputRef.current?.setSelectionRange(message.body.length,message.body.length);});
+  }
+  function cancelMessageAction(){setReplyToMessageId(null);setEditingMessageId(null);setDraftMessage("");setPendingAttachment(null);}
+  async function confirmDeleteMessage(forEveryone:boolean){
+    if(!supabase||!deleteMessageId||busy)return;
+    setBusy(true);const targetId=deleteMessageId;
+    if(forEveryone){
+      const {data,error}=await supabase.rpc("delete_my_message",{target_message:targetId});
+      if(error)setNotice(error.message);else{setMessages(current=>current.map(message=>message.id===targetId?data as Message:message));setMessageReactions(current=>({...current,[targetId]:[]}));setNotice("Message deleted for everyone.");}
+    }else{
+      const message=messages.find(row=>row.id===targetId);
+      const {error}=await supabase.rpc("hide_my_message",{target_message:targetId});
+      if(error)setNotice(error.message);else{
+        hiddenMessageIdsRef.current.add(targetId);
+        setMessages(current=>current.filter(row=>row.id!==targetId));
+        setTotalMessageCount(current=>Math.max(0,current-1));
+        const previousMessage=messages.filter(row=>row.id!==targetId).at(-1);
+        setChats(current=>current.map(chat=>chat.id===message?.conversation_id&&chat.lastMessage?.id===targetId?{...chat,lastMessage:previousMessage?.conversation_id===chat.id?previousMessage:undefined}:chat));
+        setNotice("Message deleted for you.");
+      }
+    }
+    setDeleteMessageId(null);setSelectedMessageId(null);setBusy(false);
+  }
+  async function toggleMessageReaction(message:Message,reaction:string){
+    if(!supabase||!me||message.is_deleted||busy)return;
+    const current=(messageReactions[message.id]??[]).find(row=>row.profile_id===me.id);
+    if(current?.reaction===reaction){
+      const {error}=await supabase.from("message_reactions").delete().eq("message_id",message.id).eq("profile_id",me.id);
+      if(error)setNotice(error.message);else setMessageReactions(rows=>({...rows,[message.id]:(rows[message.id]??[]).filter(row=>row.profile_id!==me.id)}));
+    }else{
+      const {data,error}=await supabase.from("message_reactions").upsert({message_id:message.id,profile_id:me.id,reaction},{onConflict:"message_id,profile_id"}).select("message_id,profile_id,reaction,created_at").single();
+      if(error)setNotice(error.message);else setMessageReactions(rows=>({...rows,[message.id]:[...(rows[message.id]??[]).filter(row=>row.profile_id!==me.id),data as MessageReaction]}));
+    }
   }
 
   function selectAttachment(file?:File){
@@ -455,13 +539,67 @@ export default function SocialHub({ onClose = () => {}, onSignIn, onProfileChang
           {!posts.length&&<div className="social-card social-empty">No posts yet. Share a hello to start the FUTO community feed.</div>}
         </div>}
         {tab === "friends" && <div className="friends-layout"><div className="social-card requests-card"><h3>Friend requests <span>{pendingIn.length}</span></h3>{pendingIn.length?pendingIn.map(request=>{const person=otherPerson(request.requester_id);return <div className="person-row" key={request.id}><button className="person-identity" onClick={()=>openProfile(person)} aria-label={`View ${person?.display_name??"student"}'s profile`}><Avatar person={person}/><span className="person-info"><b>{person?.display_name??"FUTO student"}</b><small>{person?.department??"View profile"}</small></span></button><button className="primary compact" disabled={busy} onClick={()=>void respond(request,"accepted")}>Accept</button><button className="secondary compact" disabled={busy} onClick={()=>void respond(request,"declined")}>Decline</button></div>;}):<p className="muted">No pending requests.</p>}{pendingOut.length>0&&<p className="muted">{pendingOut.length} request{pendingOut.length===1?"":"s"} awaiting a reply.</p>}</div><div className="social-card people-card"><h3>Find students</h3><input className="social-search" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search name or department…"/>{filteredPeople.filter(p=>!accepted.includes(p.id)).slice(0,100).map(person=>{const sent=pendingOut.some(r=>r.addressee_id===person.id);return <div className="person-row" key={person.id}><button className="person-identity" onClick={()=>openProfile(person)} aria-label={`View ${person.display_name}'s profile`}><Avatar person={person}/><span className="person-info"><b>{person.display_name}</b><small>{[person.department,communityLabel(person)].filter(Boolean).join(" · ")||"View profile"}</small></span></button>{sent?<span className="pending-label">Requested</span>:<button className="secondary compact" disabled={busy} onClick={()=>void sendRequest(person)}><FiPlus/> Add friend</button>}</div>;})}</div><div className="social-card people-card"><h3>Your friends <span>{friends.length}</span></h3><input className="social-search" value={friendSearch} onChange={e=>setFriendSearch(e.target.value)} placeholder="Search friends…" aria-label="Search friends"/>{filteredFriends.length?filteredFriends.map(person=><div className="person-row" key={person.id}><button className="person-identity" onClick={()=>openProfile(person)} aria-label={`View ${person.display_name}'s profile`}><Avatar person={person}/><span className="person-info"><b>{person.display_name}</b><small>{person.department??"FUTO student"}</small></span></button><button className="secondary compact" disabled={busy} onClick={()=>void openDirect(person)}>Message</button><button className="text-action" disabled={busy} onClick={()=>void removeFriend(person.id)}>Remove</button></div>):<p className="muted">{friendSearch?"No friends match that search.":"Accept a request or find classmates above. You need an accepted friendship to chat."}</p>}</div></div>}
-        {tab === "messages" && <div className={`chat-layout${conversationId?" chat-full-layout":""}`}>{!conversationId&&<aside className="chat-sidebar"><form className="group-form" onSubmit={e=>void createGroup(e)}><b className="chat-list-heading">Chats <span>{chats.length}</span></b><input name="groupTitle" placeholder="New group name" maxLength={80} required/><details><summary>Choose 2+ friends</summary><div className="group-options">{friends.map(f=><label key={f.id}><input type="checkbox" name="groupFriend" value={f.id}/>{f.display_name}</label>)}</div></details><button className="secondary compact" disabled={busy||friends.length<2}>{busy?"Working…":"Create group"}</button></form><input className="social-search list-search" value={conversationSearch} onChange={e=>setConversationSearch(e.target.value)} placeholder="Search conversations…" aria-label="Search conversations"/>{filteredChats.map(chat=><button className={`chat-row ${activeChat===chat.id?"selected":""}`} key={chat.id} onClick={()=>{setActiveChat(chat.id);router.push("/community/messages/"+chat.id);}}><Avatar person={chat.kind==="group"?null:chat.members.find(m=>m.id!==me.id)??null}/><span><b>{chat.kind==="group"?chat.title:chat.members.find(m=>m.id!==me.id)?.display_name??"Direct chat"}</b><small>{chat.lastMessage?.body??(chat.kind==="group"?`${chat.members.length} members`:"Start a conversation")}</small></span>{(unreadCounts[chat.id]??0)>0&&<span className="unread-pill">{unreadCounts[chat.id]>99?"99+":unreadCounts[chat.id]}</span>}</button>)}{loadingChats&&<p className="muted">Loading conversations…</p>}{!loadingChats&&!filteredChats.length&&<p className="muted">{conversationSearch?"No conversations match that search.":"Your conversations will appear here after you message a friend or create a group."}</p>}</aside>}<section className="chat-main">{currentChat?<><div className="chat-title"><button className="chat-profile-inline" onClick={()=>chatPartner&&router.push("/community/profile/"+chatPartner.id)} disabled={!chatPartner}><Avatar person={chatPartner}/><span><b>{currentChat.kind==="group"?currentChat.title:chatPartner?.display_name}</b><small>{currentChat.kind==="group"?`${currentChat.members.length} members · ${totalMessageCount} messages`:`${totalMessageCount} messages · View profile`}</small></span></button></div><div ref={messageListRef} className="message-list" onScroll={event=>{const node=event.currentTarget;shouldStickToBottomRef.current=node.scrollHeight-node.scrollTop-node.clientHeight<120;}}>{messages.map((message,index)=>{const dayLabel=getMessageDayLabel(message.created_at);const dayKey=getMessageDayKey(message.created_at);const previous=messages[index-1];const showDay=!previous||getMessageDayKey(previous.created_at)!==dayKey;const readers=(messageReads[message.id]??[]).filter(receipt=>receipt.profile_id!==me.id).length;const attachmentUrl=attachmentUrls[message.id];return <Fragment key={message.id}>{showDay&&<div className="message-day-divider"><span>{dayLabel}</span></div>}<div className={`message-bubble ${message.sender_id===me.id?"mine":""}`}><small><button className="message-sender-profile" onClick={()=>router.push("/community/profile/"+message.sender_id)}>{message.sender_id===me.id?"You":otherPerson(message.sender_id)?.display_name??"Friend"}</button></small>{message.body && message.body!==message.attachment_name && !(message.message_kind==="voice"&&message.body==="Voice note")&&<p>{message.body}</p>}{message.attachment_path&&attachmentUrl&&<div className="message-attachment">{message.message_kind==="image"?<a href={attachmentUrl} target="_blank" rel="noreferrer"><img src={attachmentUrl} alt={message.attachment_name??"Chat image"} onLoad={()=>scrollToLatest()}/></a>:message.message_kind==="video"?<video controls preload="metadata" src={attachmentUrl} onLoadedMetadata={()=>scrollToLatest()}/>:message.message_kind==="voice"?<VoiceNotePlayer src={attachmentUrl} mine={message.sender_id===me.id}/>:<a className="document-attachment" href={attachmentUrl} target="_blank" rel="noreferrer" download={message.attachment_name}><FiFileText/>{message.attachment_name}</a>}</div>}<div className="message-meta"><time>{new Date(message.created_at).toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"})}</time>{message.sender_id===me.id&&<span className={readers?"receipt-seen":"receipt-sent"} title={readers?currentChat.kind==="group"?`Seen by ${readers} members`:"Read":"Sent"} aria-label={readers?"Read":"Sent"}>{readers?<IoCheckmarkDone/>:<FiCheck/>}{currentChat.kind==="group"&&readers?` ${readers}`:""}</span>}</div></div></Fragment>;})}</div><form className="message-form" onSubmit={e=>void sendMessage(e)}>{pendingAttachment&&<div className="attachment-pending"><span>{pendingAttachment.kind==="image"?<FiImage/>:pendingAttachment.kind==="video"?<FiVideo/>:pendingAttachment.kind==="voice"?<FiMic/>:<FiFileText/>} {pendingAttachment.file.name}</span><button type="button" aria-label="Remove attachment" onClick={()=>setPendingAttachment(null)}><FiX/></button></div>}{emojiOpen&&<div className="emoji-picker" aria-label="Emoji picker">{["😀","😂","🥰","😍","😊","😉","🙌","👏","👍","❤️","🔥","🎉","🙏","😢","🤝","📍","👋","💯","🤔","🥳"].map(emoji=><button type="button" key={emoji} onClick={()=>{setDraftMessage(current=>current+emoji);setEmojiOpen(false);}}>{emoji}</button>)}</div>}<div className="message-compose-row"><label className="chat-tool-button" title="Attach image, video or document"><FiPlus/><input type="file" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime,application/pdf,text/plain,.doc,.docx,.ppt,.pptx,.xls,.xlsx" onChange={e=>{selectAttachment(e.currentTarget.files?.[0]);e.currentTarget.value=""}}/></label><button type="button" className="chat-tool-button" aria-label="Emoji" aria-expanded={emojiOpen} onClick={()=>setEmojiOpen(value=>!value)}><FiSmile/></button><button type="button" className={`chat-tool-button voice-button${recording?" recording":""}`} aria-label={recording?"Stop voice note recording":"Record voice note"} onClick={()=>void toggleVoiceRecording()}>{recording?<FiX/>:<FiMic/>}</button><input className="message-text-input" value={draftMessage} onChange={e=>setDraftMessage(e.target.value)} onFocus={e=>{const input=e.currentTarget;window.setTimeout(()=>input.scrollIntoView({block:"nearest",behavior:"smooth"}),250);}} placeholder={recording?"Recording voice note…":"Write a message…"} maxLength={4000} enterKeyHint="send"/><button className="primary" disabled={(!draftMessage.trim()&&!pendingAttachment)||busy}>{busy?"Sending…":"Send"}</button></div></form></>:<div className="social-empty">{conversationId?"Loading conversation…":"Choose a conversation to open it here."}</div>}</section></div>}
-        {tab === "profile" && <><form className="social-card profile-editor" onSubmit={e=>void saveProfile(e)}><div className="avatar-editor"><Avatar person={me} large/><label className="secondary upload-button">Change photo<input type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>void uploadAvatar(e.currentTarget.files?.[0])}/></label><small>JPG, PNG or WebP · up to 5 MB</small></div><h3 className="profile-section-heading">Basic information</h3><label className="field">Profile type<select value={profileDraft.member_type} onChange={e=>setProfileDraft({...profileDraft,member_type:e.target.value as "student"|"alumni"|"visitor"})}><option value="student">Current student</option><option value="alumni">FUTO alumni</option><option value="visitor">Visitor / guest</option></select></label>{profileDraft.member_type!=="visitor"&&<label className="field">Department<input maxLength={80} value={profileDraft.department} onChange={e=>setProfileDraft({...profileDraft,department:e.target.value})}/></label>}{profileDraft.member_type==="student"&&<label className="field">Year of study<select value={profileDraft.year} onChange={e=>setProfileDraft({...profileDraft,year:e.target.value})}><option value="">Choose year</option>{[1,2,3,4,5,6,7].map(n=><option key={n} value={n}>{n}</option>)}</select></label>}{profileDraft.member_type==="alumni"&&<label className="field">Graduation set<input required value={profileDraft.alumni_set} onChange={e=>setProfileDraft({...profileDraft,alumni_set:e.target.value})} placeholder="23/24" pattern="[0-9]{2}/[0-9]{2}" title="Use YY/YY, for example 23/24"/><small className="field-help">Shown as “Alumni - {profileDraft.alumni_set||"YY/YY"} set”.</small></label>}<label className="field">About you<textarea maxLength={280} value={profileDraft.bio} onChange={e=>setProfileDraft({...profileDraft,bio:e.target.value})} placeholder="A little about yourself…"/></label><h3 className="profile-section-heading">A little more about you</h3><label className="field">Gender<select value={profileDraft.gender} onChange={e=>setProfileDraft({...profileDraft,gender:e.target.value as ""|"Male"|"Female"})}><option value="">Prefer not to say</option><option value="Female">Female</option><option value="Male">Male</option></select></label><label className="field">Date of birth<input type="date" max={new Date().toISOString().slice(0,10)} value={profileDraft.date_of_birth} onChange={e=>setProfileDraft({...profileDraft,date_of_birth:e.target.value})}/></label><label className="field">Who can see your date of birth?<select value={profileDraft.dob_visibility} onChange={e=>setProfileDraft({...profileDraft,dob_visibility:e.target.value as "private"|"friends"|"public"})}><option value="private">Only me</option><option value="friends">My friends</option><option value="public">Everyone on FUTO Life</option></select><small className="field-help">Your full date of birth is hidden from everyone else by default.</small></label><label className="field">Hometown<input maxLength={100} value={profileDraft.hometown} onChange={e=>setProfileDraft({...profileDraft,hometown:e.target.value})} placeholder="Where are you from?"/></label><label className="field">Interests<input maxLength={280} value={profileDraft.interests} onChange={e=>setProfileDraft({...profileDraft,interests:e.target.value})} placeholder="Music, football, design…"/></label><label className="field">Website or social link<input type="url" maxLength={200} value={profileDraft.social_link} onChange={e=>setProfileDraft({...profileDraft,social_link:e.target.value})} placeholder="https://…"/><small className="field-help">Use a full https:// link. Only share a link you are comfortable making visible to signed-in students.</small></label><button className="primary" disabled={busy}>{busy?"Saving…":"Save profile"}</button></form><section className="social-card profile-editor referral-card"><h3>Invite classmates</h3><p>Your referrals are recorded as a private chain. There are no rewards for referrals at this time.</p><div className="referral-link-row"><code>{me.referral_code?`/?ref=${me.referral_code}`:"Referral link unavailable"}</code><button className="secondary compact" onClick={()=>void copyReferralLink()}>Copy link</button></div><p><b>{referralNetwork.length}</b> people in your referral network · direct and downstream referrals</p>{referralNetwork.slice(0,20).map(person=><div className="referral-person" key={person.profile_id}><span className="referral-depth">L{person.depth}</span><span>{person.display_name}</span><small>{new Date(person.joined_at).toLocaleDateString()}</small></div>)}</section></>}
+        {tab === "messages" && <div className={`chat-layout${conversationId?" chat-full-layout":""}`}>{!conversationId&&<aside className="chat-sidebar"><form className="group-form" onSubmit={e=>void createGroup(e)}><b className="chat-list-heading">Chats <span>{chats.length}</span></b><input name="groupTitle" placeholder="New group name" maxLength={80} required/><details><summary>Choose 2+ friends</summary><div className="group-options">{friends.map(f=><label key={f.id}><input type="checkbox" name="groupFriend" value={f.id}/>{f.display_name}</label>)}</div></details><button className="secondary compact" disabled={busy||friends.length<2}>{busy?"Working…":"Create group"}</button></form><input className="social-search list-search" value={conversationSearch} onChange={e=>setConversationSearch(e.target.value)} placeholder="Search conversations…" aria-label="Search conversations"/>{filteredChats.map(chat=><button className={`chat-row ${activeChat===chat.id?"selected":""}`} key={chat.id} onClick={()=>{setActiveChat(chat.id);router.push("/community/messages/"+chat.id);}}><Avatar person={chat.kind==="group"?null:chat.members.find(m=>m.id!==me.id)??null}/><span><b>{chat.kind==="group"?chat.title:chat.members.find(m=>m.id!==me.id)?.display_name??"Direct chat"}</b><small>{chat.lastMessage?.body??(chat.kind==="group"?`${chat.members.length} members`:"Start a conversation")}</small></span>{(unreadCounts[chat.id]??0)>0&&<span className="unread-pill">{unreadCounts[chat.id]>99?"99+":unreadCounts[chat.id]}</span>}</button>)}{loadingChats&&<p className="muted">Loading conversations…</p>}{!loadingChats&&!filteredChats.length&&<p className="muted">{conversationSearch?"No conversations match that search.":"Your conversations will appear here after you message a friend or create a group."}</p>}</aside>}<section className="chat-main">{currentChat?<><div className="chat-title"><button className="chat-profile-inline" onClick={()=>chatPartner&&router.push("/community/profile/"+chatPartner.id)} disabled={!chatPartner}><Avatar person={chatPartner}/><span><b>{currentChat.kind==="group"?currentChat.title:chatPartner?.display_name}</b><small>{currentChat.kind==="group"?`${currentChat.members.length} members · ${totalMessageCount} messages`:`${totalMessageCount} messages · View profile`}</small></span></button></div><div ref={messageListRef} className="message-list" onScroll={event=>{const node=event.currentTarget;shouldStickToBottomRef.current=node.scrollHeight-node.scrollTop-node.clientHeight<120;}}>{messages.map((message,index)=>{const dayLabel=getMessageDayLabel(message.created_at);const dayKey=getMessageDayKey(message.created_at);const previous=messages[index-1];const showDay=!previous||getMessageDayKey(previous.created_at)!==dayKey;const reactions=messageReactions[message.id]??[];return <Fragment key={message.id}>{showDay&&<div className="message-day-divider"><span>{dayLabel}</span></div>}<ChatMessageBubble message={message} mine={message.sender_id===me.id} senderName={message.sender_id===me.id?"You":otherPerson(message.sender_id)?.display_name??"Friend"} chatKind={currentChat.kind} readers={(messageReads[message.id]??[]).filter(receipt=>receipt.profile_id!==me.id).length} attachmentUrl={attachmentUrls[message.id]} replyMessage={messages.find(item=>item.id===message.reply_to_id)??null} reactions={reactions} myReaction={reactions.find(item=>item.profile_id===me.id)?.reaction??null} selected={selectedMessageId===message.id} onSelect={()=>setSelectedMessageId(selectedMessageId===message.id?null:message.id)} onSender={()=>router.push("/community/profile/"+message.sender_id)} onReply={()=>replyToMessage(message)} onEdit={()=>editMessage(message)} onDelete={()=>setDeleteMessageId(message.id)} onReact={reaction=>void toggleMessageReaction(message,reaction)} onImageLoad={()=>scrollToLatest()}/></Fragment>;})}</div><form className="message-form" onSubmit={e=>void sendMessage(e)}>{(editingTarget||replyTarget)&&<div className="message-action-banner"><div><b>{editingTarget?"Editing message":"Replying to "+replyTargetName}</b><small>{editingTarget?"Only the message text can be changed.":replyTarget?.is_deleted?"This message was deleted":replyTarget?.body||replyTarget?.attachment_name||"Voice note"}</small></div><button type="button" aria-label="Cancel reply or edit" onClick={cancelMessageAction}><FiX/></button></div>}{pendingAttachment&&!editingTarget&&<div className="attachment-pending"><span>{pendingAttachment.kind==="image"?<FiImage/>:pendingAttachment.kind==="video"?<FiVideo/>:pendingAttachment.kind==="voice"?<FiMic/>:<FiFileText/>} {pendingAttachment.file.name}</span><button type="button" aria-label="Remove attachment" onClick={()=>setPendingAttachment(null)}><FiX/></button></div>}{emojiOpen&&<div className="emoji-picker" aria-label="Emoji picker">{["😀","😂","🥰","😍","😊","😉","🙌","👏","👍","❤️","🔥","🎉","🙏","😢","🤝","📍","👋","💯","🤔","🥳"].map(emoji=><button type="button" key={emoji} onClick={()=>{setDraftMessage(current=>current+emoji);setEmojiOpen(false);}}>{emoji}</button>)}</div>}<div className="message-compose-row">{!editingTarget&&<label className="chat-tool-button" title="Attach image, video or document"><FiPlus/><input type="file" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime,application/pdf,text/plain,.doc,.docx,.ppt,.pptx,.xls,.xlsx" onChange={e=>{selectAttachment(e.currentTarget.files?.[0]);e.currentTarget.value=""}}/></label>}<button type="button" className="chat-tool-button" aria-label="Emoji" aria-expanded={emojiOpen} onClick={()=>setEmojiOpen(value=>!value)}><FiSmile/></button>{!editingTarget&&<button type="button" className={`chat-tool-button voice-button${recording?" recording":""}`} aria-label={recording?"Stop voice note recording":"Record voice note"} onClick={()=>void toggleVoiceRecording()}>{recording?<FiX/>:<FiMic/>}</button>}<input ref={messageInputRef} className="message-text-input" value={draftMessage} onChange={e=>setDraftMessage(e.target.value)} onFocus={()=>{shouldStickToBottomRef.current=true;requestAnimationFrame(()=>scrollToLatest());}} placeholder={recording?"Recording voice note…":editingTarget?"Edit your message…":"Write a message…"} maxLength={4000} enterKeyHint="send"/><button className="primary" disabled={(!draftMessage.trim()&&!pendingAttachment)||busy}>{busy?(editingTarget?"Saving…":"Sending…"):editingTarget?"Save":"Send"}</button></div></form></>:<div className="social-empty">{conversationId?"Loading conversation…":"Choose a conversation to open it here."}</div>}</section></div>}
+        {tab === "profile" && <><ProfileDeviceSettings userId={me.id}/><form className="social-card profile-editor" onSubmit={e=>void saveProfile(e)}><div className="avatar-editor"><Avatar person={me} large/><label className="secondary upload-button">Change photo<input type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>void uploadAvatar(e.currentTarget.files?.[0])}/></label><small>JPG, PNG or WebP · up to 5 MB</small></div><h3 className="profile-section-heading">Basic information</h3><label className="field">Profile type<select value={profileDraft.member_type} onChange={e=>setProfileDraft({...profileDraft,member_type:e.target.value as "student"|"alumni"|"visitor"})}><option value="student">Current student</option><option value="alumni">FUTO alumni</option><option value="visitor">Visitor / guest</option></select></label>{profileDraft.member_type!=="visitor"&&<label className="field">Department<input maxLength={80} value={profileDraft.department} onChange={e=>setProfileDraft({...profileDraft,department:e.target.value})}/></label>}{profileDraft.member_type==="student"&&<label className="field">Year of study<select value={profileDraft.year} onChange={e=>setProfileDraft({...profileDraft,year:e.target.value})}><option value="">Choose year</option>{[1,2,3,4,5,6,7].map(n=><option key={n} value={n}>{n}</option>)}</select></label>}{profileDraft.member_type==="alumni"&&<label className="field">Graduation set<input required value={profileDraft.alumni_set} onChange={e=>setProfileDraft({...profileDraft,alumni_set:e.target.value})} placeholder="23/24" pattern="[0-9]{2}/[0-9]{2}" title="Use YY/YY, for example 23/24"/><small className="field-help">Shown as “Alumni - {profileDraft.alumni_set||"YY/YY"} set”.</small></label>}<label className="field">About you<textarea maxLength={280} value={profileDraft.bio} onChange={e=>setProfileDraft({...profileDraft,bio:e.target.value})} placeholder="A little about yourself…"/></label><h3 className="profile-section-heading">A little more about you</h3><label className="field">Gender<select value={profileDraft.gender} onChange={e=>setProfileDraft({...profileDraft,gender:e.target.value as ""|"Male"|"Female"})}><option value="">Prefer not to say</option><option value="Female">Female</option><option value="Male">Male</option></select></label><label className="field">Date of birth<input type="date" max={new Date().toISOString().slice(0,10)} value={profileDraft.date_of_birth} onChange={e=>setProfileDraft({...profileDraft,date_of_birth:e.target.value})}/></label><label className="field">Who can see your date of birth?<select value={profileDraft.dob_visibility} onChange={e=>setProfileDraft({...profileDraft,dob_visibility:e.target.value as "private"|"friends"|"public"})}><option value="private">Only me</option><option value="friends">My friends</option><option value="public">Everyone on FUTO Life</option></select><small className="field-help">Your full date of birth is hidden from everyone else by default.</small></label><label className="field">Hometown<input maxLength={100} value={profileDraft.hometown} onChange={e=>setProfileDraft({...profileDraft,hometown:e.target.value})} placeholder="Where are you from?"/></label><label className="field">Interests<input maxLength={280} value={profileDraft.interests} onChange={e=>setProfileDraft({...profileDraft,interests:e.target.value})} placeholder="Music, football, design…"/></label><label className="field">Website or social link<input type="url" maxLength={200} value={profileDraft.social_link} onChange={e=>setProfileDraft({...profileDraft,social_link:e.target.value})} placeholder="https://…"/><small className="field-help">Use a full https:// link. Only share a link you are comfortable making visible to signed-in students.</small></label><button className="primary" disabled={busy}>{busy?"Saving…":"Save profile"}</button></form><section className="social-card profile-editor referral-card"><h3>Invite classmates</h3><p>Your referrals are recorded as a private chain. There are no rewards for referrals at this time.</p><div className="referral-link-row"><code>{me.referral_code?`/?ref=${me.referral_code}`:"Referral link unavailable"}</code><button className="secondary compact" onClick={()=>void copyReferralLink()}>Copy link</button></div><p><b>{referralNetwork.length}</b> people in your referral network · direct and downstream referrals</p>{referralNetwork.slice(0,20).map(person=><div className="referral-person" key={person.profile_id}><span className="referral-depth">L{person.depth}</span><span>{person.display_name}</span><small>{new Date(person.joined_at).toLocaleDateString()}</small></div>)}</section></>}
       </div>
     </>}
     {standalone&&!conversationId&&<nav className="community-bottom-nav" aria-label="Community navigation"><Link className={tab==="feed"?"active":""} href="/community/feed"><FiHome/><span>Feed</span></Link><Link className={tab==="friends"?"active":""} href="/community/friends"><span className="bottom-nav-icon"><FiUsers/>{pendingIn.length>0&&<i>{pendingIn.length>99?"99+":pendingIn.length}</i>}</span><span>Friends</span></Link><Link className={tab==="messages"?"active":""} href="/community/messages"><span className="bottom-nav-icon"><FiMessageCircle/>{unreadTotal>0&&<i>{unreadTotal>99?"99+":unreadTotal}</i>}</span><span>Chats</span></Link><Link className={tab==="profile"?"active":""} href="/community/profile"><FiUser/><span>Profile</span></Link></nav>}
+    {deleteMessageId&&<div className="report-backdrop"><section className="report-dialog panel" role="dialog" aria-modal="true" aria-labelledby="delete-message-title"><div className="eyebrow">Chat message</div><h2 id="delete-message-title">Delete this message?</h2><p>{messages.find(message=>message.id===deleteMessageId)?.sender_id===me?.id?"Choose whether to delete this message only for you or for everyone in the conversation.":"This message will be removed from your conversation only."}</p><div className="confirm-actions"><button type="button" className="secondary" disabled={busy} onClick={()=>setDeleteMessageId(null)}>Cancel</button><button type="button" className="secondary" disabled={busy} onClick={()=>void confirmDeleteMessage(false)}>{busy?"Deleting…":"Delete for me"}</button>{messages.find(message=>message.id===deleteMessageId)?.sender_id===me?.id&&<button type="button" className="primary" disabled={busy} onClick={()=>void confirmDeleteMessage(true)}>{busy?"Deleting…":"Delete for everyone"}</button>}</div></section></div>}
     {reportTarget&&<div className="report-backdrop"><form className="report-dialog panel" role="dialog" aria-modal="true" aria-labelledby="report-title" onSubmit={e=>void submitReport(e)}><div className="eyebrow">Community safety</div><h2 id="report-title">Report this post</h2><p>Reports are reviewed by the FUTO Life admin team. The author won’t see who submitted a report.</p><label className="field">Reason<select value={reportReason} onChange={e=>setReportReason(e.target.value as ReportReason)}><option value="spam">Spam</option><option value="harassment">Harassment or bullying</option><option value="hate_or_abuse">Hate or abuse</option><option value="sexual_content">Sexual content</option><option value="violence">Violence or threats</option><option value="false_information">False information</option><option value="other">Other</option></select></label><label className="field">More details (optional)<textarea maxLength={1000} value={reportDetails} onChange={e=>setReportDetails(e.target.value)} placeholder="Add context to help the admin review"/></label><div className="confirm-actions"><button type="button" className="secondary" onClick={()=>setReportTarget(null)}>Cancel</button><button className="primary" disabled={busy}>{busy?"Sending…":"Send report"}</button></div></form></div>}
   </section></div>;
+}
+
+function ChatMessageBubble({message,mine,senderName,chatKind,readers,attachmentUrl,replyMessage,reactions,myReaction,selected,onSelect,onSender,onReply,onEdit,onDelete,onReact,onImageLoad}:{message:Message;mine:boolean;senderName:string;chatKind:"direct"|"group";readers:number;attachmentUrl?:string;replyMessage:Message|null;reactions:MessageReaction[];myReaction:string|null;selected:boolean;onSelect:()=>void;onSender:()=>void;onReply:()=>void;onEdit:()=>void;onDelete:()=>void;onReact:(reaction:string)=>void;onImageLoad:()=>void}){
+  const touchStart=useRef<{x:number;y:number}|null>(null);
+  const reactionChoices=["👍","❤️","😂","😮","😢","🙏"];
+  const groupedReactions=Array.from(reactions.reduce((groups,row)=>groups.set(row.reaction,(groups.get(row.reaction)??[]).concat(row)),new Map<string,MessageReaction[]>()).entries());
+  const messageText=message.is_deleted?"This message was deleted":message.body&&message.body!==message.attachment_name&&!(message.message_kind==="voice"&&message.body==="Voice note")?message.body:null;
+  return <div className={`message-item${mine?" mine":""}${selected?" selected":""}`} onTouchStart={event=>{touchStart.current={x:event.changedTouches[0].clientX,y:event.changedTouches[0].clientY};}} onTouchEnd={event=>{const start=touchStart.current;touchStart.current=null;if(!start)return;const dx=event.changedTouches[0].clientX-start.x,dy=event.changedTouches[0].clientY-start.y;if(dx>58&&Math.abs(dy)<44&&!message.is_deleted){event.preventDefault();onReply();}}}>
+    <div className={`message-bubble ${mine?"mine":""}`} onClick={event=>{if((event.target as HTMLElement).closest("button,a,input,video"))return;onSelect();}}>
+      <small><button className="message-sender-profile" onClick={onSender}>{senderName}</button></small>
+      {replyMessage&&!message.is_deleted&&<div className="message-reply-quote"><b>{replyMessage.is_deleted?"Deleted message":"Reply"}</b><span>{replyMessage.is_deleted?"This message was deleted":replyMessage.body||replyMessage.attachment_name||"Voice note"}</span></div>}
+      {message.is_deleted?<p className="message-deleted-label">This message was deleted</p>:<>
+        {messageText&&<p>{messageText}{message.edited_at&&<small className="message-edited-label">edited</small>}</p>}
+        {message.attachment_path&&attachmentUrl&&<div className="message-attachment">{message.message_kind==="image"?<a href={attachmentUrl} target="_blank" rel="noreferrer"><img src={attachmentUrl} alt={message.attachment_name??"Chat image"} onLoad={onImageLoad}/></a>:message.message_kind==="video"?<video controls preload="metadata" src={attachmentUrl} onLoadedMetadata={onImageLoad}/>:message.message_kind==="voice"?<VoiceNotePlayer src={attachmentUrl} mine={mine}/>:<a className="document-attachment" href={attachmentUrl} target="_blank" rel="noreferrer" download={message.attachment_name}><FiFileText/>{message.attachment_name}</a>}</div>}
+      </>}
+      <div className="message-meta"><time>{new Date(message.created_at).toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"})}</time>{mine&&<span className={readers?"receipt-seen":"receipt-sent"} title={readers?chatKind==="group"?`Seen by ${readers} members`:"Read":"Sent"} aria-label={readers?"Read":"Sent"}>{readers?<IoCheckmarkDone/>:<FiCheck/>}{chatKind==="group"&&readers?` ${readers}`:""}</span>}</div>
+    </div>
+    {groupedReactions.length>0&&!message.is_deleted&&<div className="message-reaction-summary">{groupedReactions.map(([reaction,rows])=><button type="button" key={reaction} className={myReaction===reaction?"active":""} onClick={()=>onReact(reaction)} aria-label={`${reaction} reaction, ${rows.length} total`}>{reaction}<small>{rows.length}</small></button>)}</div>}
+    {selected&&<div className="message-action-bar" onClick={event=>event.stopPropagation()}><div className="message-reaction-picker" aria-label="React to message">{reactionChoices.map(reaction=><button type="button" key={reaction} className={myReaction===reaction?"active":""} onClick={()=>onReact(reaction)} aria-label={`React ${reaction}`}>{reaction}</button>)}</div><button type="button" onClick={onReply} disabled={message.is_deleted}><FiCornerUpLeft/>Reply</button>{mine&&message.message_kind==="text"&&!message.is_deleted&&<button type="button" onClick={onEdit}><FiEdit2/>Edit</button>}{!message.is_deleted&&<button type="button" className="message-delete-action" onClick={onDelete}><FiTrash2/>Delete</button>}</div>}
+  </div>;
+}
+
+function ProfileDeviceSettings({userId}:{userId:string}){
+  const [permission,setPermission]=useState<NotificationPermission|"unsupported">("default");
+  const [notificationsEnabled,setNotificationsEnabled]=useState(false);
+  const [installed,setInstalled]=useState(false);
+  useEffect(()=>{
+    const syncNotifications=()=>{
+      const supported="Notification" in window;
+      setPermission(supported?window.Notification.permission:"unsupported");
+      setNotificationsEnabled(Boolean(supported&&window.Notification.permission==="granted"&&window.localStorage.getItem(`futolife:web-notifications:${userId}`)==="enabled"));
+    };
+    const rememberInstall=()=>{setInstalled(true);window.localStorage.setItem(`futolife:install-nudge:${userId}`,"installed");};
+    syncNotifications();
+    setInstalled(window.matchMedia("(display-mode: standalone)").matches||window.localStorage.getItem(`futolife:install-nudge:${userId}`)==="installed");
+    window.addEventListener("futolife-notification-preference",syncNotifications);
+    window.addEventListener("focus",syncNotifications);
+    window.addEventListener("appinstalled",rememberInstall);
+    return()=>{window.removeEventListener("futolife-notification-preference",syncNotifications);window.removeEventListener("focus",syncNotifications);window.removeEventListener("appinstalled",rememberInstall);};
+  },[userId]);
+  async function enableNotifications(){
+    if(!("Notification" in window)){setPermission("unsupported");notify("Browser notifications are not supported on this device.");return;}
+    try{
+      const next=await window.Notification.requestPermission();
+      setPermission(next);
+      if(next!=="granted"){setNotificationsEnabled(false);notify(next==="denied"?"Allow notifications for this site in your browser settings.":"Browser notifications were not enabled.");return;}
+      window.localStorage.setItem(`futolife:web-notifications:${userId}`,"enabled");
+      setNotificationsEnabled(true);
+      window.dispatchEvent(new Event("futolife-notification-preference"));
+      notify("Browser notifications are enabled on this device.");
+    }catch{notify("Could not enable browser notifications in this browser.");}
+  }
+  return <section className="social-card profile-device-settings" aria-labelledby="profile-device-title"><div className="profile-device-heading"><div><span className="eyebrow">Your device</span><h3 id="profile-device-title">App & notifications</h3><p>Keep FUTO Life close and choose whether this device can show message and friend-request alerts.</p></div></div><div className="profile-device-actions"><div className="profile-device-row"><span className="profile-device-icon"><FiDownload/></span><span><b>Home screen</b><small>{installed?"FUTO Life is installed on this device.":"Add FUTO Life for quick access from your home screen."}</small></span><button type="button" className="secondary compact" onClick={()=>{if(installed)return;window.dispatchEvent(new Event("futolife-install-request"));}} disabled={installed}>{installed?"Added":"Install app"}</button></div><div className="profile-device-row"><span className="profile-device-icon"><FiBell/></span><span><b>Browser notifications</b><small>{permission==="unsupported"?"Notifications are not supported by this browser.":permission==="denied"?"Blocked by browser settings. Allow notifications for this site in browser settings.":notificationsEnabled?"Enabled for messages and friend requests on this device.":"Get alerts for messages and friend requests while FUTO Life is in the background."}</small></span><button type="button" className="secondary compact" onClick={()=>void enableNotifications()} disabled={permission==="unsupported"||notificationsEnabled}>{notificationsEnabled?<><FiCheck/> Enabled</>:permission==="denied"?"Browser settings":"Enable"}</button></div></div><small className="profile-device-note">These settings apply to this browser and device. You can revisit them here anytime.</small></section>;
 }
 
 function Avatar({person,small=false,large=false}:{person:Person|null|undefined;small?:boolean;large?:boolean}) {
