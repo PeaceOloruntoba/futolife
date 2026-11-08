@@ -169,3 +169,11 @@ TypeScript check (`npx tsc --noEmit`) passes. Full functional testing remains pe
 - Added `supabase/migrations/202611080002_message_delete_for_me.sql` with a private per-profile hidden-message table, RLS, a membership-checked `hide_my_message` RPC, audit event, and Realtime publication.
 - Hidden messages are filtered from the current conversation and conversation previews and stay hidden for that user after reload or on another device. Delete-for-everyone continues to replace the message with the shared deletion notice.
 - Apply both pending chat migrations with `npx supabase@latest db push --dry-run --linked`, then `npx supabase@latest db push --linked`.
+
+## Latest update — photo-first campus wayfinding (2026-11-08)
+
+- Reviewed the attached `futo-life-concept-hud.html` and `hud.smoke.test.js` as visual/technical references. The HUD concept suggests stronger map context, destination cards, and clearly marked confidence; demo social/quest content remains reference-only for this map pass.
+- Updated Explore directory entries to show the campus photo thumbnail beside every location when `image_url` is available. Selecting a place now opens a persistent destination card with its photo, category, description, location confidence, and map/navigation actions.
+- Existing map markers continue to use the uploaded photos and now highlight the selected destination. The card labels verified, approximate, and unverified positions separately.
+- Selecting an unverified place no longer starts auto-walking to potentially misleading coordinates. Navigation is enabled only for verified or provisional places with saved local coordinates; provisional coordinates remain explicitly labeled as approximate.
+- No new migration is needed; the Explore API already reads `campus_locations.image_url` from Supabase. Photos improve visual recognition, but actual building/road geometry still requires authoritative or surveyed map data.
