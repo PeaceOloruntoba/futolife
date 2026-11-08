@@ -65,6 +65,7 @@ export default function SocialHub({ onClose = () => {}, onSignIn, onProfileChang
   const postInputRef=useRef<HTMLTextAreaElement>(null);
   const messageListRef=useRef<HTMLDivElement>(null);
   const messageInputRef=useRef<HTMLInputElement>(null);
+  const hiddenMessageIdsRef=useRef<Set<string>>(new Set());
   const shouldStickToBottomRef=useRef(true);
   const lastScrolledChatRef=useRef<string|null>(null);
   const socialWindowRef=useRef<HTMLElement>(null);
@@ -86,6 +87,7 @@ export default function SocialHub({ onClose = () => {}, onSignIn, onProfileChang
     if (authStatus === "loading") return;
     if (!supabase) { setBootstrapping(false); setLoadingChats(false); setNotice("Account services are unavailable. Please try again later."); return; }
     if (authStatus === "signed-out" || !userId) { setBootstrapping(false); setLoadingChats(false); setMe(null); setNotice(""); return; }
+    hiddenMessageIdsRef.current=new Set();
     setLoadingChats(true);
     setBootstrapping(true);
     const user = { id: userId };
@@ -143,11 +145,14 @@ export default function SocialHub({ onClose = () => {}, onSignIn, onProfileChang
     const memberRows = (memberships.data ?? []) as {conversation_id:string;profile_id:string}[];
     const profileMap = new Map<string,Person>([...(peopleResult.data ?? []) as Person[], ...(profileResult.data ? [profileResult.data as Person] : [])].map(p => [p.id,p]));
     const conversationRows = (conversationResult.data ?? []) as Omit<Chat,"members"|"lastMessage">[];
-    const [messageResult, unreadResult] = await Promise.all([
+    const [messageResult, unreadResult, hiddenResult] = await Promise.all([
       supabase.from("messages").select("id,conversation_id,sender_id,body,created_at,message_kind,attachment_bucket,attachment_path,attachment_name,attachment_size,attachment_mime").in("conversation_id", conversationIds).order("created_at", { ascending: false }).limit(conversationIds.length * 3),
       supabase.rpc("get_my_unread_counts"),
+      supabase.from("message_hidden_for_profiles").select("message_id").eq("profile_id",userId).in("conversation_id",conversationIds),
     ]);
-    const messageRows = (messageResult.data ?? []) as Message[];
+    const hiddenIds=new Set(((hiddenResult.data??[]) as {message_id:string}[]).map(row=>row.message_id));
+    hiddenMessageIdsRef.current=hiddenIds;
+    const messageRows = ((messageResult.data ?? []) as Message[]).filter(message=>!hiddenIds.has(message.id));
     setUnreadCounts(Object.fromEntries(((unreadResult.data??[]) as {conversation_id:string;unread_count:number}[]).map(row=>[row.conversation_id,Number(row.unread_count)])));
     setChats(conversationRows.map((chat) => ({ ...chat, members: memberRows.filter(m => m.conversation_id === chat.id).map(m => profileMap.get(m.profile_id)).filter((p): p is Person => Boolean(p)), lastMessage: messageRows.find(m => m.conversation_id === chat.id) })).sort((a,b)=>new Date(b.lastMessage?.created_at??b.created_at).getTime()-new Date(a.lastMessage?.created_at??a.created_at).getTime()));
     setLoadingChats(false);
@@ -158,6 +163,7 @@ export default function SocialHub({ onClose = () => {}, onSignIn, onProfileChang
     if(!supabase||!userId)return;
     const channel=supabase.channel(`conversation-order-${userId}`).on("postgres_changes",{event:"*",schema:"public",table:"messages"},payload=>{
       const message=payload.new as Message;
+      if(hiddenMessageIdsRef.current.has(message.id))return;
       setChats(current=>{
         if(!current.some(chat=>chat.id===message.conversation_id))return current;
         return current.map(chat=>chat.id===message.conversation_id?{...chat,lastMessage:message}:chat).sort((a,b)=>new Date(b.lastMessage?.created_at??b.created_at).getTime()-new Date(a.lastMessage?.created_at??a.created_at).getTime());
@@ -173,7 +179,7 @@ export default function SocialHub({ onClose = () => {}, onSignIn, onProfileChang
   useEffect(()=>{setTab(initialTab);setActiveChat(conversationId??null);},[initialTab,conversationId]);
   useEffect(() => { if (notice) { notify(notice); setNotice(""); } }, [notice]);
   useEffect(() => {
-    if (!supabase || !activeChat) return;
+    if (!supabase || !userId || !activeChat) return;
     setMessages([]);setTotalMessageCount(0);setMessageReads({});setMessageReactions({});setAttachmentUrls({});setSelectedMessageId(null);setReplyToMessageId(null);setEditingMessageId(null);setDeleteMessageId(null);
     const refreshUnread = async () => {
       const {data}=await supabase.rpc("get_my_unread_counts");
@@ -184,9 +190,14 @@ export default function SocialHub({ onClose = () => {}, onSignIn, onProfileChang
       await refreshUnread();
     };
     const refresh = async () => {
-      const { data, count } = await supabase.from("messages").select("id,conversation_id,sender_id,body,created_at,edited_at,is_deleted,reply_to_id,message_kind,attachment_bucket,attachment_path,attachment_name,attachment_size,attachment_mime",{count:"exact"}).eq("conversation_id", activeChat).order("created_at").limit(300);
-      const rows=(data??[]) as Message[];setMessages(rows);
-      setTotalMessageCount(count??rows.length);
+      const [{data,count},{data:hiddenData}]=await Promise.all([
+        supabase.from("messages").select("id,conversation_id,sender_id,body,created_at,edited_at,is_deleted,reply_to_id,message_kind,attachment_bucket,attachment_path,attachment_name,attachment_size,attachment_mime",{count:"exact"}).eq("conversation_id", activeChat).order("created_at").limit(300),
+        supabase.from("message_hidden_for_profiles").select("message_id").eq("profile_id",userId).eq("conversation_id",activeChat),
+      ]);
+      const hiddenIds=new Set(((hiddenData??[]) as {message_id:string}[]).map(row=>row.message_id));
+      for(const id of hiddenIds)hiddenMessageIdsRef.current.add(id);
+      const allRows=(data??[]) as Message[];const rows=allRows.filter(message=>!hiddenIds.has(message.id));setMessages(rows);
+      setTotalMessageCount(Math.max(0,(count??allRows.length)-allRows.filter(message=>hiddenIds.has(message.id)).length));
       if(tab==="messages"&&document.visibilityState==="visible")await markRead();
       if(rows.length){const [readResult,reactionResult]=await Promise.all([supabase.from("message_reads").select("message_id,profile_id,read_at").in("message_id",rows.map(row=>row.id)),supabase.from("message_reactions").select("message_id,profile_id,reaction,created_at").in("message_id",rows.map(row=>row.id))]);const grouped=(readResult.data??[] as MessageRead[]).reduce<Record<string,MessageRead[]>>((acc,row)=>{(acc[row.message_id]??=[]).push(row as MessageRead);return acc;},{});setMessageReads(grouped);const groupedReactions=(reactionResult.data??[] as MessageReaction[]).reduce<Record<string,MessageReaction[]>>((acc,row)=>{(acc[row.message_id]??=[]).push(row as MessageReaction);return acc;},{});setMessageReactions(groupedReactions);}
     };
@@ -214,9 +225,14 @@ export default function SocialHub({ onClose = () => {}, onSignIn, onProfileChang
         const remaining=existing.filter(row=>row.profile_id!==reaction.profile_id);
         return {...current,[reaction.message_id]:payload.eventType==="DELETE"?remaining:[...remaining,reaction]};
       });
+    }).on("postgres_changes",{event:"INSERT",schema:"public",table:"message_hidden_for_profiles",filter:`profile_id=eq.${userId}`},payload=>{
+      const hidden=payload.new as {message_id:string;conversation_id:string;profile_id:string};
+      if(hiddenMessageIdsRef.current.has(hidden.message_id))return;
+      hiddenMessageIdsRef.current.add(hidden.message_id);
+      if(hidden.conversation_id===activeChat){setMessages(current=>current.filter(message=>message.id!==hidden.message_id));setTotalMessageCount(current=>Math.max(0,current-1));}
     }).subscribe();
     return () => { document.removeEventListener("visibilitychange",handleVisibility);void supabase.removeChannel(channel); };
-  }, [activeChat, supabase, tab, me?.id]);
+  }, [activeChat, supabase, tab, me?.id, userId]);
 
   useEffect(()=>{
     let active=true;
@@ -430,11 +446,24 @@ export default function SocialHub({ onClose = () => {}, onSignIn, onProfileChang
     requestAnimationFrame(()=>{messageInputRef.current?.focus();messageInputRef.current?.setSelectionRange(message.body.length,message.body.length);});
   }
   function cancelMessageAction(){setReplyToMessageId(null);setEditingMessageId(null);setDraftMessage("");setPendingAttachment(null);}
-  async function confirmDeleteMessage(){
+  async function confirmDeleteMessage(forEveryone:boolean){
     if(!supabase||!deleteMessageId||busy)return;
     setBusy(true);const targetId=deleteMessageId;
-    const {data,error}=await supabase.rpc("delete_my_message",{target_message:targetId});
-    if(error)setNotice(error.message);else{setMessages(current=>current.map(message=>message.id===targetId?data as Message:message));setMessageReactions(current=>({...current,[targetId]:[]}));setNotice("Message deleted for everyone.");}
+    if(forEveryone){
+      const {data,error}=await supabase.rpc("delete_my_message",{target_message:targetId});
+      if(error)setNotice(error.message);else{setMessages(current=>current.map(message=>message.id===targetId?data as Message:message));setMessageReactions(current=>({...current,[targetId]:[]}));setNotice("Message deleted for everyone.");}
+    }else{
+      const message=messages.find(row=>row.id===targetId);
+      const {error}=await supabase.rpc("hide_my_message",{target_message:targetId});
+      if(error)setNotice(error.message);else{
+        hiddenMessageIdsRef.current.add(targetId);
+        setMessages(current=>current.filter(row=>row.id!==targetId));
+        setTotalMessageCount(current=>Math.max(0,current-1));
+        const previousMessage=messages.filter(row=>row.id!==targetId).at(-1);
+        setChats(current=>current.map(chat=>chat.id===message?.conversation_id&&chat.lastMessage?.id===targetId?{...chat,lastMessage:previousMessage?.conversation_id===chat.id?previousMessage:undefined}:chat));
+        setNotice("Message deleted for you.");
+      }
+    }
     setDeleteMessageId(null);setSelectedMessageId(null);setBusy(false);
   }
   async function toggleMessageReaction(message:Message,reaction:string){
@@ -515,7 +544,7 @@ export default function SocialHub({ onClose = () => {}, onSignIn, onProfileChang
       </div>
     </>}
     {standalone&&!conversationId&&<nav className="community-bottom-nav" aria-label="Community navigation"><Link className={tab==="feed"?"active":""} href="/community/feed"><FiHome/><span>Feed</span></Link><Link className={tab==="friends"?"active":""} href="/community/friends"><span className="bottom-nav-icon"><FiUsers/>{pendingIn.length>0&&<i>{pendingIn.length>99?"99+":pendingIn.length}</i>}</span><span>Friends</span></Link><Link className={tab==="messages"?"active":""} href="/community/messages"><span className="bottom-nav-icon"><FiMessageCircle/>{unreadTotal>0&&<i>{unreadTotal>99?"99+":unreadTotal}</i>}</span><span>Chats</span></Link><Link className={tab==="profile"?"active":""} href="/community/profile"><FiUser/><span>Profile</span></Link></nav>}
-    {deleteMessageId&&<div className="report-backdrop"><section className="report-dialog panel" role="dialog" aria-modal="true" aria-labelledby="delete-message-title"><div className="eyebrow">Chat message</div><h2 id="delete-message-title">Delete this message?</h2><p>Everyone in this conversation will see “This message was deleted”.</p><div className="confirm-actions"><button type="button" className="secondary" disabled={busy} onClick={()=>setDeleteMessageId(null)}>Cancel</button><button type="button" className="primary" disabled={busy} onClick={()=>void confirmDeleteMessage()}>{busy?"Deleting…":"Delete for everyone"}</button></div></section></div>}
+    {deleteMessageId&&<div className="report-backdrop"><section className="report-dialog panel" role="dialog" aria-modal="true" aria-labelledby="delete-message-title"><div className="eyebrow">Chat message</div><h2 id="delete-message-title">Delete this message?</h2><p>{messages.find(message=>message.id===deleteMessageId)?.sender_id===me?.id?"Choose whether to delete this message only for you or for everyone in the conversation.":"This message will be removed from your conversation only."}</p><div className="confirm-actions"><button type="button" className="secondary" disabled={busy} onClick={()=>setDeleteMessageId(null)}>Cancel</button><button type="button" className="secondary" disabled={busy} onClick={()=>void confirmDeleteMessage(false)}>{busy?"Deleting…":"Delete for me"}</button>{messages.find(message=>message.id===deleteMessageId)?.sender_id===me?.id&&<button type="button" className="primary" disabled={busy} onClick={()=>void confirmDeleteMessage(true)}>{busy?"Deleting…":"Delete for everyone"}</button>}</div></section></div>}
     {reportTarget&&<div className="report-backdrop"><form className="report-dialog panel" role="dialog" aria-modal="true" aria-labelledby="report-title" onSubmit={e=>void submitReport(e)}><div className="eyebrow">Community safety</div><h2 id="report-title">Report this post</h2><p>Reports are reviewed by the FUTO Life admin team. The author won’t see who submitted a report.</p><label className="field">Reason<select value={reportReason} onChange={e=>setReportReason(e.target.value as ReportReason)}><option value="spam">Spam</option><option value="harassment">Harassment or bullying</option><option value="hate_or_abuse">Hate or abuse</option><option value="sexual_content">Sexual content</option><option value="violence">Violence or threats</option><option value="false_information">False information</option><option value="other">Other</option></select></label><label className="field">More details (optional)<textarea maxLength={1000} value={reportDetails} onChange={e=>setReportDetails(e.target.value)} placeholder="Add context to help the admin review"/></label><div className="confirm-actions"><button type="button" className="secondary" onClick={()=>setReportTarget(null)}>Cancel</button><button className="primary" disabled={busy}>{busy?"Sending…":"Send report"}</button></div></form></div>}
   </section></div>;
 }
@@ -536,7 +565,7 @@ function ChatMessageBubble({message,mine,senderName,chatKind,readers,attachmentU
       <div className="message-meta"><time>{new Date(message.created_at).toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"})}</time>{mine&&<span className={readers?"receipt-seen":"receipt-sent"} title={readers?chatKind==="group"?`Seen by ${readers} members`:"Read":"Sent"} aria-label={readers?"Read":"Sent"}>{readers?<IoCheckmarkDone/>:<FiCheck/>}{chatKind==="group"&&readers?` ${readers}`:""}</span>}</div>
     </div>
     {groupedReactions.length>0&&!message.is_deleted&&<div className="message-reaction-summary">{groupedReactions.map(([reaction,rows])=><button type="button" key={reaction} className={myReaction===reaction?"active":""} onClick={()=>onReact(reaction)} aria-label={`${reaction} reaction, ${rows.length} total`}>{reaction}<small>{rows.length}</small></button>)}</div>}
-    {selected&&<div className="message-action-bar" onClick={event=>event.stopPropagation()}><div className="message-reaction-picker" aria-label="React to message">{reactionChoices.map(reaction=><button type="button" key={reaction} className={myReaction===reaction?"active":""} onClick={()=>onReact(reaction)} aria-label={`React ${reaction}`}>{reaction}</button>)}</div><button type="button" onClick={onReply} disabled={message.is_deleted}><FiCornerUpLeft/>Reply</button>{mine&&message.message_kind==="text"&&!message.is_deleted&&<button type="button" onClick={onEdit}><FiEdit2/>Edit</button>}{mine&&!message.is_deleted&&<button type="button" className="message-delete-action" onClick={onDelete}><FiTrash2/>Delete</button>}</div>}
+    {selected&&<div className="message-action-bar" onClick={event=>event.stopPropagation()}><div className="message-reaction-picker" aria-label="React to message">{reactionChoices.map(reaction=><button type="button" key={reaction} className={myReaction===reaction?"active":""} onClick={()=>onReact(reaction)} aria-label={`React ${reaction}`}>{reaction}</button>)}</div><button type="button" onClick={onReply} disabled={message.is_deleted}><FiCornerUpLeft/>Reply</button>{mine&&message.message_kind==="text"&&!message.is_deleted&&<button type="button" onClick={onEdit}><FiEdit2/>Edit</button>}{!message.is_deleted&&<button type="button" className="message-delete-action" onClick={onDelete}><FiTrash2/>Delete</button>}</div>}
   </div>;
 }
 

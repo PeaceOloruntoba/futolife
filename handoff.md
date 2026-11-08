@@ -162,3 +162,10 @@ TypeScript check (`npx tsc --noEmit`) passes. Full functional testing remains pe
 - Added an **App & notifications** section to the signed-in profile with persistent home-screen install and browser notification controls.
 - Install requests are routed through the existing PWA prompt handler, preserving the native install prompt when available and the browser-menu guidance fallback.
 - Notification permission and the per-device preference stay synchronized with the notification center; the profile shows enabled, unsupported, and browser-blocked states.
+
+## Latest update — private message deletion (2026-11-08)
+
+- Message actions now offer **Delete for me** for received messages. The sender can choose **Delete for me** or **Delete for everyone**; edit remains available only on the sender’s own text messages.
+- Added `supabase/migrations/202611080002_message_delete_for_me.sql` with a private per-profile hidden-message table, RLS, a membership-checked `hide_my_message` RPC, audit event, and Realtime publication.
+- Hidden messages are filtered from the current conversation and conversation previews and stay hidden for that user after reload or on another device. Delete-for-everyone continues to replace the message with the shared deletion notice.
+- Apply both pending chat migrations with `npx supabase@latest db push --dry-run --linked`, then `npx supabase@latest db push --linked`.
