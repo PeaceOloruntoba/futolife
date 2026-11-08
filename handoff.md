@@ -149,3 +149,16 @@ Implemented WhatsApp-style message interactions in the conversation view:
 3. Deploy the app after the migration completes. Verify using two accounts: edit/delete own messages, reply by action and swipe, toggle reactions, and confirm other conversation members receive realtime updates.
 
 TypeScript check (`npx tsc --noEmit`) passes. Full functional testing remains pending.
+
+## Latest update — stable chat composer on mobile and desktop (2026-11-08)
+
+- Tightened the full-screen conversation flex layout so the message list takes the available height while the composer stays visible at the bottom and does not shrink.
+- Removed the input focus `scrollIntoView` page jump; focus now keeps the message stream at the latest message.
+- Improved mobile keyboard detection by comparing the visual viewport against the device screen height, so the chat view follows the visible area when the software keyboard opens.
+- TypeScript check and visual testing are pending for this layout adjustment.
+
+## Latest update — persistent profile device settings (2026-11-08)
+
+- Added an **App & notifications** section to the signed-in profile with persistent home-screen install and browser notification controls.
+- Install requests are routed through the existing PWA prompt handler, preserving the native install prompt when available and the browser-menu guidance fallback.
+- Notification permission and the per-device preference stay synchronized with the notification center; the profile shows enabled, unsupported, and browser-blocked states.

@@ -33,13 +33,15 @@ export function WelcomeGuide() {
     if (typeof window === "undefined") return;
     const rememberPrompt = (event: Event) => { event.preventDefault(); setInstallPrompt(event as InstallPromptEvent); };
     const rememberInstall = () => { setInstalled(true); setInstallOpen(false); if (installKey) localStorage.setItem(installKey, "installed"); };
+    const requestInstall = () => { void installApp(); };
     window.addEventListener("beforeinstallprompt", rememberPrompt);
     window.addEventListener("appinstalled", rememberInstall);
+    window.addEventListener("futolife-install-request", requestInstall);
     if ("Notification" in window) setNotificationStatus(window.Notification.permission);
     else setNotificationStatus("unsupported");
     if ("serviceWorker" in navigator) void navigator.serviceWorker.register("/notifications-sw.js").catch(() => {});
-    return () => { window.removeEventListener("beforeinstallprompt", rememberPrompt); window.removeEventListener("appinstalled", rememberInstall); };
-  }, [installKey]);
+    return () => { window.removeEventListener("beforeinstallprompt", rememberPrompt); window.removeEventListener("appinstalled", rememberInstall); window.removeEventListener("futolife-install-request", requestInstall); };
+  }, [installKey, installPrompt]);
 
   useEffect(() => {
     if (status !== "signed-in" || !tourKey || startedRef.current) return;
