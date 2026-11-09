@@ -146,6 +146,7 @@ export default function CampusExperience() {
     }
     let active = true;
     let joined = false;
+    const joiningTimer=window.setTimeout(()=>{if(active)setPresenceStatus("joining");},0);
     const channel = client.channel("futo-campus-presence-v1", {config:{private:true,presence:{key:profile.id}}});
     const refresh = async () => {
       if (!active) return;
@@ -179,7 +180,7 @@ export default function CampusExperience() {
       const p=playerPosition.current;
       void channel.track({...p,updated_at:Date.now()});
     },10000);
-    return()=>{active=false;joined=false;clearInterval(heartbeat);setNearbyPlayers([]);worldFrame.current?.contentWindow?.postMessage({type:"futo:nearby-players",players:[]},window.location.origin);void client.removeChannel(channel);};
+    return()=>{active=false;joined=false;clearTimeout(joiningTimer);clearInterval(heartbeat);setNearbyPlayers([]);worldFrame.current?.contentWindow?.postMessage({type:"futo:nearby-players",players:[]},window.location.origin);void client.removeChannel(channel);};
   }, [email, profile?.id, shareCampusPosition]);
 
   useEffect(() => {
