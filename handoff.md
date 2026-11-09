@@ -194,3 +194,12 @@ TypeScript check (`npx tsc --noEmit`) passes. Full functional testing remains pe
 - A signed-in player must own and consume a bike ride ticket to mount the prototype bike. Guests may try the bike for free; that interaction cannot award currency. The shuttle and taxi tickets, bike fares, and vehicle catalog still need their in-world route/vehicle interactions before release.
 - The migration has been added locally only. Check the linked Supabase project's migration state and preview before applying it. No production migration was pushed as part of this change.
 - Daily-login and trivia rewards are server-validated. The browser never writes a balance. Position claims remain disabled until movement and place arrival are validated server-side against reviewed data.
+
+## Latest update — opt-in live players and map review tools (2026-11-09)
+
+- Removed the simulated roaming people from the Three.js campus scene. Nearby avatars now come from authenticated profile IDs in private Supabase Realtime presence; display names and profile photos are looked up from `profiles`, not accepted from the presence payload.
+- Position sharing is opt-in and stored as a local preference. Presence is short-lived and updated every 10 seconds; only players within the provisional world radius are rendered. The iframe reports local game position to the app, but this is not a trusted input for challenge claims or coin rewards.
+- Added `supabase/migrations/202611090002_campus_realtime_presence.sql` to restrict receive/publish access to active authenticated users on the campus presence topic. This migration is local and must be applied to the connected Supabase project before live player sharing works.
+- The nearby panel gives an explicit sharing toggle and connection state. The map's master-plan road trace now has zoom controls and a live `YOU` marker. The trace remains provisional and its origin/scale alignment still needs review against the plan and field measurements.
+- To try live players, apply migration 002, sign in with two accounts in separate browsers/devices, open Explore, and opt in on both. Current public people count is not used as a substitute for actual campus presence.
+- Before releasing location sharing broadly, add a server-side opt-out/blocked-user check and revisit proximity/location privacy. Do not use this client presence for safety-critical directions, location awards or fare validation.

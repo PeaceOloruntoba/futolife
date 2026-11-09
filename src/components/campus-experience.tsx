@@ -13,6 +13,9 @@ type Profile = { id: string; display_name: string; department: string | null; ye
 type AuthMode = "signin" | "signup";
 type RoadDraft = { id: string; name: string; class: string; status: string; coordinates: number[][] };
 type CampusRoadData = { roads: RoadDraft[]; transform?: { warning?: string; origin_label?: string }; status?: string };
+type WorldPosition = { x: number; z: number; face: number; speed: number; riding: boolean };
+type NearbyPlayer = WorldPosition & { id: string; display_name: string; avatar_url: string | null };
+type PresenceMeta = WorldPosition & { updated_at: number };
 
 export default function CampusExperience() {
   const worldFrame = useRef<HTMLIFrameElement>(null);
@@ -24,6 +27,14 @@ export default function CampusExperience() {
   const [menuOpen,setMenuOpen] = useState(false);
   const [mapOpen, setMapOpen] = useState(false);
   const [gameHubOpen, setGameHubOpen] = useState(false);
+  const [nearbyOpen, setNearbyOpen] = useState(false);
+  const [shareCampusPosition, setShareCampusPosition] = useState(false);
+  const [presencePreferenceReady, setPresencePreferenceReady] = useState(false);
+  const [nearbyPlayers, setNearbyPlayers] = useState<NearbyPlayer[]>([]);
+  const [presenceStatus, setPresenceStatus] = useState<"offline"|"joining"|"online"|"error">("offline");
+  const playerPosition = useRef<WorldPosition>({x:0,z:7,face:0,speed:0,riding:false});
+  const lastPositionUiUpdate = useRef(0);
+  const [currentWorldPosition, setCurrentWorldPosition] = useState<WorldPosition>({x:0,z:7,face:0,speed:0,riding:false});
   const [roadDraft, setRoadDraft] = useState<CampusRoadData | null>(null);
   const [selected, setSelected] = useState<CampusLocation | null>(null);
   const [accountOpen, setAccountOpen] = useState(false);
@@ -113,6 +124,65 @@ export default function CampusExperience() {
   }, []);
 
   useEffect(() => {
+    const timer=window.setTimeout(()=>{
+      try { setShareCampusPosition(localStorage.getItem("futo-campus-position-sharing") === "on"); }
+      catch { setShareCampusPosition(false); }
+      setPresencePreferenceReady(true);
+    },0);
+    return()=>window.clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    if (!presencePreferenceReady) return;
+    try { localStorage.setItem("futo-campus-position-sharing", shareCampusPosition ? "on" : "off"); }
+    catch { /* Position sharing remains controlled by this in-memory setting. */ }
+  }, [presencePreferenceReady, shareCampusPosition]);
+
+  useEffect(() => {
+    const client = createClient();
+    if (!client || !profile?.id || !email) {
+      worldFrame.current?.contentWindow?.postMessage({type:"futo:nearby-players",players:[]},window.location.origin);
+      return;
+    }
+    let active = true;
+    let joined = false;
+    const channel = client.channel("futo-campus-presence-v1", {config:{private:true,presence:{key:profile.id}}});
+    const refresh = async () => {
+      if (!active) return;
+      const current = channel.presenceState<PresenceMeta>();
+      const snapshots = Object.entries(current).flatMap(([id,metas]) => {
+        if(id===profile.id||!Array.isArray(metas)||!metas.length)return [];
+        const meta=[...metas].sort((a,b)=>(b.updated_at||0)-(a.updated_at||0))[0];
+        if(typeof meta.x!=="number"||typeof meta.z!=="number"||typeof meta.face!=="number"||typeof meta.speed!=="number"||typeof meta.riding!=="boolean"||typeof meta.updated_at!=="number"||!Number.isFinite(meta.x)||!Number.isFinite(meta.z)||!Number.isFinite(meta.face)||!Number.isFinite(meta.speed)||!Number.isFinite(meta.updated_at)||meta.updated_at>Date.now()+10000||Date.now()-meta.updated_at>30000||Math.abs(meta.x)>=1800||Math.abs(meta.z)>=1800||Math.hypot(meta.x-playerPosition.current.x,meta.z-playerPosition.current.z)>180)return [];
+        return [{id,meta}];
+      });
+      if(!snapshots.length){if(active){setNearbyPlayers([]);worldFrame.current?.contentWindow?.postMessage({type:"futo:nearby-players",players:[]},window.location.origin);}return;}
+      const {data,error}=await client.from("profiles").select("id,display_name,avatar_url,is_suspended").in("id",snapshots.map((item)=>item.id)).eq("is_suspended",false);
+      if(!active)return;
+      if(error){setPresenceStatus("error");return;}
+      const cards=(data??[]).flatMap((user)=>{const snapshot=snapshots.find((item)=>item.id===user.id);return snapshot?[{id:user.id,display_name:user.display_name,avatar_url:user.avatar_url,...snapshot.meta}]:[];});
+      setNearbyPlayers(cards);
+      worldFrame.current?.contentWindow?.postMessage({type:"futo:nearby-players",players:cards},window.location.origin);
+    };
+    channel.on("presence",{event:"sync"},()=>void refresh());
+    channel.subscribe(async(status)=>{
+      if(!active)return;
+      if(status==="SUBSCRIBED"){
+        joined=true;setPresenceStatus("online");
+        if(shareCampusPosition){const p=playerPosition.current;await channel.track({...p,updated_at:Date.now()});}
+        await refresh();
+      }else if(status==="CHANNEL_ERROR"||status==="TIMED_OUT"){joined=false;setPresenceStatus("error");}
+      else if(status==="CLOSED"){joined=false;setPresenceStatus("offline");}
+    });
+    const heartbeat=window.setInterval(()=>{
+      if(!joined||!shareCampusPosition)return;
+      const p=playerPosition.current;
+      void channel.track({...p,updated_at:Date.now()});
+    },10000);
+    return()=>{active=false;joined=false;clearInterval(heartbeat);setNearbyPlayers([]);worldFrame.current?.contentWindow?.postMessage({type:"futo:nearby-players",players:[]},window.location.origin);void client.removeChannel(channel);};
+  }, [email, profile?.id, shareCampusPosition]);
+
+  useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get("ref")) {
       setInitialReferralCode(params.get("ref") ?? "");
@@ -137,6 +207,20 @@ export default function CampusExperience() {
       if(event.data.type==="futo:open-map"){
         setMapOpen(true);
         if (window.matchMedia("(max-width: 760px)").matches) setDirectoryOpen(false);
+        return;
+      }
+      if(event.data.type==="futo:open-nearby"){
+        setNearbyOpen(true);
+        return;
+      }
+      if(event.data.type==="futo:player-position"){
+        if("x" in event.data&&"z" in event.data&&"face" in event.data&&"speed" in event.data&&"riding" in event.data){
+          const {x,z,face,speed,riding}=event.data;
+          if(typeof x!=="number"||typeof z!=="number"||typeof face!=="number"||typeof speed!=="number"||typeof riding!=="boolean"||!Number.isFinite(x)||!Number.isFinite(z)||!Number.isFinite(face)||!Number.isFinite(speed)||Math.abs(x)>=1800||Math.abs(z)>=1800)return;
+          const position={x,z,face,speed,riding};
+          playerPosition.current=position;
+          if(performance.now()-lastPositionUiUpdate.current>1000){lastPositionUiUpdate.current=performance.now();setCurrentWorldPosition(position);}
+        }
         return;
       }
       if(event.data.type==="futo:request-ride-ticket"&&"requestId" in event.data&&typeof event.data.requestId==="string"){
@@ -199,14 +283,14 @@ export default function CampusExperience() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!active) return;
       setEmail(session?.user.email ?? null);
-      if (!session) { setProfile(null); setIsAdmin(false); }
+      if (!session) { setProfile(null); setIsAdmin(false); setNearbyPlayers([]); setPresenceStatus("offline"); }
       else void supabase.from("user_roles").select("role").eq("user_id", session.user.id).eq("role", "admin").maybeSingle().then(({ data }) => { if (active) setIsAdmin(Boolean(data)); });
     });
     return () => { active = false; subscription.unsubscribe(); };
   }, []);
 
   return <main className="campus">
-    <iframe ref={worldFrame} className="world" src="/campus/index.html" title="Interactive FUTO campus prototype" allow="fullscreen" />
+    <iframe ref={worldFrame} className="world" src="/campus/index.html" title="Interactive FUTO campus prototype" allow="fullscreen" onLoad={()=>worldFrame.current?.contentWindow?.postMessage({type:"futo:nearby-players",players:nearbyPlayers},window.location.origin)}/>
     <Link href="/" className="campus-brand"><span className="brand-mark">F</span><span><b>FUTO LIFE</b><small>Explore your campus</small></span></Link>
     <button className={`dock-menu-toggle${menuOpen?" active":""}`} onClick={()=>setMenuOpen(v=>!v)} aria-expanded={menuOpen} aria-label={menuOpen?"Close campus menu":"Open campus menu"}><span>{menuOpen?"×":"☰"}</span><b>{menuOpen?"Close":"Menu"}</b></button>
     <aside className={`experience-dock${menuOpen?" drawer-open":""}`} aria-label="Campus menu">
@@ -215,6 +299,8 @@ export default function CampusExperience() {
         <DockAction icon="walk" label="Explore" detail="Move around campus" onClick={()=>runWorldControl("camera")}/>
         <DockAction icon="map" label="Campus map" detail="View saved places" onClick={()=>{setMapOpen(true);setMenuOpen(false);}}/>
         <DockAction icon="pin" label={directoryOpen?"Hide places":"Campus directory"} detail={directoryOpen?"Collapse place list":"Search campus locations"} active={directoryOpen} onClick={()=>setDirectoryOpen(v=>!v)}/>
+        <button className="dock-action" onClick={()=>{setNearbyOpen(true);setMenuOpen(false);}}><span className="game-dock-icon" aria-hidden="true">{nearbyPlayers.length?nearbyPlayers.length:"◎"}</span><span><b>Players nearby</b><small>{presenceStatus==="online"?`${nearbyPlayers.length} sharing in this area`:presenceStatus==="error"?"Live presence needs setup":"Live campus presence"}</small></span><span className="dock-arrow">›</span></button>
+        {profile&&<button className="dock-action" onClick={()=>setShareCampusPosition((value)=>!value)} aria-pressed={shareCampusPosition}><span className={`game-dock-icon${shareCampusPosition?" presence-enabled":""}`} aria-hidden="true">{shareCampusPosition?"●":"○"}</span><span><b>{shareCampusPosition?"Position sharing on":"Appear on campus map"}</b><small>{shareCampusPosition?"Signed-in explorers can see your in-game location":"Opt in to appear to other signed-in explorers"}</small></span><span className="dock-arrow">{shareCampusPosition?"On":"Off"}</span></button>}
         <button className="dock-action" onClick={()=>{setGameHubOpen(true);setMenuOpen(false);}}><span className="game-dock-icon" aria-hidden="true">✦</span><span><b>Missions & rewards</b><small>XP, streaks and game coins</small></span><span className="dock-arrow">›</span></button>
         <Link className="dock-action" href="/community"><DockGlyph icon="people"/><span><b>Community</b><small>Friends, posts and messages</small></span><span className="dock-arrow">↗</span></Link>
         <NotificationCenter dock/>
@@ -226,6 +312,7 @@ export default function CampusExperience() {
     </aside>
     {selected&&<section className={`destination-preview${menuOpen?" behind-dock":""}`} aria-label={`Selected destination: ${selected.name}`}><button className="destination-close" onClick={()=>setSelected(null)} aria-label="Clear selected destination">×</button>{selected.image_url?<img className="destination-photo" src={selected.image_url} alt={`Photo reference for ${selected.name}`} loading="lazy"/>:<div className="destination-photo destination-photo-empty" aria-hidden="true">⌖</div>}<div className="destination-copy"><span className="destination-kicker">{selected.category.replaceAll("-"," ")} · {selected.position_status==="verified"?"Verified position":selected.position_status==="provisional"?"Approximate position":"Position unverified"}</span><h2>{selected.name}</h2><p>{selected.description||selected.notes||"Use this photo to recognize the place. Its map position may need confirmation."}</p><div className="destination-actions"><button className="destination-navigate" onClick={navigateToSelected} disabled={selected.position_status==="unverified"||typeof selected.local_x!=="number"||typeof selected.local_z!=="number"}>Navigate in campus view</button><button className="destination-map-link" onClick={()=>{setMapOpen(true);setMenuOpen(false);}}>Show map</button></div></div></section>}
     <GameHub open={gameHubOpen} signedIn={Boolean(email&&profile)} onRequireSignIn={()=>{setGameHubOpen(false);setAccountOpen(true);}} onClose={()=>setGameHubOpen(false)}/>
+    {nearbyOpen&&<div className="nearby-backdrop" onMouseDown={(event)=>{if(event.target===event.currentTarget)setNearbyOpen(false);}}><section className="nearby-dialog panel" role="dialog" aria-modal="true" aria-labelledby="nearby-title"><header className="map-header"><div><span className="eyebrow">LIVE CAMPUS PRESENCE</span><h2 id="nearby-title">Players nearby</h2></div><button className="secondary map-close" onClick={()=>setNearbyOpen(false)} aria-label="Close nearby players">×</button></header><p className="nearby-explainer">Only signed-in players who opted in to share their in-game position appear here. “Nearby” uses the current provisional game-world coordinates.</p>{presenceStatus==="error"&&<p className="nearby-status-error">Live players could not connect. Apply the campus presence migration and confirm Supabase Realtime is enabled.</p>}{nearbyPlayers.length?<div className="nearby-player-list">{nearbyPlayers.map((person)=><article className="nearby-player" key={person.id}>{person.avatar_url?<img src={person.avatar_url} alt=""/>:<span className="nearby-player-initial">{person.display_name.slice(0,1).toUpperCase()}</span>}<span><b>{person.display_name}</b><small>{person.riding?"Riding nearby":"Exploring nearby"}</small></span><i aria-label="Online"/> </article>)}</div>:<div className="nearby-empty"><b>{presenceStatus==="joining"?"Connecting to campus…":"No opted-in players nearby yet"}</b><span>Invite a friend to Explore and turn on position sharing in the campus menu.</span></div>}{profile?<button className="nearby-sharing-toggle" onClick={()=>setShareCampusPosition((value)=>!value)}>{shareCampusPosition?"Stop sharing my position":"Share my position while I Explore"}</button>:<button className="nearby-sharing-toggle" onClick={()=>{setNearbyOpen(false);setAccountOpen(true);}}>Sign in to see live campus players</button>}<span className="nearby-presence-state">Connection: {presenceStatus}</span></section></div>}
     {mapOpen && <div className="map-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setMapOpen(false); }}><section className="map-dialog panel" role="dialog" aria-modal="true" aria-labelledby="map-title">
       <header className="map-header"><div><div className="eyebrow">Campus map</div><h2 id="map-title">Places with saved positions</h2></div><button className="secondary map-close" onClick={() => setMapOpen(false)} aria-label="Close campus map">×</button></header>
       <div className="schematic-map" role="img" aria-label="Schematic map showing campus locations that have saved local positions">
@@ -234,14 +321,15 @@ export default function CampusExperience() {
         {!plottedLocations.length && <p className="empty-map">No campus places have map positions yet.</p>}
       </div>
       <p className="map-caveat">Schematic positions only. This view does not imply surveyed roads, boundaries, building footprints, or verified directions.</p>
-      {roadDraft && <section className="road-draft-card" aria-label="Provisional campus road trace preview"><div className="road-draft-heading"><div><span className="eyebrow">MASTER PLAN TRACE · REVIEW REQUIRED</span><h3>Draft campus road network</h3></div><span className="badge status-badge-provisional">12 provisional roads</span></div><DraftRoadMap roads={roadDraft.roads}/><p className="map-caveat">{roadDraft.transform?.warning ?? "Road traces are provisional."} The route origin and scale are still illustrative. This preview is separate from saved place pins.</p></section>}
+      {roadDraft && <section className="road-draft-card" aria-label="Provisional campus road trace preview"><div className="road-draft-heading"><div><span className="eyebrow">MASTER PLAN TRACE · REVIEW REQUIRED</span><h3>Draft campus road network</h3></div><span className="badge status-badge-provisional">12 provisional roads</span></div><DraftRoadMap roads={roadDraft.roads} playerPosition={currentWorldPosition}/><p className="map-caveat">{roadDraft.transform?.warning ?? "Road traces are provisional."} The road trace and live player dot share the prototype coordinate frame. Saved-place pins remain separate until their positions are reviewed.</p></section>}
       {campusLocations.some((place) => typeof place.local_x !== "number" || !Number.isFinite(place.local_x) || typeof place.local_z !== "number" || !Number.isFinite(place.local_z)) && <div className="unmapped-section"><h3>Not placed on this map yet</h3><div className="unmapped-list">{campusLocations.filter((place) => typeof place.local_x !== "number" || !Number.isFinite(place.local_x) || typeof place.local_z !== "number" || !Number.isFinite(place.local_z)).map((place) => <button key={place.id} className="unmapped-place" onClick={() => { chooseLocation(place); setMapOpen(false); setDirectoryOpen(true); if(window.matchMedia("(max-width:640px)").matches)setMenuOpen(true); }}><span>{place.name}</span><span className="loc-meta">Position needed</span></button>)}</div></div>}
     </section></div>}
     {accountOpen && <AccountDialog email={email} profile={profile} initialName={profileNameDraft} initialMessage={authNotice} initialReferralCode={initialReferralCode} redirectTo={authReturnTo||"/"} onClose={() => setAccountOpen(false)} onSignedIn={(userEmail, savedProfile) => { setEmail(userEmail); setProfile(savedProfile); setProfileNameDraft(""); setAuthNotice(""); setInitialReferralCode(""); setAccountOpen(false); if(userEmail&&authReturnTo)window.location.assign(authReturnTo); }} />}
   </main>;
 }
 
-function DraftRoadMap({ roads }: { roads: RoadDraft[] }) {
+function DraftRoadMap({ roads, playerPosition }: { roads: RoadDraft[]; playerPosition: WorldPosition }) {
+  const [zoom,setZoom]=useState(1);
   const points = roads.flatMap((road) => road.coordinates);
   if (!points.length) return null;
   const xs = points.map(([x]) => x), zs = points.map(([, z]) => z);
@@ -250,7 +338,9 @@ function DraftRoadMap({ roads }: { roads: RoadDraft[] }) {
   const scale = Math.min((width - pad * 2) / (maxX - minX || 1), (height - pad * 2) / (maxZ - minZ || 1));
   const ox = (width - (maxX - minX) * scale) / 2, oy = (height - (maxZ - minZ) * scale) / 2;
   const xy = ([x, z]: number[]) => `${ox + (x - minX) * scale},${oy + (z - minZ) * scale}`;
-  return <div className="road-draft-map"><svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Twelve provisional road centerlines traced from the FUTO master plan image"><g fill="none" strokeLinecap="round" strokeLinejoin="round"><g stroke="#d2c6a6" strokeWidth="12">{roads.map((road) => <polyline key={`base-${road.id}`} points={road.coordinates.map(xy).join(" ")}/>)}</g><g stroke="#806d58" strokeWidth="6">{roads.map((road) => <polyline key={road.id} points={road.coordinates.map(xy).join(" ")}/>)}</g></g><circle cx={xy([0, 0]).split(",")[0]} cy={xy([0, 0]).split(",")[1]} r="9" fill="#37d2b4" stroke="white" strokeWidth="4"/><text x={+xy([0,0]).split(",")[0]+14} y={+xy([0,0]).split(",")[1]-12} fill="#fff" fontSize="17" fontWeight="700">Trace origin · assumed</text></svg></div>;
+  const [px,py]=xy([playerPosition.x,playerPosition.z]).split(",");
+  const playerVisible=playerPosition.x>=minX&&playerPosition.x<=maxX&&playerPosition.z>=minZ&&playerPosition.z<=maxZ;
+  return <div className="road-draft-map"><div className="road-map-tools" aria-label="Map zoom controls"><button type="button" onClick={()=>setZoom(value=>Math.min(3,value*1.25))} aria-label="Zoom in">+</button><button type="button" onClick={()=>setZoom(value=>Math.max(1,value/1.25))} aria-label="Zoom out">−</button><button type="button" onClick={()=>setZoom(1)}>Reset</button><span>{Math.round(zoom*100)}%</span></div><svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Twelve provisional road centerlines traced from the FUTO master plan image with the live player position" onWheel={event=>{event.preventDefault();setZoom(value=>Math.max(1,Math.min(3,value*(event.deltaY<0?1.12:1/1.12))))}}><g transform={`translate(${width/2} ${height/2}) scale(${zoom}) translate(${-width/2} ${-height/2})`} fill="none" strokeLinecap="round" strokeLinejoin="round"><g stroke="#d2c6a6" strokeWidth="12">{roads.map((road) => <polyline key={`base-${road.id}`} points={road.coordinates.map(xy).join(" ")}/>)}</g><g stroke="#806d58" strokeWidth="6">{roads.map((road) => <polyline key={road.id} points={road.coordinates.map(xy).join(" ")}/>)}</g><circle cx={xy([0, 0]).split(",")[0]} cy={xy([0, 0]).split(",")[1]} r="9" fill="#37d2b4" stroke="white" strokeWidth="4"/><text x={+xy([0,0]).split(",")[0]+14} y={+xy([0,0]).split(",")[1]-12} fill="#fff" fontSize="17" fontWeight="700">Trace origin · assumed</text>{playerVisible&&<g><circle cx={px} cy={py} r="15" fill="#53d8b6" opacity=".3"/><circle cx={px} cy={py} r="8" fill="#44e0bc" stroke="#fff" strokeWidth="3"/><text x={+px+12} y={+py+5} fill="#d8fff4" fontSize="16" fontWeight="800">YOU</text></g>}</g></svg></div>;
 }
 
 function DockGlyph({icon}:{icon:"walk"|"map"|"pin"|"people"|"shield"}) {
