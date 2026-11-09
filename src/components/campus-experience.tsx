@@ -10,6 +10,8 @@ import { NotificationCenter } from "@/components/notification-center";
 
 type Profile = { id: string; display_name: string; department: string | null; year_of_study: number | null; member_type?: "student"|"alumni"|"visitor"; alumni_set?: string|null; avatar_url: string | null };
 type AuthMode = "signin" | "signup";
+type RoadDraft = { id: string; name: string; class: string; status: string; coordinates: number[][] };
+type CampusRoadData = { roads: RoadDraft[]; transform?: { warning?: string; origin_label?: string }; status?: string };
 
 export default function CampusExperience() {
   const worldFrame = useRef<HTMLIFrameElement>(null);
@@ -20,6 +22,7 @@ export default function CampusExperience() {
   const [directoryOpen, setDirectoryOpen] = useState(false);
   const [menuOpen,setMenuOpen] = useState(false);
   const [mapOpen, setMapOpen] = useState(false);
+  const [roadDraft, setRoadDraft] = useState<CampusRoadData | null>(null);
   const [selected, setSelected] = useState<CampusLocation | null>(null);
   const [accountOpen, setAccountOpen] = useState(false);
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -96,6 +99,15 @@ export default function CampusExperience() {
     const supabase=createClient();
     const channel=supabase?.channel("campus-location-updates").on("postgres_changes",{event:"*",schema:"public",table:"campus_locations"},()=>void refreshLocations()).subscribe();
     return () => { active=false;if(channel&&supabase)void supabase.removeChannel(channel); };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    fetch("/campus/map-data-v0.2.json", { cache: "force-cache" })
+      .then((response) => response.ok ? response.json() as Promise<CampusRoadData> : Promise.reject())
+      .then((data) => { if (active && Array.isArray(data.roads)) setRoadDraft(data); })
+      .catch(() => {});
+    return () => { active = false; };
   }, []);
 
   useEffect(() => {
@@ -203,10 +215,23 @@ export default function CampusExperience() {
         {!plottedLocations.length && <p className="empty-map">No campus places have map positions yet.</p>}
       </div>
       <p className="map-caveat">Schematic positions only. This view does not imply surveyed roads, boundaries, building footprints, or verified directions.</p>
+      {roadDraft && <section className="road-draft-card" aria-label="Provisional campus road trace preview"><div className="road-draft-heading"><div><span className="eyebrow">MASTER PLAN TRACE · REVIEW REQUIRED</span><h3>Draft campus road network</h3></div><span className="badge status-badge-provisional">12 provisional roads</span></div><DraftRoadMap roads={roadDraft.roads}/><p className="map-caveat">{roadDraft.transform?.warning ?? "Road traces are provisional."} The route origin and scale are still illustrative. This preview is separate from saved place pins.</p></section>}
       {campusLocations.some((place) => typeof place.local_x !== "number" || !Number.isFinite(place.local_x) || typeof place.local_z !== "number" || !Number.isFinite(place.local_z)) && <div className="unmapped-section"><h3>Not placed on this map yet</h3><div className="unmapped-list">{campusLocations.filter((place) => typeof place.local_x !== "number" || !Number.isFinite(place.local_x) || typeof place.local_z !== "number" || !Number.isFinite(place.local_z)).map((place) => <button key={place.id} className="unmapped-place" onClick={() => { chooseLocation(place); setMapOpen(false); setDirectoryOpen(true); if(window.matchMedia("(max-width:640px)").matches)setMenuOpen(true); }}><span>{place.name}</span><span className="loc-meta">Position needed</span></button>)}</div></div>}
     </section></div>}
     {accountOpen && <AccountDialog email={email} profile={profile} initialName={profileNameDraft} initialMessage={authNotice} initialReferralCode={initialReferralCode} redirectTo={authReturnTo||"/"} onClose={() => setAccountOpen(false)} onSignedIn={(userEmail, savedProfile) => { setEmail(userEmail); setProfile(savedProfile); setProfileNameDraft(""); setAuthNotice(""); setInitialReferralCode(""); setAccountOpen(false); if(userEmail&&authReturnTo)window.location.assign(authReturnTo); }} />}
   </main>;
+}
+
+function DraftRoadMap({ roads }: { roads: RoadDraft[] }) {
+  const points = roads.flatMap((road) => road.coordinates);
+  if (!points.length) return null;
+  const xs = points.map(([x]) => x), zs = points.map(([, z]) => z);
+  const minX = Math.min(...xs), maxX = Math.max(...xs), minZ = Math.min(...zs), maxZ = Math.max(...zs);
+  const pad = 24, width = 960, height = 460;
+  const scale = Math.min((width - pad * 2) / (maxX - minX || 1), (height - pad * 2) / (maxZ - minZ || 1));
+  const ox = (width - (maxX - minX) * scale) / 2, oy = (height - (maxZ - minZ) * scale) / 2;
+  const xy = ([x, z]: number[]) => `${ox + (x - minX) * scale},${oy + (z - minZ) * scale}`;
+  return <div className="road-draft-map"><svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Twelve provisional road centerlines traced from the FUTO master plan image"><g fill="none" strokeLinecap="round" strokeLinejoin="round"><g stroke="#d2c6a6" strokeWidth="12">{roads.map((road) => <polyline key={`base-${road.id}`} points={road.coordinates.map(xy).join(" ")}/>)}</g><g stroke="#806d58" strokeWidth="6">{roads.map((road) => <polyline key={road.id} points={road.coordinates.map(xy).join(" ")}/>)}</g></g><circle cx={xy([0, 0]).split(",")[0]} cy={xy([0, 0]).split(",")[1]} r="9" fill="#37d2b4" stroke="white" strokeWidth="4"/><text x={+xy([0,0]).split(",")[0]+14} y={+xy([0,0]).split(",")[1]-12} fill="#fff" fontSize="17" fontWeight="700">Trace origin · assumed</text></svg></div>;
 }
 
 function DockGlyph({icon}:{icon:"walk"|"map"|"pin"|"people"|"shield"}) {

@@ -1,0 +1,819 @@
+{
+  "status": "provisional_not_navigation_ready",
+  "candidate_places": [
+    {
+      "category": "Entrance",
+      "scope": "On campus",
+      "priority": "Core",
+      "notes": "Spawn point and orientation anchor.",
+      "evidence_status": "unverified",
+      "name": "FUTO Main Gate"
+    },
+    {
+      "category": "Navigation",
+      "scope": "On campus",
+      "priority": "Core",
+      "notes": "Connect roads and paths through this junction.",
+      "evidence_status": "unverified",
+      "name": "Football Roundabout"
+    },
+    {
+      "category": "Administration",
+      "scope": "On campus",
+      "priority": "Core",
+      "notes": "Major administrative landmark.",
+      "evidence_status": "unverified",
+      "name": "Senate Building"
+    },
+    {
+      "category": "Study",
+      "scope": "On campus",
+      "priority": "Core",
+      "notes": "Keep separate from E-Library.",
+      "evidence_status": "unverified",
+      "name": "FUTO Main Library"
+    },
+    {
+      "category": "Study",
+      "scope": "On campus",
+      "priority": "Core",
+      "notes": "Distinct destination.",
+      "evidence_status": "unverified",
+      "name": "FUTO E-Library"
+    },
+    {
+      "category": "Technology",
+      "scope": "On campus",
+      "priority": "Core",
+      "notes": "Do not merge new and old ICT without verification.",
+      "evidence_status": "unverified",
+      "name": "FUTO ICT Building / Old ICT"
+    },
+    {
+      "category": "Administration",
+      "scope": "On campus",
+      "priority": "Core",
+      "notes": "Student-facing administrative landmark.",
+      "evidence_status": "unverified",
+      "name": "Old SEET Head"
+    },
+    {
+      "category": "Lecture venue",
+      "scope": "On campus",
+      "priority": "Core",
+      "notes": "Lecture landmark.",
+      "evidence_status": "unverified",
+      "name": "Hall of Mercy"
+    },
+    {
+      "category": "Lecture venue",
+      "scope": "On campus",
+      "priority": "Core",
+      "notes": "Lecture landmark.",
+      "evidence_status": "unverified",
+      "name": "Hall of Excellence"
+    },
+    {
+      "category": "Lecture venue",
+      "scope": "On campus",
+      "priority": "Core",
+      "notes": "Confirm current name/signage.",
+      "evidence_status": "unverified",
+      "name": "500-Capacity Lecture Theatre"
+    },
+    {
+      "category": "Academic complex",
+      "scope": "On campus",
+      "priority": "Core",
+      "notes": "Engineering school complex.",
+      "evidence_status": "unverified",
+      "name": "SEET Complex"
+    },
+    {
+      "category": "Academic complex",
+      "scope": "On campus",
+      "priority": "Core",
+      "notes": "Recognizable science complex; verify current official name.",
+      "evidence_status": "unverified",
+      "name": "SOSC Building"
+    },
+    {
+      "category": "Academic complex",
+      "scope": "On campus",
+      "priority": "Core",
+      "notes": "Management technology complex.",
+      "evidence_status": "unverified",
+      "name": "SMAT Complex"
+    },
+    {
+      "category": "Academic complex",
+      "scope": "On campus",
+      "priority": "Core",
+      "notes": "Names differ across sources; verify signage.",
+      "evidence_status": "unverified",
+      "name": "SOES / former SOET Complex"
+    },
+    {
+      "category": "Academic complex",
+      "scope": "On campus",
+      "priority": "Core",
+      "notes": "Use actual building pin/footprint.",
+      "evidence_status": "unverified",
+      "name": "SICT / Computer Science area"
+    },
+    {
+      "category": "Academic complex",
+      "scope": "On campus",
+      "priority": "Core",
+      "notes": "Relevant to students across schools.",
+      "evidence_status": "unverified",
+      "name": "Directorate of General Studies (DGS / GST Building)"
+    },
+    {
+      "category": "Academic complex",
+      "scope": "On campus",
+      "priority": "Expansion",
+      "notes": "Add after core connected zone is mapped.",
+      "evidence_status": "unverified",
+      "name": "SAAT Building"
+    },
+    {
+      "category": "Academic complex",
+      "scope": "On campus",
+      "priority": "Expansion",
+      "notes": "Add when building is identified.",
+      "evidence_status": "unverified",
+      "name": "SESET area"
+    },
+    {
+      "category": "Academic complex",
+      "scope": "On campus",
+      "priority": "Expansion",
+      "notes": "Add when building is identified.",
+      "evidence_status": "unverified",
+      "name": "SOBS area"
+    },
+    {
+      "category": "Academic complex",
+      "scope": "On campus",
+      "priority": "Expansion",
+      "notes": "Add when building is identified.",
+      "evidence_status": "unverified",
+      "name": "SOHT area"
+    },
+    {
+      "category": "Academic complex",
+      "scope": "On campus",
+      "priority": "Expansion",
+      "notes": "Add when building is identified.",
+      "evidence_status": "unverified",
+      "name": "SOPS area"
+    },
+    {
+      "category": "Academic complex",
+      "scope": "On campus",
+      "priority": "Expansion",
+      "notes": "Confirm current name and exact building.",
+      "evidence_status": "unverified",
+      "name": "SLIT / Maritime Building area"
+    },
+    {
+      "category": "Food",
+      "scope": "On campus",
+      "priority": "Core",
+      "notes": "Popular food destination.",
+      "evidence_status": "unverified",
+      "name": "Bukataria"
+    },
+    {
+      "category": "Food",
+      "scope": "On campus",
+      "priority": "Core",
+      "notes": "Popular food destination.",
+      "evidence_status": "unverified",
+      "name": "Sunic Eatery"
+    },
+    {
+      "category": "Food",
+      "scope": "On campus",
+      "priority": "Core",
+      "notes": "Separate from off-campus eateries.",
+      "evidence_status": "unverified",
+      "name": "FUTO Cafe"
+    },
+    {
+      "category": "Shopping",
+      "scope": "On campus / edge",
+      "priority": "Core",
+      "notes": "Confirm exact footprint/boundary.",
+      "evidence_status": "unverified",
+      "name": "FUTO Market"
+    },
+    {
+      "category": "Accommodation",
+      "scope": "On campus",
+      "priority": "Core",
+      "notes": "Begin with zones, not every block individually.",
+      "evidence_status": "unverified",
+      "name": "Hostels A–F (grouped hostel zones)"
+    },
+    {
+      "category": "Accommodation",
+      "scope": "On campus",
+      "priority": "Expansion",
+      "notes": "Add after core hostel zone.",
+      "evidence_status": "unverified",
+      "name": "TETFund Hostels"
+    },
+    {
+      "category": "Accommodation",
+      "scope": "On campus",
+      "priority": "Expansion",
+      "notes": "Add after core hostel zone.",
+      "evidence_status": "unverified",
+      "name": "NDIC Hostel"
+    },
+    {
+      "category": "Student life",
+      "scope": "On campus",
+      "priority": "Verify first",
+      "notes": "Keep separate until confirmed whether distinct.",
+      "evidence_status": "unverified",
+      "name": "Old SEET Roundabout / nearby junction"
+    },
+    {
+      "category": "Food",
+      "scope": "Off campus",
+      "priority": "Later extension",
+      "notes": "Do not place inside campus boundary.",
+      "evidence_status": "unverified",
+      "name": "Bukka 9, Umuchima"
+    },
+    {
+      "category": "Shopping / leisure",
+      "scope": "Off campus",
+      "priority": "Later extension",
+      "notes": "Do not place inside campus boundary.",
+      "evidence_status": "unverified",
+      "name": "Sekani Mall, Eziobodo"
+    }
+  ],
+  "beacons": {
+    "included": false,
+    "reason": "Solar project-site beacons represent a 11.150 ha site and are not campus-wide control points."
+  },
+  "dataset_version": "roads-draft-0.2",
+  "roads": [
+    {
+      "coordinates": [
+        [
+          0.0,
+          0.0
+        ],
+        [
+          44.5,
+          48.18
+        ],
+        [
+          100.1,
+          85.25
+        ],
+        [
+          155.65,
+          122.38
+        ],
+        [
+          203.89,
+          155.71
+        ],
+        [
+          240.9,
+          181.66
+        ],
+        [
+          292.82,
+          207.63
+        ],
+        [
+          344.69,
+          237.32
+        ],
+        [
+          392.92,
+          263.29
+        ]
+      ],
+      "coordinate_system": "local_plan_pixels_scaled",
+      "source": "FUTO UPDATED MASTER PLAN Figure 2.3",
+      "name": "Northwest approach to western roundabout",
+      "width_m": 9,
+      "id": "R01",
+      "class": "primary",
+      "status": "provisional_trace"
+    },
+    {
+      "coordinates": [
+        [
+          392.92,
+          263.29
+        ],
+        [
+          381.76,
+          281.82
+        ],
+        [
+          392.92,
+          307.78
+        ],
+        [
+          422.57,
+          330.0
+        ],
+        [
+          455.9,
+          352.28
+        ],
+        [
+          489.28,
+          374.5
+        ],
+        [
+          522.61,
+          393.03
+        ],
+        [
+          559.68,
+          407.88
+        ],
+        [
+          600.44,
+          413.82
+        ],
+        [
+          633.82,
+          413.82
+        ]
+      ],
+      "coordinate_system": "local_plan_pixels_scaled",
+      "source": "FUTO UPDATED MASTER PLAN Figure 2.3",
+      "name": "Western roundabout to central campus approach",
+      "width_m": 9,
+      "id": "R02",
+      "class": "primary",
+      "status": "provisional_trace"
+    },
+    {
+      "coordinates": [
+        [
+          633.82,
+          413.82
+        ],
+        [
+          682.0,
+          411.57
+        ],
+        [
+          733.92,
+          412.34
+        ],
+        [
+          785.79,
+          412.34
+        ],
+        [
+          841.39,
+          410.85
+        ],
+        [
+          882.15,
+          396.77
+        ],
+        [
+          934.06,
+          374.5
+        ],
+        [
+          993.36,
+          344.85
+        ],
+        [
+          1045.22,
+          318.89
+        ],
+        [
+          1100.83,
+          292.93
+        ]
+      ],
+      "coordinate_system": "local_plan_pixels_scaled",
+      "source": "FUTO UPDATED MASTER PLAN Figure 2.3",
+      "name": "Central roundabout east-west corridor",
+      "width_m": 9,
+      "id": "R03",
+      "class": "primary",
+      "status": "provisional_trace"
+    },
+    {
+      "coordinates": [
+        [
+          633.82,
+          413.82
+        ],
+        [
+          648.67,
+          437.52
+        ],
+        [
+          663.46,
+          463.49
+        ],
+        [
+          685.68,
+          485.76
+        ],
+        [
+          711.65,
+          507.98
+        ],
+        [
+          737.61,
+          533.94
+        ],
+        [
+          767.25,
+          574.75
+        ],
+        [
+          778.36,
+          600.71
+        ]
+      ],
+      "coordinate_system": "local_plan_pixels_scaled",
+      "source": "FUTO UPDATED MASTER PLAN Figure 2.3",
+      "name": "Central roundabout southern corridor",
+      "width_m": 9,
+      "id": "R04",
+      "class": "primary",
+      "status": "provisional_trace"
+    },
+    {
+      "coordinates": [
+        [
+          518.93,
+          393.03
+        ],
+        [
+          537.46,
+          355.96
+        ],
+        [
+          563.42,
+          322.58
+        ],
+        [
+          589.33,
+          292.93
+        ],
+        [
+          618.97,
+          266.97
+        ],
+        [
+          644.93,
+          244.7
+        ]
+      ],
+      "coordinate_system": "local_plan_pixels_scaled",
+      "source": "FUTO UPDATED MASTER PLAN Figure 2.3",
+      "name": "Central campus northern connector",
+      "width_m": 5,
+      "id": "R05",
+      "class": "secondary",
+      "status": "provisional_trace"
+    },
+    {
+      "coordinates": [
+        [
+          644.93,
+          244.7
+        ],
+        [
+          685.68,
+          233.59
+        ],
+        [
+          726.5,
+          233.59
+        ],
+        [
+          759.82,
+          241.01
+        ],
+        [
+          785.79,
+          259.54
+        ],
+        [
+          808.01,
+          285.51
+        ],
+        [
+          826.54,
+          315.15
+        ],
+        [
+          841.39,
+          352.28
+        ],
+        [
+          852.5,
+          389.34
+        ]
+      ],
+      "coordinate_system": "local_plan_pixels_scaled",
+      "source": "FUTO UPDATED MASTER PLAN Figure 2.3",
+      "name": "Northern campus connector east",
+      "width_m": 5,
+      "id": "R06",
+      "class": "secondary",
+      "status": "provisional_trace"
+    },
+    {
+      "coordinates": [
+        [
+          240.9,
+          181.66
+        ],
+        [
+          215.0,
+          222.48
+        ],
+        [
+          189.04,
+          266.97
+        ],
+        [
+          159.39,
+          307.78
+        ],
+        [
+          126.0,
+          344.85
+        ],
+        [
+          96.36,
+          367.07
+        ],
+        [
+          63.03,
+          348.54
+        ],
+        [
+          29.64,
+          326.32
+        ],
+        [
+          7.43,
+          304.04
+        ]
+      ],
+      "coordinate_system": "local_plan_pixels_scaled",
+      "source": "FUTO UPDATED MASTER PLAN Figure 2.3",
+      "name": "Western campus loop connector",
+      "width_m": 5,
+      "id": "R07",
+      "class": "secondary",
+      "status": "provisional_trace"
+    },
+    {
+      "coordinates": [
+        [
+          392.92,
+          263.29
+        ],
+        [
+          355.85,
+          300.36
+        ],
+        [
+          326.15,
+          341.11
+        ],
+        [
+          300.25,
+          378.24
+        ],
+        [
+          281.71,
+          415.31
+        ],
+        [
+          303.93,
+          444.95
+        ],
+        [
+          333.58,
+          474.65
+        ],
+        [
+          359.54,
+          511.72
+        ],
+        [
+          385.5,
+          552.48
+        ],
+        [
+          400.29,
+          600.71
+        ]
+      ],
+      "coordinate_system": "local_plan_pixels_scaled",
+      "source": "FUTO UPDATED MASTER PLAN Figure 2.3",
+      "name": "Southwest campus connector",
+      "width_m": 5,
+      "id": "R08",
+      "class": "secondary",
+      "status": "provisional_trace"
+    },
+    {
+      "coordinates": [
+        [
+          633.82,
+          413.82
+        ],
+        [
+          615.29,
+          433.84
+        ],
+        [
+          600.44,
+          459.8
+        ],
+        [
+          589.33,
+          489.45
+        ],
+        [
+          585.64,
+          526.52
+        ],
+        [
+          600.44,
+          556.22
+        ],
+        [
+          630.14,
+          574.75
+        ],
+        [
+          663.46,
+          582.18
+        ],
+        [
+          696.85,
+          571.07
+        ],
+        [
+          719.07,
+          545.1
+        ],
+        [
+          726.5,
+          515.41
+        ],
+        [
+          711.65,
+          489.45
+        ],
+        [
+          685.68,
+          467.22
+        ],
+        [
+          663.46,
+          444.95
+        ]
+      ],
+      "coordinate_system": "local_plan_pixels_scaled",
+      "source": "FUTO UPDATED MASTER PLAN Figure 2.3",
+      "name": "South-central internal loop",
+      "width_m": 5,
+      "id": "R09",
+      "class": "secondary",
+      "status": "provisional_trace"
+    },
+    {
+      "coordinates": [
+        [
+          852.5,
+          389.34
+        ],
+        [
+          885.89,
+          389.34
+        ],
+        [
+          919.22,
+          389.34
+        ],
+        [
+          952.6,
+          385.6
+        ],
+        [
+          982.25,
+          370.81
+        ]
+      ],
+      "coordinate_system": "local_plan_pixels_scaled",
+      "source": "FUTO UPDATED MASTER PLAN Figure 2.3",
+      "name": "Eastern access spur",
+      "width_m": 5,
+      "id": "R10",
+      "class": "secondary",
+      "status": "provisional_trace"
+    },
+    {
+      "coordinates": [
+        [
+          155.65,
+          122.38
+        ],
+        [
+          140.85,
+          166.87
+        ],
+        [
+          122.32,
+          207.63
+        ],
+        [
+          100.1,
+          248.44
+        ],
+        [
+          74.14,
+          285.51
+        ]
+      ],
+      "coordinate_system": "local_plan_pixels_scaled",
+      "source": "FUTO UPDATED MASTER PLAN Figure 2.3",
+      "name": "Northwest internal connector",
+      "width_m": 5,
+      "id": "R11",
+      "class": "secondary",
+      "status": "provisional_trace"
+    },
+    {
+      "coordinates": [
+        [
+          240.9,
+          181.66
+        ],
+        [
+          259.44,
+          144.6
+        ],
+        [
+          281.71,
+          114.95
+        ],
+        [
+          307.67,
+          96.42
+        ]
+      ],
+      "coordinate_system": "local_plan_pixels_scaled",
+      "source": "FUTO UPDATED MASTER PLAN Figure 2.3",
+      "name": "North campus spur",
+      "width_m": 5,
+      "id": "R12",
+      "class": "secondary",
+      "status": "provisional_trace"
+    }
+  ],
+  "schema_version": 1,
+  "source": {
+    "title": "UPDATED FUTO MASTER PLAN",
+    "revision_date": "unknown",
+    "authorized_by_project_owner": true,
+    "raster_size_px": [
+      2170,
+      1250
+    ],
+    "document": "FUTO NEP ESIA Figure 2.3"
+  },
+  "transform": {
+    "origin_image_px": [
+      121.3,
+      121.4
+    ],
+    "world_axes": "x increases east/right; z increases south/down",
+    "geographic_crs": null,
+    "type": "local_image_pixel_affine",
+    "warning": "Illustrative local scale only. Not georeferenced; road widths are gameplay visual estimates.",
+    "origin_label": "Northwest approach trace start; Main Gate alignment is an assumption pending confirmation",
+    "metres_per_pixel": 0.55
+  }
+}
