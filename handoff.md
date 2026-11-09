@@ -186,3 +186,11 @@ TypeScript check (`npx tsc --noEmit`) passes. Full functional testing remains pe
 - A walk-up bike interaction is available as a local prototype. It increases movement speed and supports mobile interaction controls; it does not charge a fare, persist a vehicle, or grant rewards.
 - `docs/gameplay-plan.md` records proposed discovery, daily/weekly, streak, social, transport and game-coin sinks. No reward, wallet, fare, challenge-claim, shuttle, taxi or car backend has been added. Do not award currency from client-side movement.
 - Mobile rendering remains performance-sensitive because the Three.js scene and map road/foliage layer now cover a larger area. Field validation and visual review on representative phones are still required.
+
+## Latest update — game hub, starter challenges and bike tickets (2026-11-09)
+
+- Added `supabase/migrations/202611090001_game_economy_and_challenges.sql` with a protected append-only coin/XP ledger, daily streak state, challenge claims, inventory, shop and ride-ticket use. Daily rewards use the Africa/Lagos calendar day. Trivia answers are checked inside a protected database function and are not readable through the client API.
+- The new Explore **Missions & rewards** panel reads its state from Supabase. It supports daily arrival, two starter quizzes, cosmetic/ride-ticket purchases, and inventory. Senate and Library arrival missions are shown as locked until a reviewed position and server-validated arrival flow exist.
+- A signed-in player must own and consume a bike ride ticket to mount the prototype bike. Guests may try the bike for free; that interaction cannot award currency. The shuttle and taxi tickets, bike fares, and vehicle catalog still need their in-world route/vehicle interactions before release.
+- The migration has been added locally only. Check the linked Supabase project's migration state and preview before applying it. No production migration was pushed as part of this change.
+- Daily-login and trivia rewards are server-validated. The browser never writes a balance. Position claims remain disabled until movement and place arrival are validated server-side against reviewed data.

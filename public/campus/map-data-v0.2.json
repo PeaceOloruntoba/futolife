@@ -815,5 +815,547 @@
     "warning": "Illustrative local scale only. Not georeferenced; road widths are gameplay visual estimates.",
     "origin_label": "Northwest approach trace start; Main Gate alignment is an assumption pending confirmation",
     "metres_per_pixel": 0.55
-  }
+  },
+  "plan_legend": [
+    {
+      "status": "unverified_legend_entry",
+      "notes": "Transcribed from Figure 2.3; confirm current name/existence before publishing.",
+      "id": 1,
+      "name": "Senate Building"
+    },
+    {
+      "status": "unverified_legend_entry",
+      "notes": "Transcribed from Figure 2.3; confirm current name/existence before publishing.",
+      "id": 2,
+      "name": "General Conference Center"
+    },
+    {
+      "status": "unverified_legend_entry",
+      "notes": "Transcribed from Figure 2.3; confirm current name/existence before publishing.",
+      "id": 3,
+      "name": "FUTO Water"
+    },
+    {
+      "status": "unverified_legend_entry",
+      "notes": "Transcribed from Figure 2.3; confirm current name/existence before publishing.",
+      "id": 4,
+      "name": "Access Bank"
+    },
+    {
+      "status": "unverified_legend_entry",
+      "notes": "Transcribed from Figure 2.3; confirm current name/existence before publishing.",
+      "id": 5,
+      "name": "Ecobank"
+    },
+    {
+      "status": "unverified_legend_entry",
+      "notes": "Transcribed from Figure 2.3; confirm current name/existence before publishing.",
+      "id": 6,
+      "name": "Convocation Ground"
+    },
+    {
+      "status": "unverified_legend_entry",
+      "notes": "Transcribed from Figure 2.3; confirm current name/existence before publishing.",
+      "id": 7,
+      "name": "Dental Technology Department"
+    },
+    {
+      "status": "unverified_legend_entry",
+      "notes": "Transcribed from Figure 2.3; confirm current name/existence before publishing.",
+      "id": 8,
+      "name": "Optometry Department"
+    },
+    {
+      "status": "unverified_legend_entry",
+      "notes": "Transcribed from Figure 2.3; confirm current name/existence before publishing.",
+      "id": 9,
+      "name": "South Lecture Theatre"
+    },
+    {
+      "status": "unverified_legend_entry",
+      "notes": "Transcribed from Figure 2.3; confirm current name/existence before publishing.",
+      "id": 10,
+      "name": "South Staff Offices"
+    },
+    {
+      "status": "unverified_legend_entry",
+      "notes": "Transcribed from Figure 2.3; confirm current name/existence before publishing.",
+      "id": 11,
+      "name": "Maritime Building"
+    },
+    {
+      "status": "unverified_legend_entry",
+      "notes": "Transcribed from Figure 2.3; confirm current name/existence before publishing.",
+      "id": 12,
+      "name": "South Dean's Building"
+    },
+    {
+      "status": "unverified_legend_entry",
+      "notes": "Transcribed from Figure 2.3; confirm current name/existence before publishing.",
+      "id": 13,
+      "name": "South Departmental Building"
+    },
+    {
+      "status": "unverified_legend_entry",
+      "notes": "Transcribed from Figure 2.3; confirm current name/existence before publishing.",
+      "id": 14,
+      "name": "South Lecture Hall"
+    },
+    {
+      "status": "unverified_legend_entry",
+      "notes": "Transcribed from Figure 2.3; confirm current name/existence before publishing.",
+      "id": 15,
+      "name": "Department of Public Health"
+    },
+    {
+      "status": "unverified_legend_entry",
+      "notes": "Transcribed from Figure 2.3; confirm current name/existence before publishing.",
+      "id": 16,
+      "name": "Auditorium"
+    },
+    {
+      "status": "unverified_legend_entry",
+      "notes": "Transcribed from Figure 2.3; confirm current name/existence before publishing.",
+      "id": 17,
+      "name": "GST Building"
+    },
+    {
+      "status": "unverified_legend_entry",
+      "notes": "Transcribed from Figure 2.3; confirm current name/existence before publishing.",
+      "id": 18,
+      "name": "Department of Architecture"
+    },
+    {
+      "status": "unverified_legend_entry",
+      "notes": "Transcribed from Figure 2.3; confirm current name/existence before publishing.",
+      "id": 19,
+      "name": "Department of Civil Engineering"
+    },
+    {
+      "status": "unverified_legend_entry",
+      "notes": "Transcribed from Figure 2.3; confirm current name/existence before publishing.",
+      "id": 20,
+      "name": "Department of Chemistry"
+    },
+    {
+      "status": "unverified_legend_entry",
+      "notes": "Transcribed from Figure 2.3; confirm current name/existence before publishing.",
+      "id": 21,
+      "name": "Architecture Auditorium"
+    },
+    {
+      "status": "unverified_legend_entry",
+      "notes": "Transcribed from Figure 2.3; confirm current name/existence before publishing.",
+      "id": 22,
+      "name": "Central Laboratory Building"
+    },
+    {
+      "status": "unverified_legend_entry",
+      "notes": "Transcribed from Figure 2.3; confirm current name/existence before publishing.",
+      "id": 23,
+      "name": "S&T Head Building"
+    },
+    {
+      "status": "unverified_legend_entry",
+      "notes": "Transcribed from Figure 2.3; confirm current name/existence before publishing.",
+      "id": 24,
+      "name": "S&T Departmental Building"
+    },
+    {
+      "status": "unverified_legend_entry",
+      "notes": "Transcribed from Figure 2.3; confirm current name/existence before publishing.",
+      "id": 25,
+      "name": "S&T Departmental Building"
+    },
+    {
+      "status": "unverified_legend_entry",
+      "notes": "Transcribed from Figure 2.3; confirm current name/existence before publishing.",
+      "id": 26,
+      "name": "S&T Dean's Office"
+    },
+    {
+      "status": "unverified_legend_entry",
+      "notes": "Transcribed from Figure 2.3; confirm current name/existence before publishing.",
+      "id": 27,
+      "name": "S&T Departmental Building"
+    },
+    {
+      "status": "unverified_legend_entry",
+      "notes": "Transcribed from Figure 2.3; confirm current name/existence before publishing.",
+      "id": 28,
+      "name": "S&T Departmental Building"
+    },
+    {
+      "status": "unverified_legend_entry",
+      "notes": "Transcribed from Figure 2.3; confirm current name/existence before publishing.",
+      "id": 29,
+      "name": "Computer Science Department"
+    },
+    {
+      "status": "unverified_legend_entry",
+      "notes": "Transcribed from Figure 2.3; confirm current name/existence before publishing.",
+      "id": 30,
+      "name": "FUTO Press"
+    },
+    {
+      "status": "unverified_legend_entry",
+      "notes": "Transcribed from Figure 2.3; confirm current name/existence before publishing.",
+      "id": 31,
+      "name": "Physics Central Lab"
+    },
+    {
+      "status": "unverified_legend_entry",
+      "notes": "Transcribed from Figure 2.3; confirm current name/existence before publishing.",
+      "id": 32,
+      "name": "S&T Departmental Building"
+    },
+    {
+      "status": "unverified_legend_entry",
+      "notes": "Transcribed from Figure 2.3; confirm current name/existence before publishing.",
+      "id": 33,
+      "name": "Computer Science Lab"
+    },
+    {
+      "status": "unverified_legend_entry",
+      "notes": "Transcribed from Figure 2.3; confirm current name/existence before publishing.",
+      "id": 34,
+      "name": "Public Procurement Building"
+    },
+    {
+      "status": "unverified_legend_entry",
+      "notes": "Transcribed from Figure 2.3; confirm current name/existence before publishing.",
+      "id": 35,
+      "name": "S/PS/SOS Departmental Buildings"
+    },
+    {
+      "status": "unverified_legend_entry",
+      "notes": "Transcribed from Figure 2.3; confirm current name/existence before publishing.",
+      "id": 36,
+      "name": "Student Affairs Unit"
+    },
+    {
+      "status": "unverified_legend_entry",
+      "notes": "Transcribed from Figure 2.3; confirm current name/existence before publishing.",
+      "id": 37,
+      "name": "Bukataria"
+    },
+    {
+      "status": "unverified_legend_entry",
+      "notes": "Transcribed from Figure 2.3; confirm current name/existence before publishing.",
+      "id": 38,
+      "name": "Micro Finance Bank"
+    },
+    {
+      "status": "unverified_legend_entry",
+      "notes": "Transcribed from Figure 2.3; confirm current name/existence before publishing.",
+      "id": 39,
+      "name": "Workshop 2 & 3"
+    },
+    {
+      "status": "unverified_legend_entry",
+      "notes": "Transcribed from Figure 2.3; confirm current name/existence before publishing.",
+      "id": 40,
+      "name": "Senate Building"
+    },
+    {
+      "status": "unverified_legend_entry",
+      "notes": "Transcribed from Figure 2.3; confirm current name/existence before publishing.",
+      "id": 41,
+      "name": "Lecturer's Hall"
+    },
+    {
+      "status": "unverified_legend_entry",
+      "notes": "Transcribed from Figure 2.3; confirm current name/existence before publishing.",
+      "id": 42,
+      "name": "Sunic Eatery"
+    },
+    {
+      "status": "unverified_legend_entry",
+      "notes": "Transcribed from Figure 2.3; confirm current name/existence before publishing.",
+      "id": 43,
+      "name": "Bedrooms"
+    },
+    {
+      "status": "unverified_legend_entry",
+      "notes": "Transcribed from Figure 2.3; confirm current name/existence before publishing.",
+      "id": 44,
+      "name": "Instrumentation Block"
+    },
+    {
+      "status": "unverified_legend_entry",
+      "notes": "Transcribed from Figure 2.3; confirm current name/existence before publishing.",
+      "id": 45,
+      "name": "School of Basic Medical Sciences"
+    },
+    {
+      "status": "unverified_legend_entry",
+      "notes": "Transcribed from Figure 2.3; confirm current name/existence before publishing.",
+      "id": 46,
+      "name": "Estate Works Department"
+    },
+    {
+      "status": "unverified_legend_entry",
+      "notes": "Transcribed from Figure 2.3; confirm current name/existence before publishing.",
+      "id": 47,
+      "name": "Institute of Fashion Studies"
+    },
+    {
+      "status": "unverified_legend_entry",
+      "notes": "Transcribed from Figure 2.3; confirm current name/existence before publishing.",
+      "id": 48,
+      "name": "New ICT Block"
+    },
+    {
+      "status": "unverified_legend_entry",
+      "notes": "Transcribed from Figure 2.3; confirm current name/existence before publishing.",
+      "id": 49,
+      "name": "Centre for Distance Education"
+    },
+    {
+      "status": "unverified_legend_entry",
+      "notes": "Transcribed from Figure 2.3; confirm current name/existence before publishing.",
+      "id": 50,
+      "name": "Senate Building (Convocation Building)"
+    },
+    {
+      "status": "unverified_legend_entry",
+      "notes": "Transcribed from Figure 2.3; confirm current name/existence before publishing.",
+      "id": 51,
+      "name": "First Building"
+    },
+    {
+      "status": "unverified_legend_entry",
+      "notes": "Transcribed from Figure 2.3; confirm current name/existence before publishing.",
+      "id": 52,
+      "name": "HND Chemistry Department"
+    },
+    {
+      "status": "unverified_legend_entry",
+      "notes": "Transcribed from Figure 2.3; confirm current name/existence before publishing.",
+      "id": 53,
+      "name": "Chemical Engineering Department"
+    },
+    {
+      "status": "unverified_legend_entry",
+      "notes": "Transcribed from Figure 2.3; confirm current name/existence before publishing.",
+      "id": 54,
+      "name": "Petroleum Engineering Department"
+    },
+    {
+      "status": "unverified_legend_entry",
+      "notes": "Transcribed from Figure 2.3; confirm current name/existence before publishing.",
+      "id": 55,
+      "name": "Kaywon Bakery"
+    },
+    {
+      "status": "unverified_legend_entry",
+      "notes": "Transcribed from Figure 2.3; confirm current name/existence before publishing.",
+      "id": 56,
+      "name": "FUTO Guest House"
+    },
+    {
+      "status": "unverified_legend_entry",
+      "notes": "Transcribed from Figure 2.3; confirm current name/existence before publishing.",
+      "id": 57,
+      "name": "Old Student Center"
+    },
+    {
+      "status": "unverified_legend_entry",
+      "notes": "Transcribed from Figure 2.3; confirm current name/existence before publishing.",
+      "id": 58,
+      "name": "Guest Pavilion"
+    },
+    {
+      "status": "unverified_legend_entry",
+      "notes": "Transcribed from Figure 2.3; confirm current name/existence before publishing.",
+      "id": 59,
+      "name": "S/PS Extension"
+    },
+    {
+      "status": "unverified_legend_entry",
+      "notes": "Transcribed from Figure 2.3; confirm current name/existence before publishing.",
+      "id": 60,
+      "name": "S/PS Building"
+    },
+    {
+      "status": "unverified_legend_entry",
+      "notes": "Transcribed from Figure 2.3; confirm current name/existence before publishing.",
+      "id": 61,
+      "name": "Old SECT Building"
+    },
+    {
+      "status": "unverified_legend_entry",
+      "notes": "Transcribed from Figure 2.3; confirm current name/existence before publishing.",
+      "id": 62,
+      "name": "Staff Office"
+    },
+    {
+      "status": "unverified_legend_entry",
+      "notes": "Transcribed from Figure 2.3; confirm current name/existence before publishing.",
+      "id": 63,
+      "name": "Postgraduate School"
+    },
+    {
+      "status": "unverified_legend_entry",
+      "notes": "Transcribed from Figure 2.3; confirm current name/existence before publishing.",
+      "id": 64,
+      "name": "Main Library"
+    },
+    {
+      "status": "unverified_legend_entry",
+      "notes": "Transcribed from Figure 2.3; confirm current name/existence before publishing.",
+      "id": 65,
+      "name": "Old ICT Building"
+    },
+    {
+      "status": "unverified_legend_entry",
+      "notes": "Transcribed from Figure 2.3; confirm current name/existence before publishing.",
+      "id": 66,
+      "name": "500-Capacity Lecture Theatre"
+    },
+    {
+      "status": "unverified_legend_entry",
+      "notes": "Transcribed from Figure 2.3; confirm current name/existence before publishing.",
+      "id": 67,
+      "name": "MKE Micro Block of Offices"
+    },
+    {
+      "status": "unverified_legend_entry",
+      "notes": "Transcribed from Figure 2.3; confirm current name/existence before publishing.",
+      "id": 68,
+      "name": "Hall of Mercy (Lecture Theatre)"
+    },
+    {
+      "status": "unverified_legend_entry",
+      "notes": "Transcribed from Figure 2.3; confirm current name/existence before publishing.",
+      "id": 69,
+      "name": "M/F Lecture Theatre"
+    },
+    {
+      "status": "unverified_legend_entry",
+      "notes": "Transcribed from Figure 2.3; confirm current name/existence before publishing.",
+      "id": 70,
+      "name": "Hall of Excellence"
+    },
+    {
+      "status": "unverified_legend_entry",
+      "notes": "Transcribed from Figure 2.3; confirm current name/existence before publishing.",
+      "id": 71,
+      "name": "FUTOWA Building"
+    },
+    {
+      "status": "unverified_legend_entry",
+      "notes": "Transcribed from Figure 2.3; confirm current name/existence before publishing.",
+      "id": 72,
+      "name": "Twins Building"
+    },
+    {
+      "status": "unverified_legend_entry",
+      "notes": "Transcribed from Figure 2.3; confirm current name/existence before publishing.",
+      "id": 73,
+      "name": "FUTO Consult"
+    },
+    {
+      "status": "unverified_legend_entry",
+      "notes": "Transcribed from Figure 2.3; confirm current name/existence before publishing.",
+      "id": 74,
+      "name": "Department of Health Services"
+    },
+    {
+      "status": "unverified_legend_entry",
+      "notes": "Transcribed from Figure 2.3; confirm current name/existence before publishing.",
+      "id": 75,
+      "name": "Catholic Church"
+    },
+    {
+      "status": "unverified_legend_entry",
+      "notes": "Transcribed from Figure 2.3; confirm current name/existence before publishing.",
+      "id": 76,
+      "name": "Anglican Chapel of Light"
+    },
+    {
+      "status": "unverified_legend_entry",
+      "notes": "Transcribed from Figure 2.3; confirm current name/existence before publishing.",
+      "id": 77,
+      "name": "All Saints Chapel"
+    },
+    {
+      "status": "unverified_legend_entry",
+      "notes": "Transcribed from Figure 2.3; confirm current name/existence before publishing.",
+      "id": 78,
+      "name": "Hostel A"
+    },
+    {
+      "status": "unverified_legend_entry",
+      "notes": "Transcribed from Figure 2.3; confirm current name/existence before publishing.",
+      "id": 79,
+      "name": "Hostel B"
+    },
+    {
+      "status": "unverified_legend_entry",
+      "notes": "Transcribed from Figure 2.3; confirm current name/existence before publishing.",
+      "id": 80,
+      "name": "Hostel C"
+    },
+    {
+      "status": "unverified_legend_entry",
+      "notes": "Transcribed from Figure 2.3; confirm current name/existence before publishing.",
+      "id": 81,
+      "name": "Hostel D"
+    },
+    {
+      "status": "unverified_legend_entry",
+      "notes": "Transcribed from Figure 2.3; confirm current name/existence before publishing.",
+      "id": 82,
+      "name": "Hostel E"
+    },
+    {
+      "status": "unverified_legend_entry",
+      "notes": "Transcribed from Figure 2.3; confirm current name/existence before publishing.",
+      "id": 83,
+      "name": "Hostel F"
+    },
+    {
+      "status": "unverified_legend_entry",
+      "notes": "Transcribed from Figure 2.3; confirm current name/existence before publishing.",
+      "id": 84,
+      "name": "FISO"
+    },
+    {
+      "status": "unverified_legend_entry",
+      "notes": "Transcribed from Figure 2.3; confirm current name/existence before publishing.",
+      "id": 85,
+      "name": "Student Dining"
+    },
+    {
+      "status": "unverified_legend_entry",
+      "notes": "Transcribed from Figure 2.3; confirm current name/existence before publishing.",
+      "id": 86,
+      "name": "TETFund Hostels"
+    },
+    {
+      "status": "unverified_legend_entry",
+      "notes": "Transcribed from Figure 2.3; confirm current name/existence before publishing.",
+      "id": 87,
+      "name": "NDIC Hostel"
+    },
+    {
+      "status": "unverified_legend_entry",
+      "notes": "Transcribed from Figure 2.3; confirm current name/existence before publishing.",
+      "id": 88,
+      "name": "Staff Quarters"
+    },
+    {
+      "status": "unverified_legend_entry",
+      "notes": "Transcribed from Figure 2.3; confirm current name/existence before publishing.",
+      "id": 89,
+      "name": "Bukataria"
+    },
+    {
+      "status": "unverified_legend_entry",
+      "notes": "Transcribed from Figure 2.3; confirm current name/existence before publishing.",
+      "id": 90,
+      "name": "NASU Building"
+    }
+  ]
 }

@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/browser";
 import { notify } from "@/lib/notify";
 import { FiEye, FiEyeOff } from "react-icons/fi";
 import { NotificationCenter } from "@/components/notification-center";
+import { GameHub } from "@/components/game-hub";
 
 type Profile = { id: string; display_name: string; department: string | null; year_of_study: number | null; member_type?: "student"|"alumni"|"visitor"; alumni_set?: string|null; avatar_url: string | null };
 type AuthMode = "signin" | "signup";
@@ -22,6 +23,7 @@ export default function CampusExperience() {
   const [directoryOpen, setDirectoryOpen] = useState(false);
   const [menuOpen,setMenuOpen] = useState(false);
   const [mapOpen, setMapOpen] = useState(false);
+  const [gameHubOpen, setGameHubOpen] = useState(false);
   const [roadDraft, setRoadDraft] = useState<CampusRoadData | null>(null);
   const [selected, setSelected] = useState<CampusLocation | null>(null);
   const [accountOpen, setAccountOpen] = useState(false);
@@ -131,9 +133,24 @@ export default function CampusExperience() {
   useEffect(() => {
     function receiveWorldMessage(event: MessageEvent<unknown>) {
       if (event.origin !== window.location.origin || event.source !== worldFrame.current?.contentWindow) return;
-      if (!event.data || typeof event.data !== "object" || !("type" in event.data) || event.data.type !== "futo:open-map") return;
-      setMapOpen(true);
-      if (window.matchMedia("(max-width: 760px)").matches) setDirectoryOpen(false);
+      if (!event.data || typeof event.data !== "object" || !("type" in event.data) || typeof event.data.type !== "string") return;
+      if(event.data.type==="futo:open-map"){
+        setMapOpen(true);
+        if (window.matchMedia("(max-width: 760px)").matches) setDirectoryOpen(false);
+        return;
+      }
+      if(event.data.type==="futo:request-ride-ticket"&&"requestId" in event.data&&typeof event.data.requestId==="string"){
+        const requestId=event.data.requestId;
+        if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(requestId))return;
+        const reply=(ok:boolean,message:string)=>worldFrame.current?.contentWindow?.postMessage({type:"futo:ride-ticket-result",requestId,ok,message},window.location.origin);
+        const client=createClient();
+        if(!client){reply(true,"Guest bike ride · no ticket required.");return;}
+        void client.auth.getUser().then(async({data:{user}})=>{
+          if(!user){reply(true,"Guest bike ride · no ticket required.");return;}
+          const {error}=await client.rpc("consume_game_ride_ticket",{p_item_id:"bike-ride",p_request_id:requestId});
+          if(error)reply(false,error.message);else reply(true,"Bike ticket used.");
+        }).catch(()=>reply(false,"Unable to check your bike ticket. Try again."));
+      }
     }
     window.addEventListener("message", receiveWorldMessage);
     return () => window.removeEventListener("message", receiveWorldMessage);
@@ -198,6 +215,7 @@ export default function CampusExperience() {
         <DockAction icon="walk" label="Explore" detail="Move around campus" onClick={()=>runWorldControl("camera")}/>
         <DockAction icon="map" label="Campus map" detail="View saved places" onClick={()=>{setMapOpen(true);setMenuOpen(false);}}/>
         <DockAction icon="pin" label={directoryOpen?"Hide places":"Campus directory"} detail={directoryOpen?"Collapse place list":"Search campus locations"} active={directoryOpen} onClick={()=>setDirectoryOpen(v=>!v)}/>
+        <button className="dock-action" onClick={()=>{setGameHubOpen(true);setMenuOpen(false);}}><span className="game-dock-icon" aria-hidden="true">✦</span><span><b>Missions & rewards</b><small>XP, streaks and game coins</small></span><span className="dock-arrow">›</span></button>
         <Link className="dock-action" href="/community"><DockGlyph icon="people"/><span><b>Community</b><small>Friends, posts and messages</small></span><span className="dock-arrow">↗</span></Link>
         <NotificationCenter dock/>
         <button className="dock-action" onClick={()=>{setAccountOpen(true);setMenuOpen(false);}}><span className="dock-avatar">{profile?.avatar_url?<img src={profile.avatar_url} alt=""/>:profile?.display_name?.slice(0,1).toUpperCase()??"♙"}</span><span><b>{profile?.display_name??(email?"Finish profile":"Sign in")}</b><small>Account and profile</small></span><span className="dock-arrow">›</span></button>
@@ -207,6 +225,7 @@ export default function CampusExperience() {
       <div className="dock-controls"><span>CONTROLS</span><p><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> Move <kbd>⇧</kbd> Sprint</p><p><kbd>←</kbd><kbd>↑</kbd><kbd>↓</kbd><kbd>→</kbd> Look around</p><small>Touch: swipe to look, use the on-screen stick to move.</small></div>
     </aside>
     {selected&&<section className={`destination-preview${menuOpen?" behind-dock":""}`} aria-label={`Selected destination: ${selected.name}`}><button className="destination-close" onClick={()=>setSelected(null)} aria-label="Clear selected destination">×</button>{selected.image_url?<img className="destination-photo" src={selected.image_url} alt={`Photo reference for ${selected.name}`} loading="lazy"/>:<div className="destination-photo destination-photo-empty" aria-hidden="true">⌖</div>}<div className="destination-copy"><span className="destination-kicker">{selected.category.replaceAll("-"," ")} · {selected.position_status==="verified"?"Verified position":selected.position_status==="provisional"?"Approximate position":"Position unverified"}</span><h2>{selected.name}</h2><p>{selected.description||selected.notes||"Use this photo to recognize the place. Its map position may need confirmation."}</p><div className="destination-actions"><button className="destination-navigate" onClick={navigateToSelected} disabled={selected.position_status==="unverified"||typeof selected.local_x!=="number"||typeof selected.local_z!=="number"}>Navigate in campus view</button><button className="destination-map-link" onClick={()=>{setMapOpen(true);setMenuOpen(false);}}>Show map</button></div></div></section>}
+    <GameHub open={gameHubOpen} signedIn={Boolean(email&&profile)} onRequireSignIn={()=>{setGameHubOpen(false);setAccountOpen(true);}} onClose={()=>setGameHubOpen(false)}/>
     {mapOpen && <div className="map-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setMapOpen(false); }}><section className="map-dialog panel" role="dialog" aria-modal="true" aria-labelledby="map-title">
       <header className="map-header"><div><div className="eyebrow">Campus map</div><h2 id="map-title">Places with saved positions</h2></div><button className="secondary map-close" onClick={() => setMapOpen(false)} aria-label="Close campus map">×</button></header>
       <div className="schematic-map" role="img" aria-label="Schematic map showing campus locations that have saved local positions">

@@ -61,3 +61,10 @@ All social discovery and location sharing should be opt-in. Never reveal a playe
 5. Bikes and fixed-route shuttle fast travel; add taxi after movement and fares are stable.
 6. Friend parties, event trails and opt-in leaderboards after abuse, consent and privacy rules are implemented.
 7. Cars only after the campus road and collision network is reviewed.
+
+## Implemented starter slice
+
+- A protected Postgres ledger and `get_game_state`, `claim_game_challenge`, `purchase_game_item`, and `consume_game_ride_ticket` functions are in migration `202611090001_game_economy_and_challenges.sql`.
+- The first claimable challenges are a daily login reward and two answer-checked quizzes. The database uses Africa/Lagos day boundaries and awards a capped weekly streak bonus. Location missions remain visible but unclaimable until a reviewed arrival signal is available.
+- The Explore game hub shows the authenticated user's XP, coins, streak, challenge list, store and inventory. An authenticated bike mount consumes one purchased ticket through the parent app's same-origin message bridge. Guests can try the bike without earning or spending game coins.
+- Shuttle/taxi ticket use, vehicle spawning, friend-party missions, leaderboards and referral rewards are not yet connected. Apply the migration only after checking and previewing the linked Supabase migration state.
