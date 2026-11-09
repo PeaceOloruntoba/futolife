@@ -78,7 +78,7 @@ const cm=M(0xc8c6c0),cb=(x,z,w,d)=>{const b=box(w,.16,d,cm,x,.08,z);b.castShadow
 function label(t,sub,x,y,z,col){const c=document.createElement('canvas');c.width=512;c.height=128;const g=c.getContext('2d');g.fillStyle='rgba(16,22,30,.85)';g.fillRect(0,0,512,128);g.strokeStyle=col;g.lineWidth=6;g.strokeRect(3,3,506,122);g.fillStyle='#e8eef5';g.font='bold 34px sans-serif';g.textAlign='center';g.fillText(t,256,56);g.fillStyle=col;g.font='24px sans-serif';g.fillText(sub,256,96);
  const s=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(c),fog:false}));s.scale.set(8,2,1);s.position.set(x,y,z);S.add(s)}
 // gate
-/* old placeholder gate removed: replaced by photo-based Main Gate below */
+const authoredWorld={gate:null,senate:null,tour:null};
 
 // buildings
 const walls=[];const B=[];
@@ -204,7 +204,7 @@ const API={build};if(typeof module!=='undefined')module.exports=API;else root.Ma
 
 const CVF=(w,h)=>{const c=document.createElement('canvas');c.width=w;c.height=h;return c};
 const NP=S.children.length;walls.length=0;B.length=0;TREES.length=0;
-{const C0={THREE,tex,M,cv:CVF,mobile:MOB,foliage:Foliage},r=MainGate.build(C0);S.add(r.group);r.colliders.forEach(c=>walls.push(c));
+{const C0={THREE,tex,M,cv:CVF,mobile:MOB,foliage:Foliage},r=MainGate.build(C0);authoredWorld.gate=r.group;r.group.rotation.y=.74;S.add(r.group);r.colliders.forEach(c=>walls.push(c));
 broad(-21,7,2.7);broad(21,5,2.9);broad(-17,-9,2.3);broad(17,-9,2.5);
 label('FUTO Main Gate','Photo-based model \u00b7 dimensions estimated \u00b7 position provisional',0,9.2,2,'#e8765a');
 S.add(Foliage.trees(C0,TREES,Foliage.mats(C0),{shadow:!MOB}))}
@@ -268,7 +268,7 @@ G.position.set(pl.x,0,pl.z);G.rotation.y=pl.rot;const d=W(0,5.2);
 return{group:G,colliders,door:[d.x,d.z],toWorld:W,info:{estimated:true,source:'single user-supplied front photograph',ridgeTop:16.7,pineTop:16.8}}}
 const API={build};if(typeof module!=='undefined')module.exports=API;else root.Senate=API})(typeof window!=='undefined'?window:globalThis);
 
-{const SENATE={x:-62,z:-300,rot:Math.PI/2},C1={THREE,tex,M,cv:CVF,mobile:MOB,foliage:Foliage},r2=Senate.build(C1,SENATE);S.add(r2.group);r2.colliders.forEach(c=>walls.push(c));
+{const SENATE={x:-62,z:-300,rot:Math.PI/2},C1={THREE,tex,M,cv:CVF,mobile:MOB,foliage:Foliage},r2=Senate.build(C1,SENATE);authoredWorld.senate=r2.group;S.add(r2.group);r2.colliders.forEach(c=>walls.push(c));
 B.push({n:'Senate Building',tag:'Provisional position',x:SENATE.x,z:SENATE.z,w:60,d:18,door:r2.door});
 label('Senate Building','Photo-based model \u00b7 position provisional (user-stated)',SENATE.x+5,19,SENATE.z,'#e8765a')}
 /* videoworld.js (inlined, tested in Node). Follows the tour video; positions are PROTOTYPE values, UNVERIFIED */
@@ -477,7 +477,7 @@ function loop(){requestAnimationFrame(loop);const dt=Math.min(clk.getDelta(),.05
  bots.forEach(b=>{b.a+=(Math.random()-.5)*.25;let nx=b.x+Math.sin(b.a)*1.2*dt,nz=b.z+Math.cos(b.a)*1.2*dt;if(nx<-30||nx>30||nz>12||nz<-50||walls.some(w=>nx>w.x0&&nx<w.x1&&nz>w.z0&&nz<w.z1)){b.a+=Math.PI}else{b.x=nx;b.z=nz}b.g.position.set(b.x,0,b.z);b.g.rotation.y=b.a;b.g.visible=Math.hypot(b.x-P.x,b.z-P.z)<70;if(b.g.visible)Avatar.update(b.g.userData.av,dt,1.2);
   v3.set(b.x,2.4,b.z).project(C);const vis=v3.z<1&&Math.hypot(b.x-P.x,b.z-P.z)<35;b.el.style.display=vis&&!inside?'block':'none';b.el.style.left=(v3.x*.5+.5)*app.clientWidth+'px';b.el.style.top=(-v3.y*.5+.5)*app.clientHeight+'px'});
  let nb=null,bd=7;B.forEach(b=>{const dd=Math.hypot(P.x-b.door[0],P.z-b.door[1]);if(dd<bd){bd=dd;nb=b}});bikeNear=P.riding||Math.hypot(P.x-bikeX,P.z-bikeZ)<5;const actionPlace=bikeNear?null:nb;
- if(actionPlace!==near||String(bikeNear)!==$('prompt').dataset.bike){near=actionPlace;$('prompt').dataset.bike=String(bikeNear);const active=bikeNear||!!near;$('prompt').style.display=active?'block':'none';$('act').style.display=active?'block':'none';if(bikeNear){$('pn').innerHTML='Campus bike <span class="tag">Prototype</span>';$('pd').textContent=P.riding?'Tap to dismount':'Ride faster along campus roads · fare system coming later';$('act').textContent=P.riding?'Dismount':'Ride'}else if(near){$('pn').innerHTML=near.n+' <span class="tag">'+(near.tag||'Placeholder')+'</span>';$('pd').textContent='Entrance ahead · tap Enter';$('act').textContent='Enter'}}
+ if(actionPlace!==near||String(bikeNear)!==$('prompt').dataset.bike||String(P.riding)!==$('prompt').dataset.riding){near=actionPlace;$('prompt').dataset.bike=String(bikeNear);$('prompt').dataset.riding=String(P.riding);const active=bikeNear||!!near;$('prompt').style.display=active?'block':'none';$('act').style.display=active?'block':'none';if(bikeNear){$('pn').innerHTML='Campus bike <span class="tag">Prototype</span>';$('pd').textContent=P.riding?'Tap to dismount':'Ride faster along campus roads · fare system coming later';$('act').textContent=P.riding?'Dismount':'Ride'}else if(near){$('pn').innerHTML=near.n+' <span class="tag">'+(near.tag||'Placeholder')+'</span>';$('pd').textContent='Entrance ahead · tap Enter';$('act').textContent='Enter'}}
  $('loc').textContent=near?near.n:(zoneLabel||(Math.hypot(P.x,P.z)<14?'Central Entrance':'Campus grounds · area label unverified'));
  sun.target.position.set(P.x,0,P.z);sun.position.set(P.x-45,38,P.z+35);if(P.tx!=null){mk.visible=true;mk.position.set(P.tx,.08,P.tz);mk.scale.setScalar(1+.12*Math.sin(performance.now()*.008))}else mk.visible=false;
  if(campusRoads&&Math.floor(performance.now()/200)!==drawMiniMap.last){drawMiniMap.last=Math.floor(performance.now()/200);drawMiniMap()}fps(dt);R.render(S,C)}

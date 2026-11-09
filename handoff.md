@@ -177,3 +177,12 @@ TypeScript check (`npx tsc --noEmit`) passes. Full functional testing remains pe
 - Existing map markers continue to use the uploaded photos and now highlight the selected destination. The card labels verified, approximate, and unverified positions separately.
 - Selecting an unverified place no longer starts auto-walking to potentially misleading coordinates. Navigation is enabled only for verified or provisional places with saved local coordinates; provisional coordinates remain explicitly labeled as approximate.
 - No new migration is needed; the Explore API already reads `campus_locations.image_url` from Supabase. Photos improve visual recognition, but actual building/road geometry still requires authoritative or surveyed map data.
+
+## Latest update — master-plan road draft and exploration prototype (2026-11-09)
+
+- The owner authorized use of the UPDATED FUTO MASTER PLAN image included in the supplied map-data pack. The image remains unreferenced and its revision date is unknown.
+- Added `public/campus/map-data-v0.2.json`, derived from the 12 pixel-coordinate road centerlines in the v0.2 draft. It retains the image-pixel origin and labels its local scale and Main Gate alignment as assumptions. All roads remain provisional and must not be described as surveyed navigation.
+- The Three.js prototype now draws the road traces as textured road/shoulder/verge ribbons, adds roadside tree rows, shows a live schematic minimap, and exposes the existing camera/map/nearby controls. The campus map dialog includes a separate road-trace preview so it is not confused with the existing saved-place pins.
+- A walk-up bike interaction is available as a local prototype. It increases movement speed and supports mobile interaction controls; it does not charge a fare, persist a vehicle, or grant rewards.
+- `docs/gameplay-plan.md` records proposed discovery, daily/weekly, streak, social, transport and game-coin sinks. No reward, wallet, fare, challenge-claim, shuttle, taxi or car backend has been added. Do not award currency from client-side movement.
+- Mobile rendering remains performance-sensitive because the Three.js scene and map road/foliage layer now cover a larger area. Field validation and visual review on representative phones are still required.
