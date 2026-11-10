@@ -213,3 +213,10 @@ TypeScript check (`npx tsc --noEmit`) passes. Full functional testing remains pe
 - Movement uses private Realtime Broadcast at 15 updates per second while opt-in presence remains the membership/privacy signal. The world interpolates remote positions at a faster rate and the large name plates are now small clickable head badges.
 - Clicking a player badge opens a profile card, with a photo lightbox. Accepted friends can open their existing full community direct chat in a campus overlay; non-friends are sent to the community friend/request flow.
 - After the already applied `202611090001_game_economy_and_challenges.sql`, apply `202611090002_campus_realtime_presence.sql`, `202611100001_campus_vehicle_fleet.sql`, and `202611100002_expand_campus_shuttle_fleet.sql` before testing live presence and transport. Try with two authenticated accounts and sufficient bike/shuttle tickets. Transport coordinates and the building loop are still provisional; movement broadcasts are for display only, never authoritative reward or fare validation.
+
+## Latest update — place labels and current location (2026-11-10)
+
+- Improved the 3D place-label contrast and text sizing. The location chip now identifies the closest modeled place, estimates distance, and marks temporary building identities and positions as uncertain.
+- The app sends saved place coordinates into the 3D world, where positioned places get a colored marker and a label that distinguishes verified, approximate, and unverified positions. Existing scene labels remain in place.
+- Expanded the searchable place catalog to include the remaining v0.2 campus POI candidates and the two listed off-campus destinations. Unpositioned places stay labeled as needing a position; no coordinates were inferred from the un-georeferenced master-plan raster or blank POI templates.
+- Updated the campus map dialog to show total listed places and how many have saved local positions. Apply `202611100003_seed_campus_place_catalog.sql` after the existing location inventory seed to add the same candidate catalog to Supabase.

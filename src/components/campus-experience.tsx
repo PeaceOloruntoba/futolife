@@ -63,6 +63,15 @@ export default function CampusExperience() {
     return campusLocations.filter((item) => !term || `${item.name} ${item.category}`.toLowerCase().includes(term));
   }, [campusLocations, query]);
 
+  const worldPlaceCatalog = useMemo(() => campusLocations.map((place) => ({
+    id: place.id,
+    name: place.name,
+    category: place.category,
+    position_status: place.position_status ?? "unverified",
+    local_x: place.local_x,
+    local_z: place.local_z,
+  })), [campusLocations]);
+
   const plottedLocations = useMemo(() => {
     const positioned = campusLocations.filter((place) => typeof place.local_x === "number" && Number.isFinite(place.local_x) && typeof place.local_z === "number" && Number.isFinite(place.local_z));
     if (!positioned.length) return [];
@@ -125,6 +134,10 @@ export default function CampusExperience() {
     const channel=supabase?.channel("campus-location-updates").on("postgres_changes",{event:"*",schema:"public",table:"campus_locations"},()=>void refreshLocations()).subscribe();
     return () => { active=false;if(channel&&supabase)void supabase.removeChannel(channel); };
   }, []);
+
+  useEffect(() => {
+    worldFrame.current?.contentWindow?.postMessage({ type: "futo:campus-locations", places: worldPlaceCatalog }, window.location.origin);
+  }, [worldPlaceCatalog]);
 
   useEffect(() => {
     let active = true;
@@ -381,7 +394,7 @@ export default function CampusExperience() {
   }, []);
 
   return <main className="campus">
-    <iframe ref={worldFrame} className="world" src="/campus/index.html" title="Interactive FUTO campus prototype" allow="fullscreen" onLoad={()=>worldFrame.current?.contentWindow?.postMessage({type:"futo:nearby-players",players:nearbyPlayers},window.location.origin)}/>
+    <iframe ref={worldFrame} className="world" src="/campus/index.html" title="Interactive FUTO campus prototype" allow="fullscreen" onLoad={()=>{worldFrame.current?.contentWindow?.postMessage({type:"futo:nearby-players",players:nearbyPlayers},window.location.origin);worldFrame.current?.contentWindow?.postMessage({type:"futo:campus-locations",places:worldPlaceCatalog},window.location.origin);}}/>
     <Link href="/" className="campus-brand"><span className="brand-mark">F</span><span><b>FUTO LIFE</b><small>Explore your campus</small></span></Link>
     <button className={`dock-menu-toggle${menuOpen?" active":""}`} onClick={()=>setMenuOpen(v=>!v)} aria-expanded={menuOpen} aria-label={menuOpen?"Close campus menu":"Open campus menu"}><span>{menuOpen?"×":"☰"}</span><b>{menuOpen?"Close":"Menu"}</b></button>
     <aside className={`experience-dock${menuOpen?" drawer-open":""}`} aria-label="Campus menu">
@@ -409,7 +422,8 @@ export default function CampusExperience() {
     {selectedPlayerId&&selectedPlayerLoading&&!selectedPlayer&&<div className="player-profile-backdrop"><section className="player-profile-dialog panel" role="dialog" aria-modal="true"><p>Loading player profile…</p></section></div>}
     {selectedPlayerId&&!selectedPlayerLoading&&!selectedPlayer&&<div className="player-profile-backdrop"><section className="player-profile-dialog panel" role="dialog" aria-modal="true"><header className="map-header"><h2>Profile unavailable</h2><button className="secondary map-close" onClick={()=>setSelectedPlayerId(null)} aria-label="Close player profile">×</button></header><p>This profile is no longer available to campus explorers.</p></section></div>}
     {mapOpen && <div className="map-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setMapOpen(false); }}><section className="map-dialog panel" role="dialog" aria-modal="true" aria-labelledby="map-title">
-      <header className="map-header"><div><div className="eyebrow">Campus map</div><h2 id="map-title">Places with saved positions</h2></div><button className="secondary map-close" onClick={() => setMapOpen(false)} aria-label="Close campus map">×</button></header>
+      <header className="map-header"><div><div className="eyebrow">Campus map · {campusLocations.length} listed places</div><h2 id="map-title">Known places and positions</h2></div><button className="secondary map-close" onClick={() => setMapOpen(false)} aria-label="Close campus map">×</button></header>
+      <p className="map-caveat">{plottedLocations.length} places have saved local positions. The rest remain searchable below with their names, but need a confirmed map position before they can be shown as pins or used for navigation.</p>
       <div className="schematic-map" role="img" aria-label="Schematic map showing campus locations that have saved local positions">
         <span className="north-marker" aria-hidden="true">N ↑</span>
         {plottedLocations.map(({ place, left, top }) => <button key={place.id} className={`map-marker status-${place.position_status ?? "unverified"}${selected?.id===place.id?" selected": ""}`} style={{ left: `${left}%`, top: `${top}%` }} onClick={() => { chooseLocation(place); setMapOpen(false); setDirectoryOpen(true); if(window.matchMedia("(max-width:640px)").matches)setMenuOpen(true); }} aria-label={`${place.name}, ${place.position_status === "provisional" ? "estimated position" : place.position_status === "verified" ? "verified position" : "unverified position"}`} title={place.name}>{place.image_url?<img className="map-marker-photo" src={place.image_url} alt=""/>:<span className="map-marker-dot"/>}<span className="map-marker-name">{place.name}</span></button>)}
