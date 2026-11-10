@@ -284,7 +284,7 @@ export default function CampusExperience() {
       if(event.data.type==="futo:reserve-vehicle"&&"requestId" in event.data&&typeof event.data.requestId==="string"&&"vehicleId" in event.data&&typeof event.data.vehicleId==="string"){
         const requestId=event.data.requestId;
         if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(requestId))return;
-        if(!/^(bike-0[1-6]|shuttle-0[1-2])$/.test(event.data.vehicleId))return;
+        if(!/^(bike-0[1-6]|shuttle-0[1-5])$/.test(event.data.vehicleId))return;
         const vehicleId=event.data.vehicleId;
         const reply=(ok:boolean,message:string,vehicle?:{vehicle_id:string;kind:"bike"|"shuttle";seat_no:number;capacity:number})=>worldFrame.current?.contentWindow?.postMessage({type:"futo:vehicle-result",requestId,ok,message,vehicle},window.location.origin);
         const client=createClient();
@@ -298,17 +298,17 @@ export default function CampusExperience() {
           if(error){reply(false,error.message);return;}
           const reservation=data as {vehicle_id:string;kind:"bike"|"shuttle";seat_no:number;capacity:number};
           reply(true,reservation.kind==="bike"?"Bike booked. Enjoy the faster ride!":"Seat reserved. You are a shuttle passenger; the driver follows the campus loop.",reservation);
-          void client.rpc("get_campus_vehicle_fleet").then(({data:fleet})=>worldFrame.current?.contentWindow?.postMessage({type:"futo:vehicle-fleet",vehicles:fleet??[],serverEpochMs:fleet?.[0]?.server_epoch_ms},window.location.origin));
+          void client.rpc("get_campus_vehicle_fleet").then(({data:fleet})=>worldFrame.current?.contentWindow?.postMessage({type:"futo:vehicle-fleet",vehicles:fleet??[],serverEpochMs:fleet?.[0]?.server_epoch_ms,scheduleEpochMs:fleet?.[0]?.schedule_epoch_ms},window.location.origin));
         }).catch(()=>reply(false,"Unable to reserve that vehicle. Try again."));
       }
-      if(event.data.type==="futo:release-vehicle"&&"vehicleId" in event.data&&typeof event.data.vehicleId==="string"&&/^(bike-0[1-6]|shuttle-0[1-2])$/.test(event.data.vehicleId)){
+      if(event.data.type==="futo:release-vehicle"&&"vehicleId" in event.data&&typeof event.data.vehicleId==="string"&&/^(bike-0[1-6]|shuttle-0[1-5])$/.test(event.data.vehicleId)){
         const vehicleId=event.data.vehicleId,client=createClient();if(!client)return;
         void (async()=>{
           const {data:{user}}=await client.auth.getUser();
           let ok=false,message="Sign in before ending your campus ride.";
           if(user){const {data,error}=await client.rpc("leave_campus_vehicle",{p_vehicle_id:vehicleId});ok=!error&&data!==false;message=error?.message??"Ride ended.";}
           worldFrame.current?.contentWindow?.postMessage({type:"futo:vehicle-left",vehicleId,ok,message},window.location.origin);
-          void client.rpc("get_campus_vehicle_fleet").then(({data:fleet})=>worldFrame.current?.contentWindow?.postMessage({type:"futo:vehicle-fleet",vehicles:fleet??[],serverEpochMs:fleet?.[0]?.server_epoch_ms},window.location.origin));
+          void client.rpc("get_campus_vehicle_fleet").then(({data:fleet})=>worldFrame.current?.contentWindow?.postMessage({type:"futo:vehicle-fleet",vehicles:fleet??[],serverEpochMs:fleet?.[0]?.server_epoch_ms,scheduleEpochMs:fleet?.[0]?.schedule_epoch_ms},window.location.origin));
         })().catch(()=>worldFrame.current?.contentWindow?.postMessage({type:"futo:vehicle-left",vehicleId,ok:false,message:"Unable to end ride. Check your connection."},window.location.origin));
       }
     }
@@ -319,7 +319,7 @@ export default function CampusExperience() {
   useEffect(()=>{
     const client=createClient();if(!client)return;
     let active=true;
-    const refresh=()=>void client.rpc("get_campus_vehicle_fleet").then(({data})=>{if(active&&Array.isArray(data))worldFrame.current?.contentWindow?.postMessage({type:"futo:vehicle-fleet",vehicles:data,serverEpochMs:data[0]?.server_epoch_ms},window.location.origin);});
+    const refresh=()=>void client.rpc("get_campus_vehicle_fleet").then(({data})=>{if(active&&Array.isArray(data))worldFrame.current?.contentWindow?.postMessage({type:"futo:vehicle-fleet",vehicles:data,serverEpochMs:data[0]?.server_epoch_ms,scheduleEpochMs:data[0]?.schedule_epoch_ms},window.location.origin);});
     refresh();const timer=window.setInterval(refresh,10000);
     const heartbeat=window.setInterval(()=>{
       const vehicleId=playerPosition.current.vehicleId;
