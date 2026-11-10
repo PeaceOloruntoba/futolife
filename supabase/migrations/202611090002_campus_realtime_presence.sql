@@ -6,7 +6,7 @@ create policy "Authenticated users can receive campus presence"
   on realtime.messages for select to authenticated
   using (
     realtime.topic() = 'futo-campus-presence-v1'
-    and realtime.messages.extension = 'presence'
+    and realtime.messages.extension in ('presence','broadcast')
     and public.is_user_active()
   );
 
@@ -15,6 +15,6 @@ create policy "Active users can publish campus presence"
   on realtime.messages for insert to authenticated
   with check (
     realtime.topic() = 'futo-campus-presence-v1'
-    and realtime.messages.extension = 'presence'
+    and realtime.messages.extension in ('presence','broadcast')
     and public.is_user_active()
   );

@@ -8,14 +8,16 @@ import { notify } from "@/lib/notify";
 import { FiEye, FiEyeOff } from "react-icons/fi";
 import { NotificationCenter } from "@/components/notification-center";
 import { GameHub } from "@/components/game-hub";
+import SocialHub from "@/components/social-hub";
 
 type Profile = { id: string; display_name: string; department: string | null; year_of_study: number | null; member_type?: "student"|"alumni"|"visitor"; alumni_set?: string|null; avatar_url: string | null };
 type AuthMode = "signin" | "signup";
 type RoadDraft = { id: string; name: string; class: string; status: string; coordinates: number[][] };
 type CampusRoadData = { roads: RoadDraft[]; transform?: { warning?: string; origin_label?: string }; status?: string };
-type WorldPosition = { x: number; z: number; face: number; speed: number; riding: boolean };
+type WorldPosition = { x: number; z: number; face: number; speed: number; riding: boolean; vehicleId?: string|null; seatNo?: number|null };
 type NearbyPlayer = WorldPosition & { id: string; display_name: string; avatar_url: string | null };
-type PresenceMeta = WorldPosition & { updated_at: number };
+type PresenceMeta = WorldPosition & { updated_at: number; sharing?: boolean };
+type CampusPlayerProfile = {id:string;display_name:string;avatar_url:string|null;department:string|null;year_of_study:number|null;member_type:"student"|"alumni"|"visitor";alumni_set:string|null;bio:string|null;hometown:string|null;interests:string|null;social_link:string|null};
 
 export default function CampusExperience() {
   const worldFrame = useRef<HTMLIFrameElement>(null);
@@ -31,10 +33,20 @@ export default function CampusExperience() {
   const [shareCampusPosition, setShareCampusPosition] = useState(false);
   const [presencePreferenceReady, setPresencePreferenceReady] = useState(false);
   const [nearbyPlayers, setNearbyPlayers] = useState<NearbyPlayer[]>([]);
+  const nearbyPlayersRef = useRef<Map<string, NearbyPlayer>>(new Map());
+  const [selectedPlayerId,setSelectedPlayerId]=useState<string|null>(null);
+  const [selectedPlayer,setSelectedPlayer]=useState<CampusPlayerProfile|null>(null);
+  const [selectedPlayerFriend,setSelectedPlayerFriend]=useState(false);
+  const [selectedPlayerLoading,setSelectedPlayerLoading]=useState(false);
+  const [selectedPlayerTab,setSelectedPlayerTab]=useState<"profile"|"chat">("profile");
+  const [selectedPlayerConversation,setSelectedPlayerConversation]=useState<string|null>(null);
+  const [playerPhotoOpen,setPlayerPhotoOpen]=useState(false);
   const [presenceStatus, setPresenceStatus] = useState<"offline"|"joining"|"online"|"error">("offline");
-  const playerPosition = useRef<WorldPosition>({x:0,z:7,face:0,speed:0,riding:false});
+  const playerPosition = useRef<WorldPosition>({x:0,z:7,face:0,speed:0,riding:false,vehicleId:null,seatNo:null});
   const lastPositionUiUpdate = useRef(0);
-  const [currentWorldPosition, setCurrentWorldPosition] = useState<WorldPosition>({x:0,z:7,face:0,speed:0,riding:false});
+  const lastMovementBroadcast = useRef(0);
+  const lastNearbyUiUpdate = useRef(0);
+  const [currentWorldPosition, setCurrentWorldPosition] = useState<WorldPosition>({x:0,z:7,face:0,speed:0,riding:false,vehicleId:null,seatNo:null});
   const [roadDraft, setRoadDraft] = useState<CampusRoadData | null>(null);
   const [selected, setSelected] = useState<CampusLocation | null>(null);
   const [accountOpen, setAccountOpen] = useState(false);
@@ -141,36 +153,51 @@ export default function CampusExperience() {
   useEffect(() => {
     const client = createClient();
     if (!client || !profile?.id || !email) {
+      nearbyPlayersRef.current.clear();
       worldFrame.current?.contentWindow?.postMessage({type:"futo:nearby-players",players:[]},window.location.origin);
       return;
     }
     let active = true;
     let joined = false;
     const joiningTimer=window.setTimeout(()=>{if(active)setPresenceStatus("joining");},0);
-    const channel = client.channel("futo-campus-presence-v1", {config:{private:true,presence:{key:profile.id}}});
+    const channel = client.channel("futo-campus-presence-v1", {config:{private:true,presence:{key:profile.id},broadcast:{ack:false,self:false}}});
     const refresh = async () => {
       if (!active) return;
       const current = channel.presenceState<PresenceMeta>();
       const snapshots = Object.entries(current).flatMap(([id,metas]) => {
         if(id===profile.id||!Array.isArray(metas)||!metas.length)return [];
         const meta=[...metas].sort((a,b)=>(b.updated_at||0)-(a.updated_at||0))[0];
-        if(typeof meta.x!=="number"||typeof meta.z!=="number"||typeof meta.face!=="number"||typeof meta.speed!=="number"||typeof meta.riding!=="boolean"||typeof meta.updated_at!=="number"||!Number.isFinite(meta.x)||!Number.isFinite(meta.z)||!Number.isFinite(meta.face)||!Number.isFinite(meta.speed)||!Number.isFinite(meta.updated_at)||meta.updated_at>Date.now()+10000||Date.now()-meta.updated_at>30000||Math.abs(meta.x)>=1800||Math.abs(meta.z)>=1800||Math.hypot(meta.x-playerPosition.current.x,meta.z-playerPosition.current.z)>180)return [];
+        if(!meta.sharing||typeof meta.x!=="number"||typeof meta.z!=="number"||typeof meta.face!=="number"||typeof meta.speed!=="number"||typeof meta.riding!=="boolean"||typeof meta.updated_at!=="number"||!Number.isFinite(meta.x)||!Number.isFinite(meta.z)||!Number.isFinite(meta.face)||!Number.isFinite(meta.speed)||!Number.isFinite(meta.updated_at)||Math.abs(meta.x)>=1800||Math.abs(meta.z)>=1800||Math.hypot(meta.x-playerPosition.current.x,meta.z-playerPosition.current.z)>180)return [];
         return [{id,meta}];
       });
-      if(!snapshots.length){if(active){setNearbyPlayers([]);worldFrame.current?.contentWindow?.postMessage({type:"futo:nearby-players",players:[]},window.location.origin);}return;}
+      if(!snapshots.length){if(active){nearbyPlayersRef.current.clear();setNearbyPlayers([]);worldFrame.current?.contentWindow?.postMessage({type:"futo:nearby-players",players:[]},window.location.origin);}return;}
       const {data,error}=await client.from("profiles").select("id,display_name,avatar_url,is_suspended").in("id",snapshots.map((item)=>item.id)).eq("is_suspended",false);
       if(!active)return;
       if(error){setPresenceStatus("error");return;}
       const cards=(data??[]).flatMap((user)=>{const snapshot=snapshots.find((item)=>item.id===user.id);return snapshot?[{id:user.id,display_name:user.display_name,avatar_url:user.avatar_url,...snapshot.meta}]:[];});
+      nearbyPlayersRef.current=new Map(cards.map(person=>[person.id,person]));
       setNearbyPlayers(cards);
       worldFrame.current?.contentWindow?.postMessage({type:"futo:nearby-players",players:cards},window.location.origin);
     };
     channel.on("presence",{event:"sync"},()=>void refresh());
+    channel.on("broadcast",{event:"movement"},({payload})=>{
+      if(!active||!payload||typeof payload!=="object"||typeof payload.id!=="string")return;
+      const meta=channel.presenceState<PresenceMeta>()[payload.id]?.[0];
+      const {x,z,face,speed,riding,sent_at}=payload;
+      if(!meta?.sharing||typeof x!=="number"||typeof z!=="number"||typeof face!=="number"||typeof speed!=="number"||typeof riding!=="boolean"||typeof sent_at!=="number"||!Number.isFinite(x)||!Number.isFinite(z)||!Number.isFinite(face)||!Number.isFinite(speed)||!Number.isFinite(sent_at)||Math.abs(x)>=1800||Math.abs(z)>=1800||Math.hypot(x-playerPosition.current.x,z-playerPosition.current.z)>180)return;
+      const existing=nearbyPlayersRef.current.get(payload.id);
+      if(!existing)return;
+      const updated={...existing,x,z,face,speed,riding};
+      nearbyPlayersRef.current.set(payload.id,updated);
+      worldFrame.current?.contentWindow?.postMessage({type:"futo:nearby-players",players:[...nearbyPlayersRef.current.values()]},window.location.origin);
+      if(performance.now()-lastNearbyUiUpdate.current>250){lastNearbyUiUpdate.current=performance.now();setNearbyPlayers([...nearbyPlayersRef.current.values()]);}
+    });
     channel.subscribe(async(status)=>{
       if(!active)return;
       if(status==="SUBSCRIBED"){
         joined=true;setPresenceStatus("online");
-        if(shareCampusPosition){const p=playerPosition.current;await channel.track({...p,updated_at:Date.now()});}
+        if(shareCampusPosition){const p=playerPosition.current;await channel.track({...p,sharing:true,updated_at:Date.now()});}
+        else await channel.track({sharing:false,updated_at:Date.now()});
         await refresh();
       }else if(status==="CHANNEL_ERROR"||status==="TIMED_OUT"){joined=false;setPresenceStatus("error");}
       else if(status==="CLOSED"){joined=false;setPresenceStatus("offline");}
@@ -178,10 +205,34 @@ export default function CampusExperience() {
     const heartbeat=window.setInterval(()=>{
       if(!joined||!shareCampusPosition)return;
       const p=playerPosition.current;
-      void channel.track({...p,updated_at:Date.now()});
+      void channel.track({...p,sharing:true,updated_at:Date.now()});
     },10000);
-    return()=>{active=false;joined=false;clearTimeout(joiningTimer);clearInterval(heartbeat);setNearbyPlayers([]);worldFrame.current?.contentWindow?.postMessage({type:"futo:nearby-players",players:[]},window.location.origin);void client.removeChannel(channel);};
+    const movementSender=window.setInterval(()=>{
+      if(!joined||!shareCampusPosition||performance.now()-lastMovementBroadcast.current<65)return;
+      lastMovementBroadcast.current=performance.now();
+      const p=playerPosition.current;
+      void channel.send({type:"broadcast",event:"movement",payload:{id:profile.id,...p,sent_at:Date.now()}});
+    },30);
+    return()=>{active=false;joined=false;clearTimeout(joiningTimer);clearInterval(heartbeat);clearInterval(movementSender);nearbyPlayersRef.current.clear();setNearbyPlayers([]);worldFrame.current?.contentWindow?.postMessage({type:"futo:nearby-players",players:[]},window.location.origin);void client.removeChannel(channel);};
   }, [email, profile?.id, shareCampusPosition]);
+
+  useEffect(()=>{
+    if(!selectedPlayerId)return;
+    const client=createClient();if(!client)return;
+    let active=true;setSelectedPlayerLoading(true);setSelectedPlayer(null);setSelectedPlayerFriend(false);setSelectedPlayerConversation(null);setSelectedPlayerTab("profile");
+    void Promise.all([
+      client.from("profiles").select("id,display_name,avatar_url,department,year_of_study,member_type,alumni_set,bio,hometown,interests,social_link").eq("id",selectedPlayerId).maybeSingle(),
+      profile?.id?client.from("friendships").select("id,requester_id,addressee_id,status").or(`and(requester_id.eq.${profile.id},addressee_id.eq.${selectedPlayerId}),and(requester_id.eq.${selectedPlayerId},addressee_id.eq.${profile.id})`).eq("status","accepted").maybeSingle():Promise.resolve({data:null,error:null}),
+    ]).then(([personResult,friendResult])=>{if(!active)return;setSelectedPlayer(personResult.data as CampusPlayerProfile|null);setSelectedPlayerFriend(Boolean(friendResult.data));setSelectedPlayerLoading(false);});
+    return()=>{active=false;};
+  },[selectedPlayerId,profile?.id]);
+
+  async function openPlayerChat(){
+    const client=createClient();if(!client||!selectedPlayer||!selectedPlayerFriend)return;
+    const {data,error}=await client.rpc("open_direct_conversation",{other_profile:selectedPlayer.id});
+    if(error){notify(error.message);return;}
+    setSelectedPlayerConversation(data as string);setSelectedPlayerTab("chat");
+  }
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -214,32 +265,71 @@ export default function CampusExperience() {
         setNearbyOpen(true);
         return;
       }
+      if(event.data.type==="futo:open-player-profile"&&"userId" in event.data&&typeof event.data.userId==="string"&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(event.data.userId)){
+        setSelectedPlayerId(event.data.userId);setNearbyOpen(false);setPlayerPhotoOpen(false);
+        return;
+      }
       if(event.data.type==="futo:player-position"){
         if("x" in event.data&&"z" in event.data&&"face" in event.data&&"speed" in event.data&&"riding" in event.data){
           const {x,z,face,speed,riding}=event.data;
+          const vehicleId="vehicleId" in event.data&&typeof event.data.vehicleId==="string"?event.data.vehicleId:null;
+          const seatNo="seatNo" in event.data&&typeof event.data.seatNo==="number"?event.data.seatNo:null;
           if(typeof x!=="number"||typeof z!=="number"||typeof face!=="number"||typeof speed!=="number"||typeof riding!=="boolean"||!Number.isFinite(x)||!Number.isFinite(z)||!Number.isFinite(face)||!Number.isFinite(speed)||Math.abs(x)>=1800||Math.abs(z)>=1800)return;
-          const position={x,z,face,speed,riding};
+          const position={x,z,face,speed,riding,vehicleId,seatNo};
           playerPosition.current=position;
           if(performance.now()-lastPositionUiUpdate.current>1000){lastPositionUiUpdate.current=performance.now();setCurrentWorldPosition(position);}
         }
         return;
       }
-      if(event.data.type==="futo:request-ride-ticket"&&"requestId" in event.data&&typeof event.data.requestId==="string"){
+      if(event.data.type==="futo:reserve-vehicle"&&"requestId" in event.data&&typeof event.data.requestId==="string"&&"vehicleId" in event.data&&typeof event.data.vehicleId==="string"){
         const requestId=event.data.requestId;
         if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(requestId))return;
-        const reply=(ok:boolean,message:string)=>worldFrame.current?.contentWindow?.postMessage({type:"futo:ride-ticket-result",requestId,ok,message},window.location.origin);
+        if(!/^(bike-0[1-6]|shuttle-0[1-2])$/.test(event.data.vehicleId))return;
+        const vehicleId=event.data.vehicleId;
+        const reply=(ok:boolean,message:string,vehicle?:{vehicle_id:string;kind:"bike"|"shuttle";seat_no:number;capacity:number})=>worldFrame.current?.contentWindow?.postMessage({type:"futo:vehicle-result",requestId,ok,message,vehicle},window.location.origin);
         const client=createClient();
-        if(!client){reply(true,"Guest bike ride · no ticket required.");return;}
-        void client.auth.getUser().then(async({data:{user}})=>{
-          if(!user){reply(true,"Guest bike ride · no ticket required.");return;}
-          const {error}=await client.rpc("consume_game_ride_ticket",{p_item_id:"bike-ride",p_request_id:requestId});
-          if(error)reply(false,error.message);else reply(true,"Bike ticket used.");
-        }).catch(()=>reply(false,"Unable to check your bike ticket. Try again."));
+        if(!client){reply(false,"Campus rides are unavailable right now.");return;}
+        void client.auth.getUser().then(({data:{user}})=>{
+          if(!user){reply(false,"Sign in before taking a campus ride.");return null;}
+          return client.rpc("reserve_campus_vehicle",{p_vehicle_id:vehicleId,p_request_id:requestId});
+        }).then(result=>{
+          if(!result)return;
+          const {data,error}=result;
+          if(error){reply(false,error.message);return;}
+          const reservation=data as {vehicle_id:string;kind:"bike"|"shuttle";seat_no:number;capacity:number};
+          reply(true,reservation.kind==="bike"?"Bike booked. Enjoy the faster ride!":"Seat reserved. You are a shuttle passenger; the driver follows the campus loop.",reservation);
+          void client.rpc("get_campus_vehicle_fleet").then(({data:fleet})=>worldFrame.current?.contentWindow?.postMessage({type:"futo:vehicle-fleet",vehicles:fleet??[],serverEpochMs:fleet?.[0]?.server_epoch_ms},window.location.origin));
+        }).catch(()=>reply(false,"Unable to reserve that vehicle. Try again."));
+      }
+      if(event.data.type==="futo:release-vehicle"&&"vehicleId" in event.data&&typeof event.data.vehicleId==="string"&&/^(bike-0[1-6]|shuttle-0[1-2])$/.test(event.data.vehicleId)){
+        const vehicleId=event.data.vehicleId,client=createClient();if(!client)return;
+        void (async()=>{
+          const {data:{user}}=await client.auth.getUser();
+          let ok=false,message="Sign in before ending your campus ride.";
+          if(user){const {data,error}=await client.rpc("leave_campus_vehicle",{p_vehicle_id:vehicleId});ok=!error&&data!==false;message=error?.message??"Ride ended.";}
+          worldFrame.current?.contentWindow?.postMessage({type:"futo:vehicle-left",vehicleId,ok,message},window.location.origin);
+          void client.rpc("get_campus_vehicle_fleet").then(({data:fleet})=>worldFrame.current?.contentWindow?.postMessage({type:"futo:vehicle-fleet",vehicles:fleet??[],serverEpochMs:fleet?.[0]?.server_epoch_ms},window.location.origin));
+        })().catch(()=>worldFrame.current?.contentWindow?.postMessage({type:"futo:vehicle-left",vehicleId,ok:false,message:"Unable to end ride. Check your connection."},window.location.origin));
       }
     }
     window.addEventListener("message", receiveWorldMessage);
     return () => window.removeEventListener("message", receiveWorldMessage);
   }, []);
+
+  useEffect(()=>{
+    const client=createClient();if(!client)return;
+    let active=true;
+    const refresh=()=>void client.rpc("get_campus_vehicle_fleet").then(({data})=>{if(active&&Array.isArray(data))worldFrame.current?.contentWindow?.postMessage({type:"futo:vehicle-fleet",vehicles:data,serverEpochMs:data[0]?.server_epoch_ms},window.location.origin);});
+    refresh();const timer=window.setInterval(refresh,10000);
+    const heartbeat=window.setInterval(()=>{
+      const vehicleId=playerPosition.current.vehicleId;
+      if(!vehicleId||!profile?.id)return;
+      void client.rpc("heartbeat_campus_vehicle",{p_vehicle_id:vehicleId}).then(({data,error})=>{
+        if(active&&(error||data===false))worldFrame.current?.contentWindow?.postMessage({type:"futo:vehicle-expired",vehicleId},window.location.origin);
+      });
+    },20000);
+    return()=>{active=false;clearInterval(timer);clearInterval(heartbeat);};
+  },[profile?.id]);
 
   useEffect(()=>{
     const controlled=new Set(["w","a","s","d","shift","arrowleft","arrowright","arrowup","arrowdown"]);
@@ -313,7 +403,11 @@ export default function CampusExperience() {
     </aside>
     {selected&&<section className={`destination-preview${menuOpen?" behind-dock":""}`} aria-label={`Selected destination: ${selected.name}`}><button className="destination-close" onClick={()=>setSelected(null)} aria-label="Clear selected destination">×</button>{selected.image_url?<img className="destination-photo" src={selected.image_url} alt={`Photo reference for ${selected.name}`} loading="lazy"/>:<div className="destination-photo destination-photo-empty" aria-hidden="true">⌖</div>}<div className="destination-copy"><span className="destination-kicker">{selected.category.replaceAll("-"," ")} · {selected.position_status==="verified"?"Verified position":selected.position_status==="provisional"?"Approximate position":"Position unverified"}</span><h2>{selected.name}</h2><p>{selected.description||selected.notes||"Use this photo to recognize the place. Its map position may need confirmation."}</p><div className="destination-actions"><button className="destination-navigate" onClick={navigateToSelected} disabled={selected.position_status==="unverified"||typeof selected.local_x!=="number"||typeof selected.local_z!=="number"}>Navigate in campus view</button><button className="destination-map-link" onClick={()=>{setMapOpen(true);setMenuOpen(false);}}>Show map</button></div></div></section>}
     <GameHub open={gameHubOpen} signedIn={Boolean(email&&profile)} onRequireSignIn={()=>{setGameHubOpen(false);setAccountOpen(true);}} onClose={()=>setGameHubOpen(false)}/>
-    {nearbyOpen&&<div className="nearby-backdrop" onMouseDown={(event)=>{if(event.target===event.currentTarget)setNearbyOpen(false);}}><section className="nearby-dialog panel" role="dialog" aria-modal="true" aria-labelledby="nearby-title"><header className="map-header"><div><span className="eyebrow">LIVE CAMPUS PRESENCE</span><h2 id="nearby-title">Players nearby</h2></div><button className="secondary map-close" onClick={()=>setNearbyOpen(false)} aria-label="Close nearby players">×</button></header><p className="nearby-explainer">Only signed-in players who opted in to share their in-game position appear here. “Nearby” uses the current provisional game-world coordinates.</p>{presenceStatus==="error"&&<p className="nearby-status-error">Live players could not connect. Apply the campus presence migration and confirm Supabase Realtime is enabled.</p>}{nearbyPlayers.length?<div className="nearby-player-list">{nearbyPlayers.map((person)=><article className="nearby-player" key={person.id}>{person.avatar_url?<img src={person.avatar_url} alt=""/>:<span className="nearby-player-initial">{person.display_name.slice(0,1).toUpperCase()}</span>}<span><b>{person.display_name}</b><small>{person.riding?"Riding nearby":"Exploring nearby"}</small></span><i aria-label="Online"/> </article>)}</div>:<div className="nearby-empty"><b>{presenceStatus==="joining"?"Connecting to campus…":"No opted-in players nearby yet"}</b><span>Invite a friend to Explore and turn on position sharing in the campus menu.</span></div>}{profile?<button className="nearby-sharing-toggle" onClick={()=>setShareCampusPosition((value)=>!value)}>{shareCampusPosition?"Stop sharing my position":"Share my position while I Explore"}</button>:<button className="nearby-sharing-toggle" onClick={()=>{setNearbyOpen(false);setAccountOpen(true);}}>Sign in to see live campus players</button>}<span className="nearby-presence-state">Connection: {presenceStatus}</span></section></div>}
+    {nearbyOpen&&<div className="nearby-backdrop" onMouseDown={(event)=>{if(event.target===event.currentTarget)setNearbyOpen(false);}}><section className="nearby-dialog panel" role="dialog" aria-modal="true" aria-labelledby="nearby-title"><header className="map-header"><div><span className="eyebrow">LIVE CAMPUS PRESENCE</span><h2 id="nearby-title">Players nearby</h2></div><button className="secondary map-close" onClick={()=>setNearbyOpen(false)} aria-label="Close nearby players">×</button></header><p className="nearby-explainer">Only signed-in players who opted in to share their in-game position appear here. “Nearby” uses the current provisional game-world coordinates.</p>{presenceStatus==="error"&&<p className="nearby-status-error">Live players could not connect. Apply the campus presence migration and confirm Supabase Realtime is enabled.</p>}{nearbyPlayers.length?<div className="nearby-player-list">{nearbyPlayers.map((person)=><button type="button" className="nearby-player" key={person.id} onClick={()=>setSelectedPlayerId(person.id)}>{person.avatar_url?<img src={person.avatar_url} alt=""/>:<span className="nearby-player-initial">{person.display_name.slice(0,1).toUpperCase()}</span>}<span><b>{person.display_name}</b><small>{person.riding?"Riding nearby":"Exploring nearby"}</small></span><i aria-label="Online"/></button>)}</div>:<div className="nearby-empty"><b>{presenceStatus==="joining"?"Connecting to campus…":"No opted-in players nearby yet"}</b><span>Invite a friend to Explore and turn on position sharing in the campus menu.</span></div>}{profile?<button className="nearby-sharing-toggle" onClick={()=>setShareCampusPosition((value)=>!value)}>{shareCampusPosition?"Stop sharing my position":"Share my position while I Explore"}</button>:<button className="nearby-sharing-toggle" onClick={()=>{setNearbyOpen(false);setAccountOpen(true);}}>Sign in to see live campus players</button>}<span className="nearby-presence-state">Connection: {presenceStatus}</span></section></div>}
+    {selectedPlayerId&&selectedPlayer&&selectedPlayerTab==="profile"&&<div className="player-profile-backdrop" onMouseDown={event=>{if(event.target===event.currentTarget){setSelectedPlayerId(null);setPlayerPhotoOpen(false);}}}><section className="player-profile-dialog panel" role="dialog" aria-modal="true" aria-labelledby="player-profile-name"><header className="map-header"><div><span className="eyebrow">CAMPUS PLAYER</span><h2 id="player-profile-name">Profile</h2></div><button className="secondary map-close" onClick={()=>setSelectedPlayerId(null)} aria-label="Close player profile">×</button></header><button type="button" className="player-profile-photo" onClick={()=>setPlayerPhotoOpen(true)} aria-label={`View ${selectedPlayer.display_name}'s profile photo`}>{selectedPlayer.avatar_url?<img src={selectedPlayer.avatar_url} alt=""/>:<span>{selectedPlayer.display_name.slice(0,1).toUpperCase()}</span>}<small>Tap photo to enlarge</small></button><div className="player-profile-copy"><h3>{selectedPlayer.display_name}</h3><p>{[selectedPlayer.department,selectedPlayer.member_type==="alumni"?`Alumni · ${selectedPlayer.alumni_set??""} set`:selectedPlayer.member_type==="visitor"?"Campus visitor":selectedPlayer.year_of_study?`Year ${selectedPlayer.year_of_study} student`:"FUTO student"].filter(Boolean).join(" · ")}</p>{selectedPlayer.bio&&<p>{selectedPlayer.bio}</p>}{selectedPlayer.hometown&&<p><b>From</b> · {selectedPlayer.hometown}</p>}{selectedPlayer.interests&&<p><b>Interests</b> · {selectedPlayer.interests}</p>}{selectedPlayer.social_link&&<a href={selectedPlayer.social_link} target="_blank" rel="noreferrer">Open profile link ↗</a>}</div><div className="player-profile-actions">{selectedPlayerFriend?<button className="primary" onClick={()=>void openPlayerChat()}>Chat with friend</button>:<button className="secondary" onClick={()=>{setSelectedPlayerId(null);window.location.assign("/community/friends");}}>Friends & requests</button>}<button className="secondary" onClick={()=>setSelectedPlayerId(null)}>Close profile</button></div></section>{playerPhotoOpen&&<div className="player-photo-lightbox" role="dialog" aria-modal="true" aria-label={`${selectedPlayer.display_name}'s photo`} onMouseDown={event=>{if(event.target===event.currentTarget)setPlayerPhotoOpen(false);}}><button className="player-photo-close" onClick={()=>setPlayerPhotoOpen(false)} aria-label="Close photo">×</button>{selectedPlayer.avatar_url?<img src={selectedPlayer.avatar_url} alt={`${selectedPlayer.display_name}'s profile`}/>:<span>{selectedPlayer.display_name.slice(0,1).toUpperCase()}</span>}</div>}</div>}
+    {selectedPlayerId&&selectedPlayerTab==="chat"&&selectedPlayerConversation&&<SocialHub key={selectedPlayerConversation} embedded conversationId={selectedPlayerConversation} initialTab="messages" onClose={()=>setSelectedPlayerTab("profile")} onSignIn={()=>{setSelectedPlayerTab("profile");setAccountOpen(true);}}/>}
+    {selectedPlayerId&&selectedPlayerLoading&&!selectedPlayer&&<div className="player-profile-backdrop"><section className="player-profile-dialog panel" role="dialog" aria-modal="true"><p>Loading player profile…</p></section></div>}
+    {selectedPlayerId&&!selectedPlayerLoading&&!selectedPlayer&&<div className="player-profile-backdrop"><section className="player-profile-dialog panel" role="dialog" aria-modal="true"><header className="map-header"><h2>Profile unavailable</h2><button className="secondary map-close" onClick={()=>setSelectedPlayerId(null)} aria-label="Close player profile">×</button></header><p>This profile is no longer available to campus explorers.</p></section></div>}
     {mapOpen && <div className="map-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setMapOpen(false); }}><section className="map-dialog panel" role="dialog" aria-modal="true" aria-labelledby="map-title">
       <header className="map-header"><div><div className="eyebrow">Campus map</div><h2 id="map-title">Places with saved positions</h2></div><button className="secondary map-close" onClick={() => setMapOpen(false)} aria-label="Close campus map">×</button></header>
       <div className="schematic-map" role="img" aria-label="Schematic map showing campus locations that have saved local positions">
