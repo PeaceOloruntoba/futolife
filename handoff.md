@@ -169,3 +169,47 @@ TypeScript check (`npx tsc --noEmit`) passes. Full functional testing remains pe
 - Added `supabase/migrations/202611080002_message_delete_for_me.sql` with a private per-profile hidden-message table, RLS, a membership-checked `hide_my_message` RPC, audit event, and Realtime publication.
 - Hidden messages are filtered from the current conversation and conversation previews and stay hidden for that user after reload or on another device. Delete-for-everyone continues to replace the message with the shared deletion notice.
 - Apply both pending chat migrations with `npx supabase@latest db push --dry-run --linked`, then `npx supabase@latest db push --linked`.
+
+## Latest update — photo-first campus wayfinding (2026-11-08)
+
+- Reviewed the attached `futo-life-concept-hud.html` and `hud.smoke.test.js` as visual/technical references. The HUD concept suggests stronger map context, destination cards, and clearly marked confidence; demo social/quest content remains reference-only for this map pass.
+- Updated Explore directory entries to show the campus photo thumbnail beside every location when `image_url` is available. Selecting a place now opens a persistent destination card with its photo, category, description, location confidence, and map/navigation actions.
+- Existing map markers continue to use the uploaded photos and now highlight the selected destination. The card labels verified, approximate, and unverified positions separately.
+- Selecting an unverified place no longer starts auto-walking to potentially misleading coordinates. Navigation is enabled only for verified or provisional places with saved local coordinates; provisional coordinates remain explicitly labeled as approximate.
+- No new migration is needed; the Explore API already reads `campus_locations.image_url` from Supabase. Photos improve visual recognition, but actual building/road geometry still requires authoritative or surveyed map data.
+
+## Latest update — master-plan road draft and exploration prototype (2026-11-09)
+
+- The owner authorized use of the UPDATED FUTO MASTER PLAN image included in the supplied map-data pack. The image remains unreferenced and its revision date is unknown.
+- Added `public/campus/map-data-v0.2.json`, derived from the 12 pixel-coordinate road centerlines in the v0.2 draft. It retains the image-pixel origin and labels its local scale and Main Gate alignment as assumptions. All roads remain provisional and must not be described as surveyed navigation.
+- The Three.js prototype now draws the road traces as textured road/shoulder/verge ribbons, adds roadside tree rows, shows a live schematic minimap, and exposes the existing camera/map/nearby controls. The campus map dialog includes a separate road-trace preview so it is not confused with the existing saved-place pins.
+- A walk-up bike interaction is available as a local prototype. It increases movement speed and supports mobile interaction controls; it does not charge a fare, persist a vehicle, or grant rewards.
+- `docs/gameplay-plan.md` records proposed discovery, daily/weekly, streak, social, transport and game-coin sinks. No reward, wallet, fare, challenge-claim, shuttle, taxi or car backend has been added. Do not award currency from client-side movement.
+- Mobile rendering remains performance-sensitive because the Three.js scene and map road/foliage layer now cover a larger area. Field validation and visual review on representative phones are still required.
+
+## Latest update — game hub, starter challenges and bike tickets (2026-11-09)
+
+- Added `supabase/migrations/202611090001_game_economy_and_challenges.sql` with a protected append-only coin/XP ledger, daily streak state, challenge claims, inventory, shop and ride-ticket use. Daily rewards use the Africa/Lagos calendar day. Trivia answers are checked inside a protected database function and are not readable through the client API.
+- The new Explore **Missions & rewards** panel reads its state from Supabase. It supports daily arrival, two starter quizzes, cosmetic/ride-ticket purchases, and inventory. Senate and Library arrival missions are shown as locked until a reviewed position and server-validated arrival flow exist.
+- A signed-in player must own and consume a bike ride ticket to mount the prototype bike. Guests may try the bike for free; that interaction cannot award currency. The shuttle and taxi tickets, bike fares, and vehicle catalog still need their in-world route/vehicle interactions before release.
+- The migration has been added locally only. Check the linked Supabase project's migration state and preview before applying it. No production migration was pushed as part of this change.
+- Daily-login and trivia rewards are server-validated. The browser never writes a balance. Position claims remain disabled until movement and place arrival are validated server-side against reviewed data.
+
+## Latest update — opt-in live players and map review tools (2026-11-09)
+
+- Removed the simulated roaming people from the Three.js campus scene. Nearby avatars now come from authenticated profile IDs in private Supabase Realtime presence; display names and profile photos are looked up from `profiles`, not accepted from the presence payload.
+- Position sharing is opt-in and stored as a local preference. Presence is short-lived and updated every 10 seconds; only players within the provisional world radius are rendered. The iframe reports local game position to the app, but this is not a trusted input for challenge claims or coin rewards.
+- Added `supabase/migrations/202611090002_campus_realtime_presence.sql` to restrict receive/publish access to active authenticated users on the campus presence topic. This migration is local and must be applied to the connected Supabase project before live player sharing works.
+- The nearby panel gives an explicit sharing toggle and connection state. The map's master-plan road trace now has zoom controls and a live `YOU` marker. The trace remains provisional and its origin/scale alignment still needs review against the plan and field measurements.
+- To try live players, apply migration 002, sign in with two accounts in separate browsers/devices, open Explore, and opt in on both. Current public people count is not used as a substitute for actual campus presence.
+- Before releasing location sharing broadly, add a server-side opt-out/blocked-user check and revisit proximity/location privacy. Do not use this client presence for safety-critical directions, location awards or fare validation.
+
+## Latest update — shared campus transport and player profiles (2026-11-10)
+
+- Added the supplied shuttle GLB to `public/campus/models/futo-life-campus-shuttle.glb` and the supplied bike/rider reference to `public/campus/assets/bike-side-and-rider.png`. The shuttle reference describes a 5.4 m vehicle with 14 passenger seats; the gameplay vehicle has 18 authenticated seats, with four standing places.
+- The world now runs five shuttles on a synchronized loop that starts at the Main Gate and visits every building entrance currently present in the prototype scene. Two shuttles launch from the Gate and three begin on separate campus route legs. Buses do not accept student steering input, open the side door for 10 seconds at each modeled stop, and run at 40 m/s; bikes run at 20 m/s. The supplied GLB replaces an immediate low-cost visible shuttle body when available. Desktop players can use Enter or Space to board, disembark, or interact.
+- Added six independent bike spawns and five shuttles. `202611100001_campus_vehicle_fleet.sql` adds fleet/session tables and capacity-serialized booking RPCs; `202611100002_expand_campus_shuttle_fleet.sql` adds the three additional shuttles and a shared schedule epoch. Both activate the existing 8-coin shuttle ticket and apply ride-ticket charges on boarding. Seat leases heartbeat every 20 seconds and expire after 60 seconds without a heartbeat. The bike ticket remains 12 coins.
+- A shuttle rider can get off at a stop or request drop-off for the next building. The route currently has the Gate, four placeholder building entrances, and the provisional Senate entrance; it will cover the full campus once verified building entrances are imported.
+- Movement uses private Realtime Broadcast at 15 updates per second while opt-in presence remains the membership/privacy signal. The world interpolates remote positions at a faster rate and the large name plates are now small clickable head badges.
+- Clicking a player badge opens a profile card, with a photo lightbox. Accepted friends can open their existing full community direct chat in a campus overlay; non-friends are sent to the community friend/request flow.
+- After the already applied `202611090001_game_economy_and_challenges.sql`, apply `202611090002_campus_realtime_presence.sql`, `202611100001_campus_vehicle_fleet.sql`, and `202611100002_expand_campus_shuttle_fleet.sql` before testing live presence and transport. Try with two authenticated accounts and sufficient bike/shuttle tickets. Transport coordinates and the building loop are still provisional; movement broadcasts are for display only, never authoritative reward or fare validation.

@@ -1,0 +1,33 @@
+﻿Category,Location / POI,Scope,Priority,Evidence status,Build notes
+Entrance,FUTO Main Gate,On campus,Core,Google Maps listing found; user says focus on this gate,Spawn point and orientation anchor.
+Navigation,Football Roundabout,On campus,Core,User-named; exact pin/label needs verification,Connect roads and paths through this junction.
+Administration,Senate Building,On campus,Core,Google Maps listing and master-plan label,Major administrative landmark.
+Study,FUTO Main Library,On campus,Core,Google Maps listing and master-plan label,Keep separate from E-Library.
+Study,FUTO E-Library,On campus,Core,Library listing describes a separate E-Library building; pin needs confirmation,Distinct destination.
+Technology,FUTO ICT Building / Old ICT,On campus,Core,ICT listing and master-plan label; current/old naming may differ,Do not merge new and old ICT without verification.
+Administration,Old SEET Head,On campus,Core,Google Maps listing and official FUTO notice,Student-facing administrative landmark.
+Lecture venue,Hall of Mercy,On campus,Core,Master-plan label,Lecture landmark.
+Lecture venue,Hall of Excellence,On campus,Core,Master-plan label,Lecture landmark.
+Lecture venue,500-Capacity Lecture Theatre,On campus,Core,Master-plan label; historical listings,Confirm current name/signage.
+Academic complex,SEET Complex,On campus,Core,Google Maps listing,Engineering school complex.
+Academic complex,SOSC Building,On campus,Core,Google Maps listing,Recognizable science complex; verify current official name.
+Academic complex,SMAT Complex,On campus,Core,Google Maps listing,Management technology complex.
+Academic complex,SOES / former SOET Complex,On campus,Core,Google Maps listing and official FUTO school page,Names differ across sources; verify signage.
+Academic complex,SICT / Computer Science area,On campus,Core,Official schools page and Google Maps Computer Science listing,Use actual building pin/footprint.
+Academic complex,Directorate of General Studies (DGS / GST Building),On campus,Core,Google Maps listing and master-plan label,Relevant to students across schools.
+Academic complex,SAAT Building,On campus,Expansion,Google Maps listing,Add after core connected zone is mapped.
+Academic complex,SESET area,On campus,Expansion,Official school/department listings; exact building pin needs confirmation,Add when building is identified.
+Academic complex,SOBS area,On campus,Expansion,Official school/department listings; exact building pin needs confirmation,Add when building is identified.
+Academic complex,SOHT area,On campus,Expansion,Official school/department listings; exact building pin needs confirmation,Add when building is identified.
+Academic complex,SOPS area,On campus,Expansion,Official school/department listings; exact building pin needs confirmation,Add when building is identified.
+Academic complex,SLIT / Maritime Building area,On campus,Expansion,Official school listing and master-plan Maritime Building label,Confirm current name and exact building.
+Food,Bukataria,On campus,Core,Master-plan label; current pin needs confirmation,Popular food destination.
+Food,Sunic Eatery,On campus,Core,Master-plan label; current pin needs confirmation,Popular food destination.
+Food,FUTO Cafe,On campus,Core,User confirms it is inside school; pin needs confirmation,Separate from off-campus eateries.
+Shopping,FUTO Market,On campus / edge,Core,User confirms; master plan labels FUTO Mini Market,Confirm exact footprint/boundary.
+Accommodation,Hostels A–F (grouped hostel zones),On campus,Core,Master-plan labels; current footprints need confirmation,"Begin with zones, not every block individually."
+Accommodation,TETFund Hostels,On campus,Expansion,Master-plan label; current status/pin needs confirmation,Add after core hostel zone.
+Accommodation,NDIC Hostel,On campus,Expansion,Master-plan label; current status/pin needs confirmation,Add after core hostel zone.
+Student life,Old SEET Roundabout / nearby junction,On campus,Verify first,Online listing references this name; may differ from Football Roundabout,Keep separate until confirmed whether distinct.
+Food,"Bukka 9, Umuchima",Off campus,Later extension,User confirms name and area; exact pin needs confirmation,Do not place inside campus boundary.
+Shopping / leisure,"Sekani Mall, Eziobodo",Off campus,Later extension,User confirms name and area; exact pin needs confirmation,Do not place inside campus boundary.

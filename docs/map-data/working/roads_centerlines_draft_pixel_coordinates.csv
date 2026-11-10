@@ -1,0 +1,100 @@
+road_id,working_name,road_class,vertex_order,image_pixel_x,image_pixel_y,coordinate_status,source
+R01,Northwest approach to western roundabout,primary,1,121.3,121.4,provisional_trace,Figure 2.3 UPDATED FUTO MASTER PLAN
+R01,Northwest approach to western roundabout,primary,2,202.2,209.0,provisional_trace,Figure 2.3 UPDATED FUTO MASTER PLAN
+R01,Northwest approach to western roundabout,primary,3,303.3,276.4,provisional_trace,Figure 2.3 UPDATED FUTO MASTER PLAN
+R01,Northwest approach to western roundabout,primary,4,404.3,343.9,provisional_trace,Figure 2.3 UPDATED FUTO MASTER PLAN
+R01,Northwest approach to western roundabout,primary,5,492.0,404.5,provisional_trace,Figure 2.3 UPDATED FUTO MASTER PLAN
+R01,Northwest approach to western roundabout,primary,6,559.3,451.7,provisional_trace,Figure 2.3 UPDATED FUTO MASTER PLAN
+R01,Northwest approach to western roundabout,primary,7,653.7,498.9,provisional_trace,Figure 2.3 UPDATED FUTO MASTER PLAN
+R01,Northwest approach to western roundabout,primary,8,748.0,552.9,provisional_trace,Figure 2.3 UPDATED FUTO MASTER PLAN
+R01,Northwest approach to western roundabout,primary,9,835.7,600.1,provisional_trace,Figure 2.3 UPDATED FUTO MASTER PLAN
+R02,Western roundabout to central campus approach,primary,1,835.7,600.1,provisional_trace,Figure 2.3 UPDATED FUTO MASTER PLAN
+R02,Western roundabout to central campus approach,primary,2,815.4,633.8,provisional_trace,Figure 2.3 UPDATED FUTO MASTER PLAN
+R02,Western roundabout to central campus approach,primary,3,835.7,681.0,provisional_trace,Figure 2.3 UPDATED FUTO MASTER PLAN
+R02,Western roundabout to central campus approach,primary,4,889.6,721.4,provisional_trace,Figure 2.3 UPDATED FUTO MASTER PLAN
+R02,Western roundabout to central campus approach,primary,5,950.2,761.9,provisional_trace,Figure 2.3 UPDATED FUTO MASTER PLAN
+R02,Western roundabout to central campus approach,primary,6,1010.9,802.3,provisional_trace,Figure 2.3 UPDATED FUTO MASTER PLAN
+R02,Western roundabout to central campus approach,primary,7,1071.5,836.0,provisional_trace,Figure 2.3 UPDATED FUTO MASTER PLAN
+R02,Western roundabout to central campus approach,primary,8,1138.9,863.0,provisional_trace,Figure 2.3 UPDATED FUTO MASTER PLAN
+R02,Western roundabout to central campus approach,primary,9,1213.0,873.8,provisional_trace,Figure 2.3 UPDATED FUTO MASTER PLAN
+R02,Western roundabout to central campus approach,primary,10,1273.7,873.8,provisional_trace,Figure 2.3 UPDATED FUTO MASTER PLAN
+R03,Central roundabout east-west corridor,primary,1,1273.7,873.8,provisional_trace,Figure 2.3 UPDATED FUTO MASTER PLAN
+R03,Central roundabout east-west corridor,primary,2,1361.3,869.7,provisional_trace,Figure 2.3 UPDATED FUTO MASTER PLAN
+R03,Central roundabout east-west corridor,primary,3,1455.7,871.1,provisional_trace,Figure 2.3 UPDATED FUTO MASTER PLAN
+R03,Central roundabout east-west corridor,primary,4,1550.0,871.1,provisional_trace,Figure 2.3 UPDATED FUTO MASTER PLAN
+R03,Central roundabout east-west corridor,primary,5,1651.1,868.4,provisional_trace,Figure 2.3 UPDATED FUTO MASTER PLAN
+R03,Central roundabout east-west corridor,primary,6,1725.2,842.8,provisional_trace,Figure 2.3 UPDATED FUTO MASTER PLAN
+R03,Central roundabout east-west corridor,primary,7,1819.6,802.3,provisional_trace,Figure 2.3 UPDATED FUTO MASTER PLAN
+R03,Central roundabout east-west corridor,primary,8,1927.4,748.4,provisional_trace,Figure 2.3 UPDATED FUTO MASTER PLAN
+R03,Central roundabout east-west corridor,primary,9,2021.7,701.2,provisional_trace,Figure 2.3 UPDATED FUTO MASTER PLAN
+R03,Central roundabout east-west corridor,primary,10,2122.8,654.0,provisional_trace,Figure 2.3 UPDATED FUTO MASTER PLAN
+R04,Central roundabout southern corridor,primary,1,1273.7,873.8,provisional_trace,Figure 2.3 UPDATED FUTO MASTER PLAN
+R04,Central roundabout southern corridor,primary,2,1300.7,916.9,provisional_trace,Figure 2.3 UPDATED FUTO MASTER PLAN
+R04,Central roundabout southern corridor,primary,3,1327.6,964.1,provisional_trace,Figure 2.3 UPDATED FUTO MASTER PLAN
+R04,Central roundabout southern corridor,primary,4,1368.0,1004.6,provisional_trace,Figure 2.3 UPDATED FUTO MASTER PLAN
+R04,Central roundabout southern corridor,primary,5,1415.2,1045.0,provisional_trace,Figure 2.3 UPDATED FUTO MASTER PLAN
+R04,Central roundabout southern corridor,primary,6,1462.4,1092.2,provisional_trace,Figure 2.3 UPDATED FUTO MASTER PLAN
+R04,Central roundabout southern corridor,primary,7,1516.3,1166.4,provisional_trace,Figure 2.3 UPDATED FUTO MASTER PLAN
+R04,Central roundabout southern corridor,primary,8,1536.5,1213.6,provisional_trace,Figure 2.3 UPDATED FUTO MASTER PLAN
+R05,Central campus northern connector,secondary,1,1064.8,836.0,provisional_trace,Figure 2.3 UPDATED FUTO MASTER PLAN
+R05,Central campus northern connector,secondary,2,1098.5,768.6,provisional_trace,Figure 2.3 UPDATED FUTO MASTER PLAN
+R05,Central campus northern connector,secondary,3,1145.7,707.9,provisional_trace,Figure 2.3 UPDATED FUTO MASTER PLAN
+R05,Central campus northern connector,secondary,4,1192.8,654.0,provisional_trace,Figure 2.3 UPDATED FUTO MASTER PLAN
+R05,Central campus northern connector,secondary,5,1246.7,606.8,provisional_trace,Figure 2.3 UPDATED FUTO MASTER PLAN
+R05,Central campus northern connector,secondary,6,1293.9,566.3,provisional_trace,Figure 2.3 UPDATED FUTO MASTER PLAN
+R06,Northern campus connector east,secondary,1,1293.9,566.3,provisional_trace,Figure 2.3 UPDATED FUTO MASTER PLAN
+R06,Northern campus connector east,secondary,2,1368.0,546.1,provisional_trace,Figure 2.3 UPDATED FUTO MASTER PLAN
+R06,Northern campus connector east,secondary,3,1442.2,546.1,provisional_trace,Figure 2.3 UPDATED FUTO MASTER PLAN
+R06,Northern campus connector east,secondary,4,1502.8,559.6,provisional_trace,Figure 2.3 UPDATED FUTO MASTER PLAN
+R06,Northern campus connector east,secondary,5,1550.0,593.3,provisional_trace,Figure 2.3 UPDATED FUTO MASTER PLAN
+R06,Northern campus connector east,secondary,6,1590.4,640.5,provisional_trace,Figure 2.3 UPDATED FUTO MASTER PLAN
+R06,Northern campus connector east,secondary,7,1624.1,694.4,provisional_trace,Figure 2.3 UPDATED FUTO MASTER PLAN
+R06,Northern campus connector east,secondary,8,1651.1,761.9,provisional_trace,Figure 2.3 UPDATED FUTO MASTER PLAN
+R06,Northern campus connector east,secondary,9,1671.3,829.3,provisional_trace,Figure 2.3 UPDATED FUTO MASTER PLAN
+R07,Western campus loop connector,secondary,1,559.3,451.7,provisional_trace,Figure 2.3 UPDATED FUTO MASTER PLAN
+R07,Western campus loop connector,secondary,2,512.2,525.9,provisional_trace,Figure 2.3 UPDATED FUTO MASTER PLAN
+R07,Western campus loop connector,secondary,3,465.0,606.8,provisional_trace,Figure 2.3 UPDATED FUTO MASTER PLAN
+R07,Western campus loop connector,secondary,4,411.1,681.0,provisional_trace,Figure 2.3 UPDATED FUTO MASTER PLAN
+R07,Western campus loop connector,secondary,5,350.4,748.4,provisional_trace,Figure 2.3 UPDATED FUTO MASTER PLAN
+R07,Western campus loop connector,secondary,6,296.5,788.8,provisional_trace,Figure 2.3 UPDATED FUTO MASTER PLAN
+R07,Western campus loop connector,secondary,7,235.9,755.1,provisional_trace,Figure 2.3 UPDATED FUTO MASTER PLAN
+R07,Western campus loop connector,secondary,8,175.2,714.7,provisional_trace,Figure 2.3 UPDATED FUTO MASTER PLAN
+R07,Western campus loop connector,secondary,9,134.8,674.2,provisional_trace,Figure 2.3 UPDATED FUTO MASTER PLAN
+R08,Southwest campus connector,secondary,1,835.7,600.1,provisional_trace,Figure 2.3 UPDATED FUTO MASTER PLAN
+R08,Southwest campus connector,secondary,2,768.3,667.5,provisional_trace,Figure 2.3 UPDATED FUTO MASTER PLAN
+R08,Southwest campus connector,secondary,3,714.3,741.6,provisional_trace,Figure 2.3 UPDATED FUTO MASTER PLAN
+R08,Southwest campus connector,secondary,4,667.2,809.1,provisional_trace,Figure 2.3 UPDATED FUTO MASTER PLAN
+R08,Southwest campus connector,secondary,5,633.5,876.5,provisional_trace,Figure 2.3 UPDATED FUTO MASTER PLAN
+R08,Southwest campus connector,secondary,6,673.9,930.4,provisional_trace,Figure 2.3 UPDATED FUTO MASTER PLAN
+R08,Southwest campus connector,secondary,7,727.8,984.4,provisional_trace,Figure 2.3 UPDATED FUTO MASTER PLAN
+R08,Southwest campus connector,secondary,8,775.0,1051.8,provisional_trace,Figure 2.3 UPDATED FUTO MASTER PLAN
+R08,Southwest campus connector,secondary,9,822.2,1125.9,provisional_trace,Figure 2.3 UPDATED FUTO MASTER PLAN
+R08,Southwest campus connector,secondary,10,849.1,1213.6,provisional_trace,Figure 2.3 UPDATED FUTO MASTER PLAN
+R09,South-central internal loop,secondary,1,1273.7,873.8,provisional_trace,Figure 2.3 UPDATED FUTO MASTER PLAN
+R09,South-central internal loop,secondary,2,1240.0,910.2,provisional_trace,Figure 2.3 UPDATED FUTO MASTER PLAN
+R09,South-central internal loop,secondary,3,1213.0,957.4,provisional_trace,Figure 2.3 UPDATED FUTO MASTER PLAN
+R09,South-central internal loop,secondary,4,1192.8,1011.3,provisional_trace,Figure 2.3 UPDATED FUTO MASTER PLAN
+R09,South-central internal loop,secondary,5,1186.1,1078.7,provisional_trace,Figure 2.3 UPDATED FUTO MASTER PLAN
+R09,South-central internal loop,secondary,6,1213.0,1132.7,provisional_trace,Figure 2.3 UPDATED FUTO MASTER PLAN
+R09,South-central internal loop,secondary,7,1267.0,1166.4,provisional_trace,Figure 2.3 UPDATED FUTO MASTER PLAN
+R09,South-central internal loop,secondary,8,1327.6,1179.9,provisional_trace,Figure 2.3 UPDATED FUTO MASTER PLAN
+R09,South-central internal loop,secondary,9,1388.3,1159.7,provisional_trace,Figure 2.3 UPDATED FUTO MASTER PLAN
+R09,South-central internal loop,secondary,10,1428.7,1112.5,provisional_trace,Figure 2.3 UPDATED FUTO MASTER PLAN
+R09,South-central internal loop,secondary,11,1442.2,1058.5,provisional_trace,Figure 2.3 UPDATED FUTO MASTER PLAN
+R09,South-central internal loop,secondary,12,1415.2,1011.3,provisional_trace,Figure 2.3 UPDATED FUTO MASTER PLAN
+R09,South-central internal loop,secondary,13,1368.0,970.9,provisional_trace,Figure 2.3 UPDATED FUTO MASTER PLAN
+R09,South-central internal loop,secondary,14,1327.6,930.4,provisional_trace,Figure 2.3 UPDATED FUTO MASTER PLAN
+R10,Eastern access spur,secondary,1,1671.3,829.3,provisional_trace,Figure 2.3 UPDATED FUTO MASTER PLAN
+R10,Eastern access spur,secondary,2,1732.0,829.3,provisional_trace,Figure 2.3 UPDATED FUTO MASTER PLAN
+R10,Eastern access spur,secondary,3,1792.6,829.3,provisional_trace,Figure 2.3 UPDATED FUTO MASTER PLAN
+R10,Eastern access spur,secondary,4,1853.3,822.5,provisional_trace,Figure 2.3 UPDATED FUTO MASTER PLAN
+R10,Eastern access spur,secondary,5,1907.2,795.6,provisional_trace,Figure 2.3 UPDATED FUTO MASTER PLAN
+R11,Northwest internal connector,secondary,1,404.3,343.9,provisional_trace,Figure 2.3 UPDATED FUTO MASTER PLAN
+R11,Northwest internal connector,secondary,2,377.4,424.8,provisional_trace,Figure 2.3 UPDATED FUTO MASTER PLAN
+R11,Northwest internal connector,secondary,3,343.7,498.9,provisional_trace,Figure 2.3 UPDATED FUTO MASTER PLAN
+R11,Northwest internal connector,secondary,4,303.3,573.1,provisional_trace,Figure 2.3 UPDATED FUTO MASTER PLAN
+R11,Northwest internal connector,secondary,5,256.1,640.5,provisional_trace,Figure 2.3 UPDATED FUTO MASTER PLAN
+R12,North campus spur,secondary,1,559.3,451.7,provisional_trace,Figure 2.3 UPDATED FUTO MASTER PLAN
+R12,North campus spur,secondary,2,593.0,384.3,provisional_trace,Figure 2.3 UPDATED FUTO MASTER PLAN
+R12,North campus spur,secondary,3,633.5,330.4,provisional_trace,Figure 2.3 UPDATED FUTO MASTER PLAN
+R12,North campus spur,secondary,4,680.7,296.7,provisional_trace,Figure 2.3 UPDATED FUTO MASTER PLAN

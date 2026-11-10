@@ -7,9 +7,17 @@ import { createClient } from "@/lib/supabase/browser";
 import { notify } from "@/lib/notify";
 import { FiEye, FiEyeOff } from "react-icons/fi";
 import { NotificationCenter } from "@/components/notification-center";
+import { GameHub } from "@/components/game-hub";
+import SocialHub from "@/components/social-hub";
 
 type Profile = { id: string; display_name: string; department: string | null; year_of_study: number | null; member_type?: "student"|"alumni"|"visitor"; alumni_set?: string|null; avatar_url: string | null };
 type AuthMode = "signin" | "signup";
+type RoadDraft = { id: string; name: string; class: string; status: string; coordinates: number[][] };
+type CampusRoadData = { roads: RoadDraft[]; transform?: { warning?: string; origin_label?: string }; status?: string };
+type WorldPosition = { x: number; z: number; face: number; speed: number; riding: boolean; vehicleId?: string|null; seatNo?: number|null };
+type NearbyPlayer = WorldPosition & { id: string; display_name: string; avatar_url: string | null };
+type PresenceMeta = WorldPosition & { updated_at: number; sharing?: boolean };
+type CampusPlayerProfile = {id:string;display_name:string;avatar_url:string|null;department:string|null;year_of_study:number|null;member_type:"student"|"alumni"|"visitor";alumni_set:string|null;bio:string|null;hometown:string|null;interests:string|null;social_link:string|null};
 
 export default function CampusExperience() {
   const worldFrame = useRef<HTMLIFrameElement>(null);
@@ -20,6 +28,26 @@ export default function CampusExperience() {
   const [directoryOpen, setDirectoryOpen] = useState(false);
   const [menuOpen,setMenuOpen] = useState(false);
   const [mapOpen, setMapOpen] = useState(false);
+  const [gameHubOpen, setGameHubOpen] = useState(false);
+  const [nearbyOpen, setNearbyOpen] = useState(false);
+  const [shareCampusPosition, setShareCampusPosition] = useState(false);
+  const [presencePreferenceReady, setPresencePreferenceReady] = useState(false);
+  const [nearbyPlayers, setNearbyPlayers] = useState<NearbyPlayer[]>([]);
+  const nearbyPlayersRef = useRef<Map<string, NearbyPlayer>>(new Map());
+  const [selectedPlayerId,setSelectedPlayerId]=useState<string|null>(null);
+  const [selectedPlayer,setSelectedPlayer]=useState<CampusPlayerProfile|null>(null);
+  const [selectedPlayerFriend,setSelectedPlayerFriend]=useState(false);
+  const [selectedPlayerLoading,setSelectedPlayerLoading]=useState(false);
+  const [selectedPlayerTab,setSelectedPlayerTab]=useState<"profile"|"chat">("profile");
+  const [selectedPlayerConversation,setSelectedPlayerConversation]=useState<string|null>(null);
+  const [playerPhotoOpen,setPlayerPhotoOpen]=useState(false);
+  const [presenceStatus, setPresenceStatus] = useState<"offline"|"joining"|"online"|"error">("offline");
+  const playerPosition = useRef<WorldPosition>({x:0,z:7,face:0,speed:0,riding:false,vehicleId:null,seatNo:null});
+  const lastPositionUiUpdate = useRef(0);
+  const lastMovementBroadcast = useRef(0);
+  const lastNearbyUiUpdate = useRef(0);
+  const [currentWorldPosition, setCurrentWorldPosition] = useState<WorldPosition>({x:0,z:7,face:0,speed:0,riding:false,vehicleId:null,seatNo:null});
+  const [roadDraft, setRoadDraft] = useState<CampusRoadData | null>(null);
   const [selected, setSelected] = useState<CampusLocation | null>(null);
   const [accountOpen, setAccountOpen] = useState(false);
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -53,9 +81,17 @@ export default function CampusExperience() {
     setSelected(place);
     const client=createClient();
     if(client)void client.rpc("record_user_activity",{p_action:"place.viewed",p_entity_type:"campus_location",p_entity_id:place.id}).then(()=>{});
-    if (typeof place.local_x === "number" && typeof place.local_z === "number") {
+    if ((place.position_status === "verified" || place.position_status === "provisional") && typeof place.local_x === "number" && typeof place.local_z === "number") {
       worldFrame.current?.contentWindow?.postMessage({ type: "futo:walk-to", x: place.local_x, z: place.local_z }, window.location.origin);
     }
+  }
+
+  function navigateToSelected() {
+    if (!selected || (selected.position_status !== "verified" && selected.position_status !== "provisional") || typeof selected.local_x !== "number" || typeof selected.local_z !== "number") {
+      notify("This place has no usable map position yet. Its photo is available as a visual reference.");
+      return;
+    }
+    worldFrame.current?.contentWindow?.postMessage({ type: "futo:walk-to", x: selected.local_x, z: selected.local_z }, window.location.origin);
   }
 
   function runWorldControl(control: "camera" | "map" | "directory") {
@@ -91,6 +127,114 @@ export default function CampusExperience() {
   }, []);
 
   useEffect(() => {
+    let active = true;
+    fetch("/campus/map-data-v0.2.json", { cache: "force-cache" })
+      .then((response) => response.ok ? response.json() as Promise<CampusRoadData> : Promise.reject())
+      .then((data) => { if (active && Array.isArray(data.roads)) setRoadDraft(data); })
+      .catch(() => {});
+    return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
+    const timer=window.setTimeout(()=>{
+      try { setShareCampusPosition(localStorage.getItem("futo-campus-position-sharing") === "on"); }
+      catch { setShareCampusPosition(false); }
+      setPresencePreferenceReady(true);
+    },0);
+    return()=>window.clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    if (!presencePreferenceReady) return;
+    try { localStorage.setItem("futo-campus-position-sharing", shareCampusPosition ? "on" : "off"); }
+    catch { /* Position sharing remains controlled by this in-memory setting. */ }
+  }, [presencePreferenceReady, shareCampusPosition]);
+
+  useEffect(() => {
+    const client = createClient();
+    if (!client || !profile?.id || !email) {
+      nearbyPlayersRef.current.clear();
+      worldFrame.current?.contentWindow?.postMessage({type:"futo:nearby-players",players:[]},window.location.origin);
+      return;
+    }
+    let active = true;
+    let joined = false;
+    const joiningTimer=window.setTimeout(()=>{if(active)setPresenceStatus("joining");},0);
+    const channel = client.channel("futo-campus-presence-v1", {config:{private:true,presence:{key:profile.id},broadcast:{ack:false,self:false}}});
+    const refresh = async () => {
+      if (!active) return;
+      const current = channel.presenceState<PresenceMeta>();
+      const snapshots = Object.entries(current).flatMap(([id,metas]) => {
+        if(id===profile.id||!Array.isArray(metas)||!metas.length)return [];
+        const meta=[...metas].sort((a,b)=>(b.updated_at||0)-(a.updated_at||0))[0];
+        if(!meta.sharing||typeof meta.x!=="number"||typeof meta.z!=="number"||typeof meta.face!=="number"||typeof meta.speed!=="number"||typeof meta.riding!=="boolean"||typeof meta.updated_at!=="number"||!Number.isFinite(meta.x)||!Number.isFinite(meta.z)||!Number.isFinite(meta.face)||!Number.isFinite(meta.speed)||!Number.isFinite(meta.updated_at)||Math.abs(meta.x)>=1800||Math.abs(meta.z)>=1800||Math.hypot(meta.x-playerPosition.current.x,meta.z-playerPosition.current.z)>180)return [];
+        return [{id,meta}];
+      });
+      if(!snapshots.length){if(active){nearbyPlayersRef.current.clear();setNearbyPlayers([]);worldFrame.current?.contentWindow?.postMessage({type:"futo:nearby-players",players:[]},window.location.origin);}return;}
+      const {data,error}=await client.from("profiles").select("id,display_name,avatar_url,is_suspended").in("id",snapshots.map((item)=>item.id)).eq("is_suspended",false);
+      if(!active)return;
+      if(error){setPresenceStatus("error");return;}
+      const cards=(data??[]).flatMap((user)=>{const snapshot=snapshots.find((item)=>item.id===user.id);return snapshot?[{id:user.id,display_name:user.display_name,avatar_url:user.avatar_url,...snapshot.meta}]:[];});
+      nearbyPlayersRef.current=new Map(cards.map(person=>[person.id,person]));
+      setNearbyPlayers(cards);
+      worldFrame.current?.contentWindow?.postMessage({type:"futo:nearby-players",players:cards},window.location.origin);
+    };
+    channel.on("presence",{event:"sync"},()=>void refresh());
+    channel.on("broadcast",{event:"movement"},({payload})=>{
+      if(!active||!payload||typeof payload!=="object"||typeof payload.id!=="string")return;
+      const meta=channel.presenceState<PresenceMeta>()[payload.id]?.[0];
+      const {x,z,face,speed,riding,sent_at}=payload;
+      if(!meta?.sharing||typeof x!=="number"||typeof z!=="number"||typeof face!=="number"||typeof speed!=="number"||typeof riding!=="boolean"||typeof sent_at!=="number"||!Number.isFinite(x)||!Number.isFinite(z)||!Number.isFinite(face)||!Number.isFinite(speed)||!Number.isFinite(sent_at)||Math.abs(x)>=1800||Math.abs(z)>=1800||Math.hypot(x-playerPosition.current.x,z-playerPosition.current.z)>180)return;
+      const existing=nearbyPlayersRef.current.get(payload.id);
+      if(!existing)return;
+      const updated={...existing,x,z,face,speed,riding};
+      nearbyPlayersRef.current.set(payload.id,updated);
+      worldFrame.current?.contentWindow?.postMessage({type:"futo:nearby-players",players:[...nearbyPlayersRef.current.values()]},window.location.origin);
+      if(performance.now()-lastNearbyUiUpdate.current>250){lastNearbyUiUpdate.current=performance.now();setNearbyPlayers([...nearbyPlayersRef.current.values()]);}
+    });
+    channel.subscribe(async(status)=>{
+      if(!active)return;
+      if(status==="SUBSCRIBED"){
+        joined=true;setPresenceStatus("online");
+        if(shareCampusPosition){const p=playerPosition.current;await channel.track({...p,sharing:true,updated_at:Date.now()});}
+        else await channel.track({sharing:false,updated_at:Date.now()});
+        await refresh();
+      }else if(status==="CHANNEL_ERROR"||status==="TIMED_OUT"){joined=false;setPresenceStatus("error");}
+      else if(status==="CLOSED"){joined=false;setPresenceStatus("offline");}
+    });
+    const heartbeat=window.setInterval(()=>{
+      if(!joined||!shareCampusPosition)return;
+      const p=playerPosition.current;
+      void channel.track({...p,sharing:true,updated_at:Date.now()});
+    },10000);
+    const movementSender=window.setInterval(()=>{
+      if(!joined||!shareCampusPosition||performance.now()-lastMovementBroadcast.current<65)return;
+      lastMovementBroadcast.current=performance.now();
+      const p=playerPosition.current;
+      void channel.send({type:"broadcast",event:"movement",payload:{id:profile.id,...p,sent_at:Date.now()}});
+    },30);
+    return()=>{active=false;joined=false;clearTimeout(joiningTimer);clearInterval(heartbeat);clearInterval(movementSender);nearbyPlayersRef.current.clear();setNearbyPlayers([]);worldFrame.current?.contentWindow?.postMessage({type:"futo:nearby-players",players:[]},window.location.origin);void client.removeChannel(channel);};
+  }, [email, profile?.id, shareCampusPosition]);
+
+  useEffect(()=>{
+    if(!selectedPlayerId)return;
+    const client=createClient();if(!client)return;
+    let active=true;setSelectedPlayerLoading(true);setSelectedPlayer(null);setSelectedPlayerFriend(false);setSelectedPlayerConversation(null);setSelectedPlayerTab("profile");
+    void Promise.all([
+      client.from("profiles").select("id,display_name,avatar_url,department,year_of_study,member_type,alumni_set,bio,hometown,interests,social_link").eq("id",selectedPlayerId).maybeSingle(),
+      profile?.id?client.from("friendships").select("id,requester_id,addressee_id,status").or(`and(requester_id.eq.${profile.id},addressee_id.eq.${selectedPlayerId}),and(requester_id.eq.${selectedPlayerId},addressee_id.eq.${profile.id})`).eq("status","accepted").maybeSingle():Promise.resolve({data:null,error:null}),
+    ]).then(([personResult,friendResult])=>{if(!active)return;setSelectedPlayer(personResult.data as CampusPlayerProfile|null);setSelectedPlayerFriend(Boolean(friendResult.data));setSelectedPlayerLoading(false);});
+    return()=>{active=false;};
+  },[selectedPlayerId,profile?.id]);
+
+  async function openPlayerChat(){
+    const client=createClient();if(!client||!selectedPlayer||!selectedPlayerFriend)return;
+    const {data,error}=await client.rpc("open_direct_conversation",{other_profile:selectedPlayer.id});
+    if(error){notify(error.message);return;}
+    setSelectedPlayerConversation(data as string);setSelectedPlayerTab("chat");
+  }
+
+  useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get("ref")) {
       setInitialReferralCode(params.get("ref") ?? "");
@@ -111,13 +255,81 @@ export default function CampusExperience() {
   useEffect(() => {
     function receiveWorldMessage(event: MessageEvent<unknown>) {
       if (event.origin !== window.location.origin || event.source !== worldFrame.current?.contentWindow) return;
-      if (!event.data || typeof event.data !== "object" || !("type" in event.data) || event.data.type !== "futo:open-map") return;
-      setMapOpen(true);
-      if (window.matchMedia("(max-width: 760px)").matches) setDirectoryOpen(false);
+      if (!event.data || typeof event.data !== "object" || !("type" in event.data) || typeof event.data.type !== "string") return;
+      if(event.data.type==="futo:open-map"){
+        setMapOpen(true);
+        if (window.matchMedia("(max-width: 760px)").matches) setDirectoryOpen(false);
+        return;
+      }
+      if(event.data.type==="futo:open-nearby"){
+        setNearbyOpen(true);
+        return;
+      }
+      if(event.data.type==="futo:open-player-profile"&&"userId" in event.data&&typeof event.data.userId==="string"&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(event.data.userId)){
+        setSelectedPlayerId(event.data.userId);setNearbyOpen(false);setPlayerPhotoOpen(false);
+        return;
+      }
+      if(event.data.type==="futo:player-position"){
+        if("x" in event.data&&"z" in event.data&&"face" in event.data&&"speed" in event.data&&"riding" in event.data){
+          const {x,z,face,speed,riding}=event.data;
+          const vehicleId="vehicleId" in event.data&&typeof event.data.vehicleId==="string"?event.data.vehicleId:null;
+          const seatNo="seatNo" in event.data&&typeof event.data.seatNo==="number"?event.data.seatNo:null;
+          if(typeof x!=="number"||typeof z!=="number"||typeof face!=="number"||typeof speed!=="number"||typeof riding!=="boolean"||!Number.isFinite(x)||!Number.isFinite(z)||!Number.isFinite(face)||!Number.isFinite(speed)||Math.abs(x)>=1800||Math.abs(z)>=1800)return;
+          const position={x,z,face,speed,riding,vehicleId,seatNo};
+          playerPosition.current=position;
+          if(performance.now()-lastPositionUiUpdate.current>1000){lastPositionUiUpdate.current=performance.now();setCurrentWorldPosition(position);}
+        }
+        return;
+      }
+      if(event.data.type==="futo:reserve-vehicle"&&"requestId" in event.data&&typeof event.data.requestId==="string"&&"vehicleId" in event.data&&typeof event.data.vehicleId==="string"){
+        const requestId=event.data.requestId;
+        if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(requestId))return;
+        if(!/^(bike-0[1-6]|shuttle-0[1-5])$/.test(event.data.vehicleId))return;
+        const vehicleId=event.data.vehicleId;
+        const reply=(ok:boolean,message:string,vehicle?:{vehicle_id:string;kind:"bike"|"shuttle";seat_no:number;capacity:number})=>worldFrame.current?.contentWindow?.postMessage({type:"futo:vehicle-result",requestId,ok,message,vehicle},window.location.origin);
+        const client=createClient();
+        if(!client){reply(false,"Campus rides are unavailable right now.");return;}
+        void client.auth.getUser().then(({data:{user}})=>{
+          if(!user){reply(false,"Sign in before taking a campus ride.");return null;}
+          return client.rpc("reserve_campus_vehicle",{p_vehicle_id:vehicleId,p_request_id:requestId});
+        }).then(result=>{
+          if(!result)return;
+          const {data,error}=result;
+          if(error){reply(false,error.message);return;}
+          const reservation=data as {vehicle_id:string;kind:"bike"|"shuttle";seat_no:number;capacity:number};
+          reply(true,reservation.kind==="bike"?"Bike booked. Enjoy the faster ride!":"Seat reserved. You are a shuttle passenger; the driver follows the campus loop.",reservation);
+          void client.rpc("get_campus_vehicle_fleet").then(({data:fleet})=>worldFrame.current?.contentWindow?.postMessage({type:"futo:vehicle-fleet",vehicles:fleet??[],serverEpochMs:fleet?.[0]?.server_epoch_ms,scheduleEpochMs:fleet?.[0]?.schedule_epoch_ms},window.location.origin));
+        }).catch(()=>reply(false,"Unable to reserve that vehicle. Try again."));
+      }
+      if(event.data.type==="futo:release-vehicle"&&"vehicleId" in event.data&&typeof event.data.vehicleId==="string"&&/^(bike-0[1-6]|shuttle-0[1-5])$/.test(event.data.vehicleId)){
+        const vehicleId=event.data.vehicleId,client=createClient();if(!client)return;
+        void (async()=>{
+          const {data:{user}}=await client.auth.getUser();
+          let ok=false,message="Sign in before ending your campus ride.";
+          if(user){const {data,error}=await client.rpc("leave_campus_vehicle",{p_vehicle_id:vehicleId});ok=!error&&data!==false;message=error?.message??"Ride ended.";}
+          worldFrame.current?.contentWindow?.postMessage({type:"futo:vehicle-left",vehicleId,ok,message},window.location.origin);
+          void client.rpc("get_campus_vehicle_fleet").then(({data:fleet})=>worldFrame.current?.contentWindow?.postMessage({type:"futo:vehicle-fleet",vehicles:fleet??[],serverEpochMs:fleet?.[0]?.server_epoch_ms,scheduleEpochMs:fleet?.[0]?.schedule_epoch_ms},window.location.origin));
+        })().catch(()=>worldFrame.current?.contentWindow?.postMessage({type:"futo:vehicle-left",vehicleId,ok:false,message:"Unable to end ride. Check your connection."},window.location.origin));
+      }
     }
     window.addEventListener("message", receiveWorldMessage);
     return () => window.removeEventListener("message", receiveWorldMessage);
   }, []);
+
+  useEffect(()=>{
+    const client=createClient();if(!client)return;
+    let active=true;
+    const refresh=()=>void client.rpc("get_campus_vehicle_fleet").then(({data})=>{if(active&&Array.isArray(data))worldFrame.current?.contentWindow?.postMessage({type:"futo:vehicle-fleet",vehicles:data,serverEpochMs:data[0]?.server_epoch_ms,scheduleEpochMs:data[0]?.schedule_epoch_ms},window.location.origin);});
+    refresh();const timer=window.setInterval(refresh,10000);
+    const heartbeat=window.setInterval(()=>{
+      const vehicleId=playerPosition.current.vehicleId;
+      if(!vehicleId||!profile?.id)return;
+      void client.rpc("heartbeat_campus_vehicle",{p_vehicle_id:vehicleId}).then(({data,error})=>{
+        if(active&&(error||data===false))worldFrame.current?.contentWindow?.postMessage({type:"futo:vehicle-expired",vehicleId},window.location.origin);
+      });
+    },20000);
+    return()=>{active=false;clearInterval(timer);clearInterval(heartbeat);};
+  },[profile?.id]);
 
   useEffect(()=>{
     const controlled=new Set(["w","a","s","d","shift","arrowleft","arrowright","arrowup","arrowdown"]);
@@ -162,14 +374,14 @@ export default function CampusExperience() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!active) return;
       setEmail(session?.user.email ?? null);
-      if (!session) { setProfile(null); setIsAdmin(false); }
+      if (!session) { setProfile(null); setIsAdmin(false); setNearbyPlayers([]); setPresenceStatus("offline"); }
       else void supabase.from("user_roles").select("role").eq("user_id", session.user.id).eq("role", "admin").maybeSingle().then(({ data }) => { if (active) setIsAdmin(Boolean(data)); });
     });
     return () => { active = false; subscription.unsubscribe(); };
   }, []);
 
   return <main className="campus">
-    <iframe ref={worldFrame} className="world" src="/campus/index.html" title="Interactive FUTO campus prototype" allow="fullscreen" />
+    <iframe ref={worldFrame} className="world" src="/campus/index.html" title="Interactive FUTO campus prototype" allow="fullscreen" onLoad={()=>worldFrame.current?.contentWindow?.postMessage({type:"futo:nearby-players",players:nearbyPlayers},window.location.origin)}/>
     <Link href="/" className="campus-brand"><span className="brand-mark">F</span><span><b>FUTO LIFE</b><small>Explore your campus</small></span></Link>
     <button className={`dock-menu-toggle${menuOpen?" active":""}`} onClick={()=>setMenuOpen(v=>!v)} aria-expanded={menuOpen} aria-label={menuOpen?"Close campus menu":"Open campus menu"}><span>{menuOpen?"×":"☰"}</span><b>{menuOpen?"Close":"Menu"}</b></button>
     <aside className={`experience-dock${menuOpen?" drawer-open":""}`} aria-label="Campus menu">
@@ -178,26 +390,52 @@ export default function CampusExperience() {
         <DockAction icon="walk" label="Explore" detail="Move around campus" onClick={()=>runWorldControl("camera")}/>
         <DockAction icon="map" label="Campus map" detail="View saved places" onClick={()=>{setMapOpen(true);setMenuOpen(false);}}/>
         <DockAction icon="pin" label={directoryOpen?"Hide places":"Campus directory"} detail={directoryOpen?"Collapse place list":"Search campus locations"} active={directoryOpen} onClick={()=>setDirectoryOpen(v=>!v)}/>
+        <button className="dock-action" onClick={()=>{setNearbyOpen(true);setMenuOpen(false);}}><span className="game-dock-icon" aria-hidden="true">{nearbyPlayers.length?nearbyPlayers.length:"◎"}</span><span><b>Players nearby</b><small>{presenceStatus==="online"?`${nearbyPlayers.length} sharing in this area`:presenceStatus==="error"?"Live presence needs setup":"Live campus presence"}</small></span><span className="dock-arrow">›</span></button>
+        {profile&&<button className="dock-action" onClick={()=>setShareCampusPosition((value)=>!value)} aria-pressed={shareCampusPosition}><span className={`game-dock-icon${shareCampusPosition?" presence-enabled":""}`} aria-hidden="true">{shareCampusPosition?"●":"○"}</span><span><b>{shareCampusPosition?"Position sharing on":"Appear on campus map"}</b><small>{shareCampusPosition?"Signed-in explorers can see your in-game location":"Opt in to appear to other signed-in explorers"}</small></span><span className="dock-arrow">{shareCampusPosition?"On":"Off"}</span></button>}
+        <button className="dock-action" onClick={()=>{setGameHubOpen(true);setMenuOpen(false);}}><span className="game-dock-icon" aria-hidden="true">✦</span><span><b>Missions & rewards</b><small>XP, streaks and game coins</small></span><span className="dock-arrow">›</span></button>
         <Link className="dock-action" href="/community"><DockGlyph icon="people"/><span><b>Community</b><small>Friends, posts and messages</small></span><span className="dock-arrow">↗</span></Link>
         <NotificationCenter dock/>
         <button className="dock-action" onClick={()=>{setAccountOpen(true);setMenuOpen(false);}}><span className="dock-avatar">{profile?.avatar_url?<img src={profile.avatar_url} alt=""/>:profile?.display_name?.slice(0,1).toUpperCase()??"♙"}</span><span><b>{profile?.display_name??(email?"Finish profile":"Sign in")}</b><small>Account and profile</small></span><span className="dock-arrow">›</span></button>
         {isAdmin&&<Link className="dock-action" href="/admin"><DockGlyph icon="shield"/><span><b>Admin dashboard</b><small>Manage FUTO campus</small></span><span className="dock-arrow">↗</span></Link>}
       </nav>
-      {directoryOpen&&<section className="dock-directory" aria-label="Campus directory"><div className="dock-directory-head"><div><span className="eyebrow">CAMPUS DIRECTORY</span><h2>Find a place</h2></div><button onClick={()=>setDirectoryOpen(false)} aria-label="Collapse directory">−</button></div><input className="search" value={query} onChange={event=>setQuery(event.target.value)} placeholder="Search halls, eateries…" aria-label="Search campus locations"/><div className="location-list" aria-live="polite">{visibleLocations.map(place=><button className="location-row" key={place.id} onClick={()=>{chooseLocation(place);if(window.matchMedia("(max-width:760px)").matches)setMenuOpen(false);}}><span className="loc-icon">{place.category==="lecture"?"⌂":place.category==="entrance"?"↗":"•"}</span><span><span className="loc-name">{place.name}</span><br/><span className="loc-meta">{place.category.replaceAll("-"," ")}</span><br/><span className="badge">{place.position_status==="provisional"?"Estimated position":place.position_status==="verified"?"Verified location":"Location unverified"}</span></span></button>)}{!visibleLocations.length&&<p className="panel-copy">No places match that search.</p>}</div>{selected&&<div className="selected-place">{selected.image_url&&<img className="selected-place-image" src={selected.image_url} alt={`Photo of ${selected.name}`}/>}<b>{selected.name}</b><span>{selected.description||selected.notes||"Details and map position need confirmation."}</span></div>}<div className="locations-note"><span className="note-mark">i</span><span>{locationLoadError?"Live location data unavailable. ":locationSource==="supabase"?"Live location data connected. ":"Showing the available place list. "}Map positions may be provisional or unverified.</span></div></section>}
+      {directoryOpen&&<section className="dock-directory" aria-label="Campus directory"><div className="dock-directory-head"><div><span className="eyebrow">CAMPUS DIRECTORY</span><h2>Find a place</h2></div><button onClick={()=>setDirectoryOpen(false)} aria-label="Collapse directory">−</button></div><input className="search" value={query} onChange={event=>setQuery(event.target.value)} placeholder="Search halls, eateries…" aria-label="Search campus locations"/><div className="location-list" aria-live="polite">{visibleLocations.map(place=><button className="location-row" key={place.id} onClick={()=>{chooseLocation(place);if(window.matchMedia("(max-width:760px)").matches)setMenuOpen(false);}}><span className="location-thumb">{place.image_url?<img src={place.image_url} alt="" loading="lazy"/>:<span aria-hidden="true">{place.category==="lecture"?"⌂":place.category==="entrance"?"↗":"•"}</span>}</span><span className="location-row-copy"><span className="loc-name">{place.name}</span><br/><span className="loc-meta">{place.category.replaceAll("-"," ")}</span><br/><span className={`badge status-badge-${place.position_status??"unverified"}`}>{place.position_status==="provisional"?"Approximate position":place.position_status==="verified"?"Verified location":"Position unverified"}</span></span></button>)}{!visibleLocations.length&&<p className="panel-copy">No places match that search.</p>}</div><div className="locations-note"><span className="note-mark">i</span><span>{locationLoadError?"Live location data unavailable. ":locationSource==="supabase"?"Live location data connected. ":"Showing the available place list. "}Photos identify the place; map position confidence is shown separately.</span></div></section>}
       <div className="dock-controls"><span>CONTROLS</span><p><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> Move <kbd>⇧</kbd> Sprint</p><p><kbd>←</kbd><kbd>↑</kbd><kbd>↓</kbd><kbd>→</kbd> Look around</p><small>Touch: swipe to look, use the on-screen stick to move.</small></div>
     </aside>
+    {selected&&<section className={`destination-preview${menuOpen?" behind-dock":""}`} aria-label={`Selected destination: ${selected.name}`}><button className="destination-close" onClick={()=>setSelected(null)} aria-label="Clear selected destination">×</button>{selected.image_url?<img className="destination-photo" src={selected.image_url} alt={`Photo reference for ${selected.name}`} loading="lazy"/>:<div className="destination-photo destination-photo-empty" aria-hidden="true">⌖</div>}<div className="destination-copy"><span className="destination-kicker">{selected.category.replaceAll("-"," ")} · {selected.position_status==="verified"?"Verified position":selected.position_status==="provisional"?"Approximate position":"Position unverified"}</span><h2>{selected.name}</h2><p>{selected.description||selected.notes||"Use this photo to recognize the place. Its map position may need confirmation."}</p><div className="destination-actions"><button className="destination-navigate" onClick={navigateToSelected} disabled={selected.position_status==="unverified"||typeof selected.local_x!=="number"||typeof selected.local_z!=="number"}>Navigate in campus view</button><button className="destination-map-link" onClick={()=>{setMapOpen(true);setMenuOpen(false);}}>Show map</button></div></div></section>}
+    <GameHub open={gameHubOpen} signedIn={Boolean(email&&profile)} onRequireSignIn={()=>{setGameHubOpen(false);setAccountOpen(true);}} onClose={()=>setGameHubOpen(false)}/>
+    {nearbyOpen&&<div className="nearby-backdrop" onMouseDown={(event)=>{if(event.target===event.currentTarget)setNearbyOpen(false);}}><section className="nearby-dialog panel" role="dialog" aria-modal="true" aria-labelledby="nearby-title"><header className="map-header"><div><span className="eyebrow">LIVE CAMPUS PRESENCE</span><h2 id="nearby-title">Players nearby</h2></div><button className="secondary map-close" onClick={()=>setNearbyOpen(false)} aria-label="Close nearby players">×</button></header><p className="nearby-explainer">Only signed-in players who opted in to share their in-game position appear here. “Nearby” uses the current provisional game-world coordinates.</p>{presenceStatus==="error"&&<p className="nearby-status-error">Live players could not connect. Apply the campus presence migration and confirm Supabase Realtime is enabled.</p>}{nearbyPlayers.length?<div className="nearby-player-list">{nearbyPlayers.map((person)=><button type="button" className="nearby-player" key={person.id} onClick={()=>setSelectedPlayerId(person.id)}>{person.avatar_url?<img src={person.avatar_url} alt=""/>:<span className="nearby-player-initial">{person.display_name.slice(0,1).toUpperCase()}</span>}<span><b>{person.display_name}</b><small>{person.riding?"Riding nearby":"Exploring nearby"}</small></span><i aria-label="Online"/></button>)}</div>:<div className="nearby-empty"><b>{presenceStatus==="joining"?"Connecting to campus…":"No opted-in players nearby yet"}</b><span>Invite a friend to Explore and turn on position sharing in the campus menu.</span></div>}{profile?<button className="nearby-sharing-toggle" onClick={()=>setShareCampusPosition((value)=>!value)}>{shareCampusPosition?"Stop sharing my position":"Share my position while I Explore"}</button>:<button className="nearby-sharing-toggle" onClick={()=>{setNearbyOpen(false);setAccountOpen(true);}}>Sign in to see live campus players</button>}<span className="nearby-presence-state">Connection: {presenceStatus}</span></section></div>}
+    {selectedPlayerId&&selectedPlayer&&selectedPlayerTab==="profile"&&<div className="player-profile-backdrop" onMouseDown={event=>{if(event.target===event.currentTarget){setSelectedPlayerId(null);setPlayerPhotoOpen(false);}}}><section className="player-profile-dialog panel" role="dialog" aria-modal="true" aria-labelledby="player-profile-name"><header className="map-header"><div><span className="eyebrow">CAMPUS PLAYER</span><h2 id="player-profile-name">Profile</h2></div><button className="secondary map-close" onClick={()=>setSelectedPlayerId(null)} aria-label="Close player profile">×</button></header><button type="button" className="player-profile-photo" onClick={()=>setPlayerPhotoOpen(true)} aria-label={`View ${selectedPlayer.display_name}'s profile photo`}>{selectedPlayer.avatar_url?<img src={selectedPlayer.avatar_url} alt=""/>:<span>{selectedPlayer.display_name.slice(0,1).toUpperCase()}</span>}<small>Tap photo to enlarge</small></button><div className="player-profile-copy"><h3>{selectedPlayer.display_name}</h3><p>{[selectedPlayer.department,selectedPlayer.member_type==="alumni"?`Alumni · ${selectedPlayer.alumni_set??""} set`:selectedPlayer.member_type==="visitor"?"Campus visitor":selectedPlayer.year_of_study?`Year ${selectedPlayer.year_of_study} student`:"FUTO student"].filter(Boolean).join(" · ")}</p>{selectedPlayer.bio&&<p>{selectedPlayer.bio}</p>}{selectedPlayer.hometown&&<p><b>From</b> · {selectedPlayer.hometown}</p>}{selectedPlayer.interests&&<p><b>Interests</b> · {selectedPlayer.interests}</p>}{selectedPlayer.social_link&&<a href={selectedPlayer.social_link} target="_blank" rel="noreferrer">Open profile link ↗</a>}</div><div className="player-profile-actions">{selectedPlayerFriend?<button className="primary" onClick={()=>void openPlayerChat()}>Chat with friend</button>:<button className="secondary" onClick={()=>{setSelectedPlayerId(null);window.location.assign("/community/friends");}}>Friends & requests</button>}<button className="secondary" onClick={()=>setSelectedPlayerId(null)}>Close profile</button></div></section>{playerPhotoOpen&&<div className="player-photo-lightbox" role="dialog" aria-modal="true" aria-label={`${selectedPlayer.display_name}'s photo`} onMouseDown={event=>{if(event.target===event.currentTarget)setPlayerPhotoOpen(false);}}><button className="player-photo-close" onClick={()=>setPlayerPhotoOpen(false)} aria-label="Close photo">×</button>{selectedPlayer.avatar_url?<img src={selectedPlayer.avatar_url} alt={`${selectedPlayer.display_name}'s profile`}/>:<span>{selectedPlayer.display_name.slice(0,1).toUpperCase()}</span>}</div>}</div>}
+    {selectedPlayerId&&selectedPlayerTab==="chat"&&selectedPlayerConversation&&<SocialHub key={selectedPlayerConversation} embedded conversationId={selectedPlayerConversation} initialTab="messages" onClose={()=>setSelectedPlayerTab("profile")} onSignIn={()=>{setSelectedPlayerTab("profile");setAccountOpen(true);}}/>}
+    {selectedPlayerId&&selectedPlayerLoading&&!selectedPlayer&&<div className="player-profile-backdrop"><section className="player-profile-dialog panel" role="dialog" aria-modal="true"><p>Loading player profile…</p></section></div>}
+    {selectedPlayerId&&!selectedPlayerLoading&&!selectedPlayer&&<div className="player-profile-backdrop"><section className="player-profile-dialog panel" role="dialog" aria-modal="true"><header className="map-header"><h2>Profile unavailable</h2><button className="secondary map-close" onClick={()=>setSelectedPlayerId(null)} aria-label="Close player profile">×</button></header><p>This profile is no longer available to campus explorers.</p></section></div>}
     {mapOpen && <div className="map-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setMapOpen(false); }}><section className="map-dialog panel" role="dialog" aria-modal="true" aria-labelledby="map-title">
       <header className="map-header"><div><div className="eyebrow">Campus map</div><h2 id="map-title">Places with saved positions</h2></div><button className="secondary map-close" onClick={() => setMapOpen(false)} aria-label="Close campus map">×</button></header>
       <div className="schematic-map" role="img" aria-label="Schematic map showing campus locations that have saved local positions">
         <span className="north-marker" aria-hidden="true">N ↑</span>
-        {plottedLocations.map(({ place, left, top }) => <button key={place.id} className={`map-marker status-${place.position_status ?? "unverified"}`} style={{ left: `${left}%`, top: `${top}%` }} onClick={() => { chooseLocation(place); setMapOpen(false); setDirectoryOpen(true); if(window.matchMedia("(max-width:640px)").matches)setMenuOpen(true); }} aria-label={`${place.name}, ${place.position_status === "provisional" ? "estimated position" : place.position_status === "verified" ? "verified position" : "unverified position"}`} title={place.name}>{place.image_url?<img className="map-marker-photo" src={place.image_url} alt=""/>:<span className="map-marker-dot"/>}<span className="map-marker-name">{place.name}</span></button>)}
+        {plottedLocations.map(({ place, left, top }) => <button key={place.id} className={`map-marker status-${place.position_status ?? "unverified"}${selected?.id===place.id?" selected": ""}`} style={{ left: `${left}%`, top: `${top}%` }} onClick={() => { chooseLocation(place); setMapOpen(false); setDirectoryOpen(true); if(window.matchMedia("(max-width:640px)").matches)setMenuOpen(true); }} aria-label={`${place.name}, ${place.position_status === "provisional" ? "estimated position" : place.position_status === "verified" ? "verified position" : "unverified position"}`} title={place.name}>{place.image_url?<img className="map-marker-photo" src={place.image_url} alt=""/>:<span className="map-marker-dot"/>}<span className="map-marker-name">{place.name}</span></button>)}
         {!plottedLocations.length && <p className="empty-map">No campus places have map positions yet.</p>}
       </div>
       <p className="map-caveat">Schematic positions only. This view does not imply surveyed roads, boundaries, building footprints, or verified directions.</p>
+      {roadDraft && <section className="road-draft-card" aria-label="Provisional campus road trace preview"><div className="road-draft-heading"><div><span className="eyebrow">MASTER PLAN TRACE · REVIEW REQUIRED</span><h3>Draft campus road network</h3></div><span className="badge status-badge-provisional">12 provisional roads</span></div><DraftRoadMap roads={roadDraft.roads} playerPosition={currentWorldPosition}/><p className="map-caveat">{roadDraft.transform?.warning ?? "Road traces are provisional."} The road trace and live player dot share the prototype coordinate frame. Saved-place pins remain separate until their positions are reviewed.</p></section>}
       {campusLocations.some((place) => typeof place.local_x !== "number" || !Number.isFinite(place.local_x) || typeof place.local_z !== "number" || !Number.isFinite(place.local_z)) && <div className="unmapped-section"><h3>Not placed on this map yet</h3><div className="unmapped-list">{campusLocations.filter((place) => typeof place.local_x !== "number" || !Number.isFinite(place.local_x) || typeof place.local_z !== "number" || !Number.isFinite(place.local_z)).map((place) => <button key={place.id} className="unmapped-place" onClick={() => { chooseLocation(place); setMapOpen(false); setDirectoryOpen(true); if(window.matchMedia("(max-width:640px)").matches)setMenuOpen(true); }}><span>{place.name}</span><span className="loc-meta">Position needed</span></button>)}</div></div>}
     </section></div>}
     {accountOpen && <AccountDialog email={email} profile={profile} initialName={profileNameDraft} initialMessage={authNotice} initialReferralCode={initialReferralCode} redirectTo={authReturnTo||"/"} onClose={() => setAccountOpen(false)} onSignedIn={(userEmail, savedProfile) => { setEmail(userEmail); setProfile(savedProfile); setProfileNameDraft(""); setAuthNotice(""); setInitialReferralCode(""); setAccountOpen(false); if(userEmail&&authReturnTo)window.location.assign(authReturnTo); }} />}
   </main>;
+}
+
+function DraftRoadMap({ roads, playerPosition }: { roads: RoadDraft[]; playerPosition: WorldPosition }) {
+  const [zoom,setZoom]=useState(1);
+  const points = roads.flatMap((road) => road.coordinates);
+  if (!points.length) return null;
+  const xs = points.map(([x]) => x), zs = points.map(([, z]) => z);
+  const minX = Math.min(...xs), maxX = Math.max(...xs), minZ = Math.min(...zs), maxZ = Math.max(...zs);
+  const pad = 24, width = 960, height = 460;
+  const scale = Math.min((width - pad * 2) / (maxX - minX || 1), (height - pad * 2) / (maxZ - minZ || 1));
+  const ox = (width - (maxX - minX) * scale) / 2, oy = (height - (maxZ - minZ) * scale) / 2;
+  const xy = ([x, z]: number[]) => `${ox + (x - minX) * scale},${oy + (z - minZ) * scale}`;
+  const [px,py]=xy([playerPosition.x,playerPosition.z]).split(",");
+  const playerVisible=playerPosition.x>=minX&&playerPosition.x<=maxX&&playerPosition.z>=minZ&&playerPosition.z<=maxZ;
+  return <div className="road-draft-map"><div className="road-map-tools" aria-label="Map zoom controls"><button type="button" onClick={()=>setZoom(value=>Math.min(3,value*1.25))} aria-label="Zoom in">+</button><button type="button" onClick={()=>setZoom(value=>Math.max(1,value/1.25))} aria-label="Zoom out">−</button><button type="button" onClick={()=>setZoom(1)}>Reset</button><span>{Math.round(zoom*100)}%</span></div><svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Twelve provisional road centerlines traced from the FUTO master plan image with the live player position" onWheel={event=>{event.preventDefault();setZoom(value=>Math.max(1,Math.min(3,value*(event.deltaY<0?1.12:1/1.12))))}}><g transform={`translate(${width/2} ${height/2}) scale(${zoom}) translate(${-width/2} ${-height/2})`} fill="none" strokeLinecap="round" strokeLinejoin="round"><g stroke="#d2c6a6" strokeWidth="12">{roads.map((road) => <polyline key={`base-${road.id}`} points={road.coordinates.map(xy).join(" ")}/>)}</g><g stroke="#806d58" strokeWidth="6">{roads.map((road) => <polyline key={road.id} points={road.coordinates.map(xy).join(" ")}/>)}</g><circle cx={xy([0, 0]).split(",")[0]} cy={xy([0, 0]).split(",")[1]} r="9" fill="#37d2b4" stroke="white" strokeWidth="4"/><text x={+xy([0,0]).split(",")[0]+14} y={+xy([0,0]).split(",")[1]-12} fill="#fff" fontSize="17" fontWeight="700">Trace origin · assumed</text>{playerVisible&&<g><circle cx={px} cy={py} r="15" fill="#53d8b6" opacity=".3"/><circle cx={px} cy={py} r="8" fill="#44e0bc" stroke="#fff" strokeWidth="3"/><text x={+px+12} y={+py+5} fill="#d8fff4" fontSize="16" fontWeight="800">YOU</text></g>}</g></svg></div>;
 }
 
 function DockGlyph({icon}:{icon:"walk"|"map"|"pin"|"people"|"shield"}) {
