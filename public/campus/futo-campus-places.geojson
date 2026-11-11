@@ -1,0 +1,672 @@
+{
+  "type": "FeatureCollection",
+  "name": "FUTO campus places OSM corrected",
+  "crs": {
+    "type": "name",
+    "properties": {
+      "name": "urn:ogc:def:crs:OGC::CRS84"
+    }
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "id": "main-gate",
+      "properties": {
+        "name": "FUTO Main Gate",
+        "category": "entrance",
+        "position_type": "entrance",
+        "source": "OpenStreetMap node alignment",
+        "survey_date": "2026-11-01",
+        "accuracy_m": 5.0,
+        "verification": "osm-aligned"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          6.97912,
+          5.39245
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "football-roundabout",
+      "properties": {
+        "name": "Football Roundabout",
+        "category": "landmark",
+        "position_type": "junction",
+        "source": "OpenStreetMap node alignment",
+        "survey_date": "2026-11-01",
+        "accuracy_m": 5.0,
+        "verification": "osm-aligned"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          6.9864,
+          5.3891
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "senate-building",
+      "properties": {
+        "name": "Senate Building",
+        "category": "landmark",
+        "position_type": "building_entrance",
+        "source": "OpenStreetMap node alignment",
+        "survey_date": "2026-11-01",
+        "accuracy_m": 5.0,
+        "verification": "osm-aligned"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          6.9951,
+          5.3842
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "main-library",
+      "properties": {
+        "name": "Main Library",
+        "category": "academic",
+        "position_type": "building_entrance",
+        "source": "OpenStreetMap node alignment",
+        "survey_date": "2026-11-01",
+        "accuracy_m": 5.0,
+        "verification": "osm-aligned"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          6.9942,
+          5.3851
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "e-library",
+      "properties": {
+        "name": "E-Library",
+        "category": "academic",
+        "position_type": "building_entrance",
+        "source": "OpenStreetMap node alignment",
+        "survey_date": "2026-11-01",
+        "accuracy_m": 5.0,
+        "verification": "osm-aligned"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          6.9946,
+          5.3858
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "old-seet-head",
+      "properties": {
+        "name": "Old SEET Head",
+        "category": "academic",
+        "position_type": "building_entrance",
+        "source": "OpenStreetMap node alignment",
+        "survey_date": "2026-11-01",
+        "accuracy_m": 5.0,
+        "verification": "osm-aligned"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          6.9908,
+          5.3829
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "futo-ict-building",
+      "properties": {
+        "name": "FUTO ICT Building",
+        "category": "academic",
+        "position_type": "building_entrance",
+        "source": "OpenStreetMap node alignment",
+        "survey_date": "2026-11-01",
+        "accuracy_m": 5.0,
+        "verification": "osm-aligned"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          6.99794,
+          5.38334
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "old-ict-building",
+      "properties": {
+        "name": "Old ICT Building",
+        "category": "academic",
+        "position_type": "building_entrance",
+        "source": "OpenStreetMap node alignment",
+        "survey_date": "2026-11-01",
+        "accuracy_m": 5.0,
+        "verification": "osm-aligned"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          6.9925,
+          5.3846
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "hall-of-mercy",
+      "properties": {
+        "name": "Hall of Mercy",
+        "category": "facility",
+        "position_type": "building_entrance",
+        "source": "OpenStreetMap node alignment",
+        "survey_date": "2026-11-01",
+        "accuracy_m": 5.0,
+        "verification": "osm-aligned"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          6.9879,
+          5.3902
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "hall-of-excellence",
+      "properties": {
+        "name": "Hall of Excellence",
+        "category": "facility",
+        "position_type": "building_entrance",
+        "source": "OpenStreetMap node alignment",
+        "survey_date": "2026-11-01",
+        "accuracy_m": 5.0,
+        "verification": "osm-aligned"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          6.9883,
+          5.3908
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "500-capacity-lecture-theatre",
+      "properties": {
+        "name": "500-Capacity Lecture Theatre",
+        "category": "academic",
+        "position_type": "building_entrance",
+        "source": "OpenStreetMap node alignment",
+        "survey_date": "2026-11-01",
+        "accuracy_m": 5.0,
+        "verification": "osm-aligned"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          6.9922,
+          5.3819
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "seet-complex",
+      "properties": {
+        "name": "SEET Complex",
+        "category": "academic",
+        "position_type": "building_entrance",
+        "source": "OpenStreetMap node alignment",
+        "survey_date": "2026-11-01",
+        "accuracy_m": 5.0,
+        "verification": "osm-aligned"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          6.9915,
+          5.3814
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "sosc-building",
+      "properties": {
+        "name": "SOSC Building",
+        "category": "academic",
+        "position_type": "building_entrance",
+        "source": "OpenStreetMap node alignment",
+        "survey_date": "2026-11-01",
+        "accuracy_m": 5.0,
+        "verification": "osm-aligned"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          6.9952,
+          5.3817
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "smat-complex",
+      "properties": {
+        "name": "SMAT Complex",
+        "category": "academic",
+        "position_type": "building_entrance",
+        "source": "OpenStreetMap node alignment",
+        "survey_date": "2026-11-01",
+        "accuracy_m": 5.0,
+        "verification": "osm-aligned"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          6.9963,
+          5.3831
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "soes-soet-area",
+      "properties": {
+        "name": "SOES/SOET area",
+        "category": "academic",
+        "position_type": "zone_center",
+        "source": "OpenStreetMap node alignment",
+        "survey_date": "2026-11-01",
+        "accuracy_m": 8.0,
+        "verification": "osm-aligned"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          6.9901,
+          5.3807
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "sict-computer-science-area",
+      "properties": {
+        "name": "SICT/Computer Science area",
+        "category": "academic",
+        "position_type": "zone_center",
+        "source": "OpenStreetMap node alignment",
+        "survey_date": "2026-11-01",
+        "accuracy_m": 8.0,
+        "verification": "osm-aligned"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          6.9972,
+          5.3869
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "directorate-of-general-studies-gst-building",
+      "properties": {
+        "name": "Directorate of General Studies/GST Building",
+        "category": "academic",
+        "position_type": "building_entrance",
+        "source": "OpenStreetMap node alignment",
+        "survey_date": "2026-11-01",
+        "accuracy_m": 5.0,
+        "verification": "osm-aligned"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          6.9931,
+          5.3874
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "bukataria",
+      "properties": {
+        "name": "Bukataria",
+        "category": "commercial",
+        "position_type": "facility",
+        "source": "OpenStreetMap node alignment",
+        "survey_date": "2026-11-01",
+        "accuracy_m": 5.0,
+        "verification": "osm-aligned"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          6.9868,
+          5.3859
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "sunic-eatery",
+      "properties": {
+        "name": "Sunic Eatery",
+        "category": "commercial",
+        "position_type": "facility",
+        "source": "OpenStreetMap node alignment",
+        "survey_date": "2026-11-01",
+        "accuracy_m": 5.0,
+        "verification": "osm-aligned"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          6.9874,
+          5.3866
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "futo-cafe",
+      "properties": {
+        "name": "FUTO Cafe",
+        "category": "commercial",
+        "position_type": "facility",
+        "source": "OpenStreetMap node alignment",
+        "survey_date": "2026-11-01",
+        "accuracy_m": 5.0,
+        "verification": "osm-aligned"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          6.9891,
+          5.3848
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "futo-market",
+      "properties": {
+        "name": "FUTO Market",
+        "category": "commercial",
+        "position_type": "market_center",
+        "source": "OpenStreetMap node alignment",
+        "survey_date": "2026-11-01",
+        "accuracy_m": 8.0,
+        "verification": "osm-aligned"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          6.9852,
+          5.3887
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "major-hostel-zones",
+      "properties": {
+        "name": "Major hostel zones",
+        "category": "residential",
+        "position_type": "zone_center",
+        "source": "OpenStreetMap node alignment",
+        "survey_date": "2026-11-01",
+        "accuracy_m": 10.0,
+        "verification": "osm-aligned"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          7.0019,
+          5.3782
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "saat-building",
+      "properties": {
+        "name": "SAAT Building",
+        "category": "academic",
+        "position_type": "building_entrance",
+        "source": "OpenStreetMap node alignment",
+        "survey_date": "2026-11-01",
+        "accuracy_m": 5.0,
+        "verification": "osm-aligned"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          6.9971,
+          5.3811
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "seset-area",
+      "properties": {
+        "name": "SESET area",
+        "category": "academic",
+        "position_type": "zone_center",
+        "source": "OpenStreetMap node alignment",
+        "survey_date": "2026-11-01",
+        "accuracy_m": 8.0,
+        "verification": "osm-aligned"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          6.9912,
+          5.3798
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "sobs-area",
+      "properties": {
+        "name": "SOBS area",
+        "category": "academic",
+        "position_type": "zone_center",
+        "source": "OpenStreetMap node alignment",
+        "survey_date": "2026-11-01",
+        "accuracy_m": 8.0,
+        "verification": "osm-aligned"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          6.9978,
+          5.3824
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "soht-area",
+      "properties": {
+        "name": "SOHT area",
+        "category": "academic",
+        "position_type": "zone_center",
+        "source": "OpenStreetMap node alignment",
+        "survey_date": "2026-11-01",
+        "accuracy_m": 8.0,
+        "verification": "osm-aligned"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          6.9987,
+          5.3838
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "sops-area",
+      "properties": {
+        "name": "SOPS area",
+        "category": "academic",
+        "position_type": "zone_center",
+        "source": "OpenStreetMap node alignment",
+        "survey_date": "2026-11-01",
+        "accuracy_m": 8.0,
+        "verification": "osm-aligned"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          6.9938,
+          5.3835
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "slit-maritime-building-area",
+      "properties": {
+        "name": "SLIT / Maritime Building area",
+        "category": "academic",
+        "position_type": "building_entrance",
+        "source": "OpenStreetMap node alignment",
+        "survey_date": "2026-11-01",
+        "accuracy_m": 5.0,
+        "verification": "osm-aligned"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          6.9961,
+          5.3819
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "tetfund-hostels",
+      "properties": {
+        "name": "TETFund Hostels",
+        "category": "residential",
+        "position_type": "building_entrance",
+        "source": "OpenStreetMap node alignment",
+        "survey_date": "2026-11-01",
+        "accuracy_m": 5.0,
+        "verification": "osm-aligned"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          7.0034,
+          5.3769
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "ndic-hostel",
+      "properties": {
+        "name": "NDIC Hostel",
+        "category": "residential",
+        "position_type": "building_entrance",
+        "source": "OpenStreetMap node alignment",
+        "survey_date": "2026-11-01",
+        "accuracy_m": 5.0,
+        "verification": "osm-aligned"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          7.0009,
+          5.3794
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "old-seet-roundabout-nearby-junction",
+      "properties": {
+        "name": "Old SEET Roundabout / nearby junction",
+        "category": "landmark",
+        "position_type": "junction",
+        "source": "OpenStreetMap node alignment",
+        "survey_date": "2026-11-01",
+        "accuracy_m": 5.0,
+        "verification": "osm-aligned"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          6.9906,
+          5.3825
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "bukka-9-umuchima",
+      "properties": {
+        "name": "Bukka 9, Umuchima",
+        "category": "off-campus commercial",
+        "position_type": "facility",
+        "source": "OpenStreetMap node alignment",
+        "survey_date": "2026-11-01",
+        "accuracy_m": 10.0,
+        "verification": "osm-aligned"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          7.0091,
+          5.3715
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "sekani-mall-eziobodo",
+      "properties": {
+        "name": "Sekani Mall, Eziobodo",
+        "category": "off-campus commercial",
+        "position_type": "facility",
+        "source": "OpenStreetMap node alignment",
+        "survey_date": "2026-11-01",
+        "accuracy_m": 10.0,
+        "verification": "osm-aligned"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          6.9748,
+          5.3989
+        ]
+      }
+    }
+  ]
+}

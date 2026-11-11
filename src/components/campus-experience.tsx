@@ -345,11 +345,11 @@ export default function CampusExperience() {
   },[profile?.id]);
 
   useEffect(()=>{
-    const controlled=new Set(["w","a","s","d","shift","arrowleft","arrowright","arrowup","arrowdown"]);
+    const controlled=new Set(["w","a","s","d","shift","arrowleft","arrowright","arrowup","arrowdown","enter"," "]);
     const forward=(down:boolean)=>(event:KeyboardEvent)=>{
-      if(event.target instanceof HTMLElement&&event.target.closest("input,textarea,select,[contenteditable='true']"))return;
+      if(event.target instanceof HTMLElement&&event.target.closest("input,textarea,select,button,a,[contenteditable='true']"))return;
       const key=event.key.toLowerCase();if(!controlled.has(key))return;
-      if(key.startsWith("arrow"))event.preventDefault();
+      if(key.startsWith("arrow")||key==="enter"||key===" ")event.preventDefault();
       worldFrame.current?.contentWindow?.postMessage({type:"futo:key",key,down},window.location.origin);
     };
     const down=forward(true),up=forward(false);
