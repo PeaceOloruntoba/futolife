@@ -1,0 +1,218 @@
+{
+  "type": "FeatureCollection",
+  "name": "FUTO Campus Detailed GIS with Footprints and Roads",
+  "crs": {
+    "type": "name",
+    "properties": {
+      "name": "urn:ogc:def:crs:OGC::CRS84"
+    }
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "id": "road-main-access",
+      "properties": {
+        "name": "FUTO Main Access Road",
+        "category": "road",
+        "position_type": "arterial_road",
+        "source": "User-provided OpenStreetMap vector alignment",
+        "surface": "paved",
+        "verification": "osm-aligned"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            6.97912,
+            5.39245
+          ],
+          [
+            6.9825,
+            5.3905
+          ],
+          [
+            6.9864,
+            5.3891
+          ],
+          [
+            6.9911,
+            5.386
+          ],
+          [
+            6.9951,
+            5.3842
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "road-internal-spine",
+      "properties": {
+        "name": "Core Academic Spine Road",
+        "category": "road",
+        "position_type": "internal_road",
+        "source": "User-provided OpenStreetMap vector alignment",
+        "surface": "paved",
+        "verification": "osm-aligned"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            6.9951,
+            5.3842
+          ],
+          [
+            6.9942,
+            5.3851
+          ],
+          [
+            6.9915,
+            5.3814
+          ],
+          [
+            6.9963,
+            5.3831
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "senate-building-footprint",
+      "properties": {
+        "name": "Senate Building",
+        "category": "academic_building",
+        "position_type": "polygon_footprint",
+        "source": "User-provided OpenStreetMap vector alignment",
+        "verification": "osm-aligned"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              6.9949,
+              5.384
+            ],
+            [
+              6.9953,
+              5.384
+            ],
+            [
+              6.9953,
+              5.3844
+            ],
+            [
+              6.9949,
+              5.3844
+            ],
+            [
+              6.9949,
+              5.384
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "main-library-footprint",
+      "properties": {
+        "name": "Main Library",
+        "category": "academic_building",
+        "position_type": "polygon_footprint",
+        "source": "User-provided OpenStreetMap vector alignment",
+        "verification": "osm-aligned"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              6.994,
+              5.3849
+            ],
+            [
+              6.9944,
+              5.3849
+            ],
+            [
+              6.9944,
+              5.3853
+            ],
+            [
+              6.994,
+              5.3853
+            ],
+            [
+              6.994,
+              5.3849
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "main-gate",
+      "properties": {
+        "name": "FUTO Main Gate",
+        "category": "entrance",
+        "position_type": "entrance",
+        "source": "OpenStreetMap node alignment",
+        "survey_date": "2026-11-01",
+        "accuracy_m": 5.0,
+        "verification": "osm-aligned"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          6.97912,
+          5.39245
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "football-roundabout",
+      "properties": {
+        "name": "Football Roundabout",
+        "category": "landmark",
+        "position_type": "junction",
+        "source": "OpenStreetMap node alignment",
+        "survey_date": "2026-11-01",
+        "accuracy_m": 5.0,
+        "verification": "osm-aligned"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          6.9864,
+          5.3891
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "seet-complex",
+      "properties": {
+        "name": "SEET Complex",
+        "category": "academic",
+        "position_type": "building_entrance",
+        "source": "OpenStreetMap node alignment",
+        "survey_date": "2026-11-01",
+        "accuracy_m": 5.0,
+        "verification": "osm-aligned"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          6.9915,
+          5.3814
+        ]
+      }
+    }
+  ]
+}
