@@ -1,0 +1,16 @@
+import type { Metadata } from "next";
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { SiteFrame } from "@/components/site-frame";
+import { AdsenseSlot } from "@/components/adsense-slot";
+import { OpportunityApplyButton } from "@/components/opportunity-apply-button";
+import { createClient } from "@/lib/supabase/server";
+
+export const dynamic="force-dynamic";
+type Props={params:Promise<{slug:string}>};
+async function getOpportunity(slug:string){const supabase=await createClient();if(!supabase)return null;const {data}=await supabase.from("opportunities").select("*,opportunity_categories(name)").eq("slug",slug).eq("status","published").maybeSingle();return data;}
+export async function generateMetadata({params}:Props):Promise<Metadata>{const {slug}=await params;const item=await getOpportunity(slug);return {title:item?`${item.title} | FUTO Life Opportunities`:"Opportunity | FUTO Life",description:item?.summary||"Explore verified opportunities with FUTO Life."};}
+const textSections=[ ["About this opportunity","description"],["Who can apply","eligibility"],["What you get","benefits"],["What you’ll need","required_documents"],["How to apply","application_instructions"] ] as const;
+export default async function OpportunityDetail({params}:Props){const {slug}=await params;const item=await getOpportunity(slug);if(!item)notFound();const category=Array.isArray(item.opportunity_categories)?item.opportunity_categories[0]?.name:item.opportunity_categories?.name;
+  return <SiteFrame><main className="opp-detail-page"><Link className="opp-back" href="/opportunities">← All opportunities</Link><div className="opp-detail-layout"><article className="opp-detail-main"><div className="opp-detail-label"><span>{category??"Opportunity"}</span>{item.verified_at&&<b>✓ VERIFIED LISTING</b>}</div><h1>{item.title}</h1><p className="opp-detail-org">{item.organization} <span>·</span> {item.location}</p><p className="opp-detail-summary">{item.summary}</p><div className="opp-detail-sections">{textSections.map(([title,key])=>item[key]&&<section key={key}><h2>{title}</h2><p>{item[key]}</p></section>)}</div><AdsenseSlot slot={process.env.NEXT_PUBLIC_ADSENSE_OPPORTUNITY_SLOT}/><p className="opp-source-note">FUTO Life shares this opportunity for discovery. The application is handled by {item.organization} on its official website. We do not represent the provider or decide application outcomes.</p><p className="opp-checked">Source checked {new Date(item.last_checked_at??item.verified_at??item.created_at).toLocaleDateString("en-NG",{dateStyle:"long"})} · <a href={item.source_url} target="_blank" rel="noopener noreferrer">View official source ↗</a></p></article><aside className="opp-apply-card"><span className="opp-kicker">APPLICATION DETAILS</span><h2>{item.deadline?new Date(item.deadline).toLocaleDateString("en-NG",{dateStyle:"medium"}):"Check provider for deadline"}</h2><small>{item.deadline?"Application deadline":"Deadline information was not provided"}</small><OpportunityApplyButton url={item.application_url} slug={item.slug}/><p>You’ll continue to the provider’s official application website. Sign in to FUTO Life before leaving this page.</p></aside></div></main></SiteFrame>;
+}
