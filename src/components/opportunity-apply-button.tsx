@@ -13,8 +13,7 @@ export function OpportunityApplyButton({ url, slug }: { url: string; slug: strin
       window.location.assign(`/explore?auth=signin&next=${encodeURIComponent(`/opportunities/${slug}?continue=1`)}`);
       return;
     }
-    window.open(url, "_blank", "noopener,noreferrer");
-    setBusy(false);
+    window.location.assign(url);
   }
   return <button className="opportunity-apply" onClick={() => void continueToApplication()} disabled={busy}>{busy ? "Checking sign-in…" : "Continue to official application ↗"}</button>;
 }

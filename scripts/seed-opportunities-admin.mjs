@@ -11,9 +11,13 @@ if (!url || !serviceKey || !password) {
 if (password.length < 12) throw new Error('OPPORTUNITIES_ADMIN_PASSWORD must be at least 12 characters.');
 
 const supabase = createClient(url, serviceKey, { auth: { autoRefreshToken: false, persistSession: false } });
-const { data: users, error: listError } = await supabase.auth.admin.listUsers({ perPage: 1000 });
-if (listError) throw listError;
-let user = users.users.find((candidate) => candidate.email?.toLowerCase() === email);
+let user;
+for (let page = 1; !user; page += 1) {
+  const { data, error } = await supabase.auth.admin.listUsers({ page, perPage: 1000 });
+  if (error) throw error;
+  user = data.users.find((candidate) => candidate.email?.toLowerCase() === email);
+  if (user || data.users.length < 1000) break;
+}
 if (user) {
   const { data, error } = await supabase.auth.admin.updateUserById(user.id, { password, email_confirm: true });
   if (error) throw error;

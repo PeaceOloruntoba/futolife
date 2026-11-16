@@ -60,6 +60,12 @@ create table if not exists public.articles (
   updated_at timestamptz not null default now(),
   created_at timestamptz not null default now()
 );
+alter table public.opportunities drop constraint if exists opportunities_source_url_http;
+alter table public.opportunities add constraint opportunities_source_url_http check(source_url ~* '^https?://');
+alter table public.opportunities drop constraint if exists opportunities_application_url_http;
+alter table public.opportunities add constraint opportunities_application_url_http check(application_url ~* '^https?://');
+alter table public.articles drop constraint if exists articles_cover_image_url_http;
+alter table public.articles add constraint articles_cover_image_url_http check(cover_image_url is null or cover_image_url ~* '^https?://');
 alter table public.articles drop constraint if exists articles_status_check;
 alter table public.articles add constraint articles_status_check check(status in ('draft','pending_review','published','rejected','archived'));
 create index if not exists articles_public_idx on public.articles(status,published_at desc);
@@ -76,7 +82,7 @@ create policy "Anyone can read published opportunities" on public.opportunities 
 drop policy if exists "Opportunity managers manage opportunities" on public.opportunities;
 create policy "Opportunity managers manage opportunities" on public.opportunities for all to authenticated using(public.can_manage_opportunities()) with check(public.can_manage_opportunities());
 drop policy if exists "Users can submit opportunities for review" on public.opportunities;
-create policy "Users can submit opportunities for review" on public.opportunities for insert to authenticated with check(created_by=auth.uid() and status='pending_review');
+create policy "Users can submit opportunities for review" on public.opportunities for insert to authenticated with check(created_by=auth.uid() and status='pending_review' and not featured and verified_at is null and last_checked_at is null);
 drop policy if exists "Users can view their opportunity submissions" on public.opportunities;
 create policy "Users can view their opportunity submissions" on public.opportunities for select to authenticated using(created_by=auth.uid());
 drop policy if exists "Anyone can read published articles" on public.articles;
@@ -84,7 +90,7 @@ create policy "Anyone can read published articles" on public.articles for select
 drop policy if exists "Opportunity managers manage articles" on public.articles;
 create policy "Opportunity managers manage articles" on public.articles for all to authenticated using(public.can_manage_opportunities()) with check(public.can_manage_opportunities());
 drop policy if exists "Users can submit articles for review" on public.articles;
-create policy "Users can submit articles for review" on public.articles for insert to authenticated with check(created_by=auth.uid() and status='pending_review');
+create policy "Users can submit articles for review" on public.articles for insert to authenticated with check(created_by=auth.uid() and status='pending_review' and not featured and published_at is null);
 drop policy if exists "Users can view their article submissions" on public.articles;
 create policy "Users can view their article submissions" on public.articles for select to authenticated using(created_by=auth.uid());
 
