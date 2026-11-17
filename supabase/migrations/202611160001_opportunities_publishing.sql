@@ -105,3 +105,28 @@ insert into public.opportunity_categories(name,slug,description) values
  ('Events','events','Conferences, exchange programmes and volunteering.'),
  ('Other','other','Other verified opportunities.')
 on conflict(slug) do nothing;
+
+-- A clearly labeled, private starter record for trying the CMS editor.
+-- Replace every placeholder and verify its source before publishing.
+insert into public.opportunities(
+  title,slug,organization,category_id,summary,description,eligibility,benefits,
+  required_documents,location,application_instructions,source_url,application_url,status
+)
+select
+  'SAMPLE DRAFT — Graduate Internship Opportunity',
+  'sample-draft-graduate-internship',
+  'Sample organisation — replace before publishing',
+  c.id,
+  'Demo listing for checking the opportunities dashboard. Replace with a current, verified opportunity.',
+  'This is sample content for CMS setup only. Confirm the provider, eligibility, benefits, requirements, dates, and application instructions from an official source before publishing.',
+  'Replace with verified eligibility requirements.',
+  'Replace with verified benefits.',
+  'Replace with verified required documents.',
+  'Online',
+  'Replace with verified application instructions.',
+  'https://example.org/source',
+  'https://example.org/apply',
+  'draft'
+from public.opportunity_categories c
+where c.slug='internships'
+on conflict(slug) do nothing;
