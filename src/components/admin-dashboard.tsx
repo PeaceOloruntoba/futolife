@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react
 import { createClient } from "@/lib/supabase/browser";
 import { notify } from "@/lib/notify";
 import { NotificationCenter } from "@/components/notification-center";
+import AdminRoleManager from "@/components/admin-role-manager";
 
 type Place = { id: string; name: string; category: string; description: string | null; position_status: "verified" | "provisional" | "unverified"; latitude: number | null; longitude: number | null; local_x: number | null; local_z: number | null; evidence: unknown; image_url: string | null };
 type Draft = Omit<Place,"evidence"> & { evidenceText: string };
@@ -16,7 +17,7 @@ type ReferralEdge = {id:string;referrer_id:string;referred_id:string;created_at:
 type ActivityRow={id:number;actor_id:string|null;actor_email:string|null;action:string;entity_type:string|null;entity_id:string|null;metadata:Record<string,unknown>;created_at:string};
 const EMPTY: Draft = { id:"",name:"",category:"landmark",description:"",position_status:"unverified",latitude:null,longitude:null,local_x:null,local_z:null,evidenceText:"",image_url:null };
 
-export default function AdminDashboard({ adminEmail, initialSection = "places" }: { adminEmail: string; initialSection?: "places" | "users" | "posts" | "activity" | "dashboard" | "settings" }) {
+export default function AdminDashboard({ adminEmail, initialSection = "places", canManageRoles = false }: { adminEmail: string; initialSection?: "places" | "users" | "posts" | "activity" | "dashboard" | "settings"; canManageRoles?: boolean }) {
   const supabase = useMemo(() => createClient(), []);
   const [places,setPlaces] = useState<Place[]>([]);
   const [draft,setDraft] = useState<Draft>(EMPTY);
@@ -181,7 +182,7 @@ export default function AdminDashboard({ adminEmail, initialSection = "places" }
     <div className="admin-heading"><div><div className="eyebrow">FUTO LIFE · ADMIN</div><h1>Admin dashboard</h1><p>Manage campus data, student accounts, posts and referrals.</p></div><div className="admin-count">{places.length}<small>campus places</small></div></div>
     <nav className="admin-tabs"><span>{section==="places"?"Campus":section==="posts"?"Community moderation":section==="activity"?"Activities":section==="users"?"Users":section==="settings"?"Settings":"Dashboard"}</span></nav>
     {section==="dashboard"&&<section className="admin-list-card"><h2>Module overview</h2><p>Use the admin workspace navigation to open the modules available to your role.</p><div className="admin-count">{places.length}<small>campus locations</small></div><div className="admin-count">{users.length}<small>user accounts</small></div><div className="admin-count">{reports.filter(r=>r.status==="pending").length}<small>pending reports</small></div></section>}
-    {section==="settings"&&<section className="admin-list-card"><h2>Admin role management</h2><p>Admin role management is available to the super administrator. Role invitations and changes are being connected here.</p></section>}
+    {section==="settings"&&(canManageRoles?<AdminRoleManager/>:<section className="admin-list-card"><h2>Admin role management</h2><p>Only the super administrator can invite or change admin roles.</p></section>)}
     {section==="places"&&<div className="admin-layout"><section className="admin-form-card"><h2>{savedId?"Edit campus place":"Add a campus place"}</h2><p>Precise WGS84 coordinates use latitude/longitude. Local map coordinates place items in the current 3D scene.</p>
       <form className="admin-form" onSubmit={e=>void save(e)}>
         <label className="field">Place name<input required maxLength={120} value={draft.name} onChange={e=>setDraft({...draft,name:e.target.value,...(!savedId?{id:draftId(e.target.value)}:{})})} placeholder="e.g. School of Engineering"/></label>

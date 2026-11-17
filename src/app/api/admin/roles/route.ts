@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
   if (!email || !displayName || !["opportunities_admin", "community_admin", "platform_admin"].includes(role)) return NextResponse.json({ error: "Email, display name, and a module admin role are required." }, { status: 400 });
   const { data, error } = await ctx.admin.auth.admin.inviteUserByEmail(email, { data: { display_name: displayName }, redirectTo: `${request.nextUrl.origin}/auth/callback?next=%2Fadmin%2Fdashboard` });
   if (error || !data.user) return NextResponse.json({ error: error?.message ?? "Invitation failed." }, { status: 400 });
-  const { error: profileError } = await ctx.admin.from("profiles").upsert({ id: data.user.id, display_name: displayName, email });
+  const { error: profileError } = await ctx.admin.from("profiles").upsert({ id: data.user.id, display_name: displayName });
   const { error: roleError } = await ctx.admin.from("user_roles").insert({ user_id: data.user.id, role });
   if (profileError || roleError) return NextResponse.json({ error: profileError?.message ?? roleError?.message, invited: true }, { status: 500 });
   return NextResponse.json({ invited: true });
