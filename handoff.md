@@ -144,8 +144,8 @@ Implemented WhatsApp-style message interactions in the conversation view:
 
 ### Rollout steps
 
-1. Preview the linked Supabase migration: `npx supabase@latest db push --dry-run --linked`.
-2. Apply it to the linked project: `npx supabase@latest db push --linked`.
+1. Preview pending Supabase migrations: `npx supabase@latest db push --dry-run --remote`.
+2. Apply them to the linked project: `npx supabase@latest db push --remote`.
 3. Deploy the app after the migration completes. Verify using two accounts: edit/delete own messages, reply by action and swipe, toggle reactions, and confirm other conversation members receive realtime updates.
 
 TypeScript check (`npx tsc --noEmit`) passes. Full functional testing remains pending.
@@ -168,7 +168,7 @@ TypeScript check (`npx tsc --noEmit`) passes. Full functional testing remains pe
 - Message actions now offer **Delete for me** for received messages. The sender can choose **Delete for me** or **Delete for everyone**; edit remains available only on the sender’s own text messages.
 - Added `supabase/migrations/202611080002_message_delete_for_me.sql` with a private per-profile hidden-message table, RLS, a membership-checked `hide_my_message` RPC, audit event, and Realtime publication.
 - Hidden messages are filtered from the current conversation and conversation previews and stay hidden for that user after reload or on another device. Delete-for-everyone continues to replace the message with the shared deletion notice.
-- Apply both pending chat migrations with `npx supabase@latest db push --dry-run --linked`, then `npx supabase@latest db push --linked`.
+- Apply both pending chat migrations with `npx supabase@latest db push --dry-run --remote`, then `npx supabase@latest db push --remote`.
 
 ## Latest update — photo-first campus wayfinding (2026-11-08)
 
