@@ -16,7 +16,7 @@ type ReferralEdge = {id:string;referrer_id:string;referred_id:string;created_at:
 type ActivityRow={id:number;actor_id:string|null;actor_email:string|null;action:string;entity_type:string|null;entity_id:string|null;metadata:Record<string,unknown>;created_at:string};
 const EMPTY: Draft = { id:"",name:"",category:"landmark",description:"",position_status:"unverified",latitude:null,longitude:null,local_x:null,local_z:null,evidenceText:"",image_url:null };
 
-export default function AdminDashboard({ adminEmail }: { adminEmail: string }) {
+export default function AdminDashboard({ adminEmail, initialSection = "places" }: { adminEmail: string; initialSection?: "places" | "users" | "posts" | "activity" | "dashboard" | "settings" }) {
   const supabase = useMemo(() => createClient(), []);
   const [places,setPlaces] = useState<Place[]>([]);
   const [draft,setDraft] = useState<Draft>(EMPTY);
@@ -28,7 +28,7 @@ export default function AdminDashboard({ adminEmail }: { adminEmail: string }) {
   const [savedId,setSavedId] = useState<string|null>(null);
   const [confirmation,setConfirmation] = useState<ConfirmAction|null>(null);
   const [confirmationReason,setConfirmationReason] = useState("");
-  const [section,setSection] = useState<"places"|"users"|"posts"|"referrals"|"activity">("places");
+  const [section,setSection] = useState<"places"|"users"|"posts"|"referrals"|"activity"|"dashboard"|"settings">(initialSection);
   const [users,setUsers] = useState<AdminUser[]>([]);
   const [userSearch,setUserSearch] = useState("");
   const [reports,setReports] = useState<PostReport[]>([]);
@@ -177,9 +177,11 @@ export default function AdminDashboard({ adminEmail }: { adminEmail: string }) {
     }).catch(error=>setImportSummary(error instanceof Error?error.message:"Unable to read this GeoJSON file.")).finally(()=>setBusy(false));
   }
 
-  return <main className="admin-page"><header className="admin-top"><Link className="admin-back" href="/">← Return to campus</Link><div className="admin-top-actions"><Link className="secondary compact" href="/opportunities/admin">Opportunities & articles ↗</Link><NotificationCenter/><div className="admin-user">Signed in as <b>{adminEmail}</b></div></div></header><div className="admin-main">
+  return <main className="admin-page"><header className="admin-top"><Link className="admin-back" href="/admin/dashboard">Admin workspace</Link><div className="admin-top-actions"><NotificationCenter/><div className="admin-user">Signed in as <b>{adminEmail}</b></div></div></header><div className="admin-main">
     <div className="admin-heading"><div><div className="eyebrow">FUTO LIFE · ADMIN</div><h1>Admin dashboard</h1><p>Manage campus data, student accounts, posts and referrals.</p></div><div className="admin-count">{places.length}<small>campus places</small></div></div>
-    <nav className="admin-tabs">{(["places","users","posts","referrals","activity"] as const).map(item=><button key={item} className={section===item?"active":""} onClick={()=>setSection(item)}>{item==="places"?"Places & map":item==="users"?`Users · ${users.length}`:item==="posts"?`Post reports · ${reports.filter(r=>r.status==="pending").length}`:item==="referrals"?`Referrals · ${referrals.length}`:"Activity log"}</button>)}</nav>
+    <nav className="admin-tabs"><span>{section==="places"?"Campus":section==="posts"?"Community moderation":section==="activity"?"Activities":section==="users"?"Users":section==="settings"?"Settings":"Dashboard"}</span></nav>
+    {section==="dashboard"&&<section className="admin-list-card"><h2>Module overview</h2><p>Use the admin workspace navigation to open the modules available to your role.</p><div className="admin-count">{places.length}<small>campus locations</small></div><div className="admin-count">{users.length}<small>user accounts</small></div><div className="admin-count">{reports.filter(r=>r.status==="pending").length}<small>pending reports</small></div></section>}
+    {section==="settings"&&<section className="admin-list-card"><h2>Admin role management</h2><p>Admin role management is available to the super administrator. Role invitations and changes are being connected here.</p></section>}
     {section==="places"&&<div className="admin-layout"><section className="admin-form-card"><h2>{savedId?"Edit campus place":"Add a campus place"}</h2><p>Precise WGS84 coordinates use latitude/longitude. Local map coordinates place items in the current 3D scene.</p>
       <form className="admin-form" onSubmit={e=>void save(e)}>
         <label className="field">Place name<input required maxLength={120} value={draft.name} onChange={e=>setDraft({...draft,name:e.target.value,...(!savedId?{id:draftId(e.target.value)}:{})})} placeholder="e.g. School of Engineering"/></label>

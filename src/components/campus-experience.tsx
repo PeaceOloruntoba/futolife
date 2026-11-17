@@ -374,8 +374,9 @@ export default function CampusExperience() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!active || !user) return;
       setEmail(user.email ?? null);
-      const { data: role } = await supabase.from("user_roles").select("role").eq("user_id", user.id).eq("role", "admin").maybeSingle();
-      if (active) setIsAdmin(Boolean(role));
+      const { data: role } = await supabase.from("user_roles").select("role").eq("user_id", user.id).limit(1);
+      if (active) setIsAdmin(Boolean(role?.length));
+      if (role?.length) { window.location.assign("/admin/dashboard"); return; }
       const metadataName = user.user_metadata?.display_name;
       if (typeof metadataName === "string") setProfileNameDraft(metadataName);
       const response = await fetch("/api/profile", { cache: "no-store" });
@@ -388,7 +389,7 @@ export default function CampusExperience() {
       if (!active) return;
       setEmail(session?.user.email ?? null);
       if (!session) { setProfile(null); setIsAdmin(false); setNearbyPlayers([]); setPresenceStatus("offline"); }
-      else void supabase.from("user_roles").select("role").eq("user_id", session.user.id).eq("role", "admin").maybeSingle().then(({ data }) => { if (active) setIsAdmin(Boolean(data)); });
+      else void supabase.from("user_roles").select("role").eq("user_id", session.user.id).limit(1).then(({ data }) => { if (active) { setIsAdmin(Boolean(data?.length)); if(data?.length)window.location.assign("/admin/dashboard"); } });
     });
     return () => { active = false; subscription.unsubscribe(); };
   }, []);
@@ -433,7 +434,7 @@ export default function CampusExperience() {
       {roadDraft && <section className="road-draft-card" aria-label="Provisional campus road trace preview"><div className="road-draft-heading"><div><span className="eyebrow">MASTER PLAN TRACE · REVIEW REQUIRED</span><h3>Draft campus road network</h3></div><span className="badge status-badge-provisional">12 provisional roads</span></div><DraftRoadMap roads={roadDraft.roads} playerPosition={currentWorldPosition}/><p className="map-caveat">{roadDraft.transform?.warning ?? "Road traces are provisional."} The road trace and live player dot share the prototype coordinate frame. Saved-place pins remain separate until their positions are reviewed.</p></section>}
       {campusLocations.some((place) => typeof place.local_x !== "number" || !Number.isFinite(place.local_x) || typeof place.local_z !== "number" || !Number.isFinite(place.local_z)) && <div className="unmapped-section"><h3>Not placed on this map yet</h3><div className="unmapped-list">{campusLocations.filter((place) => typeof place.local_x !== "number" || !Number.isFinite(place.local_x) || typeof place.local_z !== "number" || !Number.isFinite(place.local_z)).map((place) => <button key={place.id} className="unmapped-place" onClick={() => { chooseLocation(place); setMapOpen(false); setDirectoryOpen(true); if(window.matchMedia("(max-width:640px)").matches)setMenuOpen(true); }}><span>{place.name}</span><span className="loc-meta">Position needed</span></button>)}</div></div>}
     </section></div>}
-    {accountOpen && <AccountDialog email={email} profile={profile} initialName={profileNameDraft} initialMessage={authNotice} initialReferralCode={initialReferralCode} redirectTo={authReturnTo||"/"} onClose={() => setAccountOpen(false)} onSignedIn={(userEmail, savedProfile) => { setEmail(userEmail); setProfile(savedProfile); setProfileNameDraft(""); setAuthNotice(""); setInitialReferralCode(""); setAccountOpen(false); if(userEmail&&authReturnTo)window.location.assign(authReturnTo); }} />}
+    {accountOpen && <AccountDialog email={email} profile={profile} initialName={profileNameDraft} initialMessage={authNotice} initialReferralCode={initialReferralCode} redirectTo={authReturnTo||"/"} onClose={() => setAccountOpen(false)} onSignedIn={(userEmail, savedProfile) => { setEmail(userEmail); setProfile(savedProfile); setProfileNameDraft(""); setAuthNotice(""); setInitialReferralCode(""); setAccountOpen(false); if(userEmail)void createClient()?.auth.getUser().then(async({data:{user}})=>{if(!user)return;const {data}=await createClient()?.from("user_roles").select("role").eq("user_id",user.id).limit(1);window.location.assign(data?.length?"/admin/dashboard":authReturnTo||"/");}); }} />}
   </main>;
 }
 
