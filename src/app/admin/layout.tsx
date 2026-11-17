@@ -1,10 +1,8 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { ADMIN_SECTIONS, canAccessSection, type AdminRole, type AdminSection } from "@/lib/admin/access";
-
-const labels: Record<AdminSection, string> = { dashboard:"Dashboard", users:"Users", opportunity:"Opportunity", community:"Community", campus:"Campus", activities:"Activities", settings:"Settings" };
+import AdminNav from "@/components/admin-nav";
 export default async function AdminLayout({ children }: { children: ReactNode }) {
   const supabase = await createClient();
   if (!supabase) redirect("/");
@@ -14,5 +12,5 @@ export default async function AdminLayout({ children }: { children: ReactNode })
   const roles = (data ?? []).map(row => row.role as AdminRole);
   if (!roles.length) redirect("/");
   const visible = ADMIN_SECTIONS.filter(section => canAccessSection(roles, section));
-  return <div className="admin-workspace"><header className="admin-workspace-head"><Link href="/admin/dashboard"><b>FUTO LIFE</b> Admin</Link><span>{user.email}</span></header><div className="admin-workspace-body"><nav className="admin-workspace-nav" aria-label="Admin modules">{visible.map(section => <Link key={section} href={`/admin/${section}`}>{labels[section]}</Link>)}</nav><main className="admin-workspace-main">{children}</main></div></div>;
+  return <div className="admin-workspace"><header className="admin-workspace-head"><a className="admin-workspace-brand" href="/admin/dashboard"><span className="admin-brand-mark">F</span><span><b>FUTO LIFE</b><small>Admin workspace</small></span></a><span className="admin-workspace-account">{user.email}</span></header><div className="admin-workspace-body"><AdminNav sections={visible}/><main className="admin-workspace-main">{children}</main></div></div>;
 }
