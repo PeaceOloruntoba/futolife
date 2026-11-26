@@ -2,12 +2,12 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { FiActivity, FiBookOpen, FiGrid, FiLogOut, FiMapPin, FiMessageSquare, FiSettings, FiUsers } from "react-icons/fi";
+import { FiActivity, FiBookOpen, FiGrid, FiLogOut, FiMapPin, FiMessageSquare, FiSettings, FiUsers, FiMousePointer } from "react-icons/fi";
 import type { AdminSection } from "@/lib/admin/access";
 import { createClient } from "@/lib/supabase/browser";
 
 const items:Record<AdminSection,{label:string;short:string;icon:typeof FiGrid}>={
- dashboard:{label:"Dashboard",short:"Home",icon:FiGrid}, users:{label:"Users",short:"Users",icon:FiUsers}, opportunity:{label:"Opportunity",short:"Opportunity",icon:FiBookOpen}, community:{label:"Community",short:"Community",icon:FiMessageSquare}, campus:{label:"Campus",short:"Campus",icon:FiMapPin}, activities:{label:"Activities",short:"Activity",icon:FiActivity}, settings:{label:"Settings",short:"Settings",icon:FiSettings}
+ dashboard:{label:"Dashboard",short:"Home",icon:FiGrid}, users:{label:"Users",short:"Users",icon:FiUsers}, opportunity:{label:"Opportunity",short:"Opportunity",icon:FiBookOpen}, applications:{label:"Apply clicks",short:"Clicks",icon:FiMousePointer}, community:{label:"Community",short:"Community",icon:FiMessageSquare}, campus:{label:"Campus",short:"Campus",icon:FiMapPin}, activities:{label:"Activities",short:"Activity",icon:FiActivity}, settings:{label:"Settings",short:"Settings",icon:FiSettings}
 };
 export default function AdminNav({sections}:{sections:AdminSection[]}){
  const pathname=usePathname();

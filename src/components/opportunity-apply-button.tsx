@@ -13,6 +13,12 @@ export function OpportunityApplyButton({ url, slug }: { url: string; slug: strin
       window.location.assign(`/explore?auth=signin&next=${encodeURIComponent(`/opportunities/${slug}?continue=1`)}`);
       return;
     }
+    const response = await fetch("/api/opportunities/apply-click", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ slug }) });
+    if (!response.ok) {
+      setBusy(false);
+      window.alert("We couldn’t record your apply click. Please try again.");
+      return;
+    }
     window.location.assign(url);
   }
   return <button className="opportunity-apply" onClick={() => void continueToApplication()} disabled={busy}>{busy ? "Checking sign-in…" : "Continue to official application ↗"}</button>;
