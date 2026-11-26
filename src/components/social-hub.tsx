@@ -573,21 +573,35 @@ function ProfileDeviceSettings({userId}:{userId:string}){
   const [permission,setPermission]=useState<NotificationPermission|"unsupported">("default");
   const [notificationsEnabled,setNotificationsEnabled]=useState(false);
   const [installed,setInstalled]=useState(false);
+  const [installBusy,setInstallBusy]=useState(false);
+  const [notificationBusy,setNotificationBusy]=useState(false);
+  const installCooldown=useRef<ReturnType<typeof setTimeout>|null>(null);
+  const notificationCooldown=useRef<ReturnType<typeof setTimeout>|null>(null);
   useEffect(()=>{
     const syncNotifications=()=>{
       const supported="Notification" in window;
       setPermission(supported?window.Notification.permission:"unsupported");
       setNotificationsEnabled(Boolean(supported&&window.Notification.permission==="granted"&&window.localStorage.getItem(`futolife:web-notifications:${userId}`)==="enabled"));
     };
-    const rememberInstall=()=>{setInstalled(true);window.localStorage.setItem(`futolife:install-nudge:${userId}`,"installed");};
+    const rememberInstall=()=>setInstalled(true);
     syncNotifications();
-    setInstalled(window.matchMedia("(display-mode: standalone)").matches||window.localStorage.getItem(`futolife:install-nudge:${userId}`)==="installed");
+    setInstalled(window.matchMedia("(display-mode: standalone)").matches);
     window.addEventListener("futolife-notification-preference",syncNotifications);
     window.addEventListener("focus",syncNotifications);
     window.addEventListener("appinstalled",rememberInstall);
-    return()=>{window.removeEventListener("futolife-notification-preference",syncNotifications);window.removeEventListener("focus",syncNotifications);window.removeEventListener("appinstalled",rememberInstall);};
+    return()=>{window.removeEventListener("futolife-notification-preference",syncNotifications);window.removeEventListener("focus",syncNotifications);window.removeEventListener("appinstalled",rememberInstall);if(installCooldown.current)clearTimeout(installCooldown.current);if(notificationCooldown.current)clearTimeout(notificationCooldown.current);};
   },[userId]);
+  function startCooldown(kind:"install"|"notifications"){
+    const setBusy=kind==="install"?setInstallBusy:setNotificationBusy;
+    const timer=kind==="install"?installCooldown:notificationCooldown;
+    if(timer.current)clearTimeout(timer.current);
+    setBusy(true);
+    timer.current=setTimeout(()=>{setBusy(false);timer.current=null;},90_000);
+  }
+  function requestInstall(){if(installBusy)return;startCooldown("install");window.dispatchEvent(new Event("futolife-install-request"));}
   async function enableNotifications(){
+    if(notificationBusy)return;
+    startCooldown("notifications");
     if(!("Notification" in window)){setPermission("unsupported");notify("Browser notifications are not supported on this device.");return;}
     try{
       const next=await window.Notification.requestPermission();
@@ -599,7 +613,7 @@ function ProfileDeviceSettings({userId}:{userId:string}){
       notify("Browser notifications are enabled on this device.");
     }catch{notify("Could not enable browser notifications in this browser.");}
   }
-  return <section className="social-card profile-device-settings" aria-labelledby="profile-device-title"><div className="profile-device-heading"><div><span className="eyebrow">Your device</span><h3 id="profile-device-title">App & notifications</h3><p>Keep FUTO Life close and choose whether this device can show message and friend-request alerts.</p></div></div><div className="profile-device-actions"><div className="profile-device-row"><span className="profile-device-icon"><FiDownload/></span><span><b>Home screen</b><small>{installed?"FUTO Life is installed on this device.":"Add FUTO Life for quick access from your home screen."}</small></span><button type="button" className="secondary compact" onClick={()=>{if(installed)return;window.dispatchEvent(new Event("futolife-install-request"));}} disabled={installed}>{installed?"Added":"Install app"}</button></div><div className="profile-device-row"><span className="profile-device-icon"><FiBell/></span><span><b>Browser notifications</b><small>{permission==="unsupported"?"Notifications are not supported by this browser.":permission==="denied"?"Blocked by browser settings. Allow notifications for this site in browser settings.":notificationsEnabled?"Enabled for messages and friend requests on this device.":"Get alerts for messages and friend requests while FUTO Life is in the background."}</small></span><button type="button" className="secondary compact" onClick={()=>void enableNotifications()} disabled={permission==="unsupported"||notificationsEnabled}>{notificationsEnabled?<><FiCheck/> Enabled</>:permission==="denied"?"Browser settings":"Enable"}</button></div></div><small className="profile-device-note">These settings apply to this browser and device. You can revisit them here anytime.</small></section>;
+  return <section className="social-card profile-device-settings" aria-labelledby="profile-device-title"><div className="profile-device-heading"><div><span className="eyebrow">Your device</span><h3 id="profile-device-title">App & notifications</h3><p>Keep FUTO Life close and choose whether this device can show message and friend-request alerts.</p></div></div><div className="profile-device-actions"><div className="profile-device-row"><span className="profile-device-icon"><FiDownload/></span><span><b>Home screen</b><small>{installed?"FUTO Life is installed on this device.":"Add FUTO Life for quick access from your home screen."}</small></span><button type="button" className="secondary compact" onClick={requestInstall} disabled={installBusy}>{installBusy?"Try again shortly":installed?"Install options":"Install app"}</button></div><div className="profile-device-row"><span className="profile-device-icon"><FiBell/></span><span><b>Browser notifications</b><small>{permission==="unsupported"?"Notifications are not supported by this browser.":permission==="denied"?"Blocked by browser settings. Allow notifications for this site in browser settings.":notificationsEnabled?"Enabled for messages and friend requests on this device. You can retry setup here.":"Get alerts for messages and friend requests while FUTO Life is in the background."}</small></span><button type="button" className="secondary compact" onClick={()=>void enableNotifications()} disabled={permission==="unsupported"||notificationBusy}>{notificationBusy?"Try again shortly":notificationsEnabled?<><FiCheck/> Retry setup</>:permission==="denied"?"Browser settings":"Enable"}</button></div></div><small className="profile-device-note">These settings apply to this browser and device. You can retry either action after a 90-second pause.</small></section>;
 }
 
 function Avatar({person,small=false,large=false}:{person:Person|null|undefined;small?:boolean;large?:boolean}) {

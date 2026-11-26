@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build --webpack",
     "start": "next start",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "seed:opportunities-admin": "node --env-file=.env scripts/seed-opportunities-admin.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.6.1",

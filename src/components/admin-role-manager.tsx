@@ -1,0 +1,11 @@
+"use client";
+import { useEffect, useState } from "react";
+type Row={user_id:string;role:string;email:string;display_name:string};
+const roles=["opportunities_admin","community_admin","platform_admin"] as const;
+export default function AdminRoleManager(){
+ const [admins,setAdmins]=useState<Row[]>([]);const [error,setError]=useState("");const [busy,setBusy]=useState(false);
+ async function load(){const r=await fetch("/api/admin/roles");const j=await r.json();if(!r.ok){setError(j.error);return;}setAdmins(j.admins);}
+ useEffect(()=>{void load();},[]);
+ async function change(method:string,body:unknown){setBusy(true);setError("");const r=await fetch("/api/admin/roles",{method,headers:{"content-type":"application/json"},body:JSON.stringify(body)});const j=await r.json();if(!r.ok)setError(j.error??"Request failed");else await load();setBusy(false);}
+ return <section className="admin-list-card admin-manage-card"><h2>Admin role management</h2><p>Invitations give the recipient a secure link to set their password. Each admin account has one module role.</p><form className="admin-form" onSubmit={e=>{e.preventDefault();const f=new FormData(e.currentTarget);void change("POST",{email:f.get("email"),display_name:f.get("display_name"),role:f.get("role")});e.currentTarget.reset();}}><label className="field">Name<input name="display_name" required minLength={2}/></label><label className="field">Email<input name="email" type="email" required/></label><label className="field">Role<select name="role">{roles.map(role=><option key={role} value={role}>{role.replaceAll("_"," ")}</option>)}</select></label><button className="primary" disabled={busy}>Send admin invitation</button></form>{admins.map(admin=><article className="admin-place" key={admin.user_id}><div className="admin-place-info"><b>{admin.display_name}</b><small>{admin.email} · {admin.role.replaceAll("_"," ")}</small></div><select aria-label={`Change role for ${admin.email}`} value={admin.role} disabled={busy} onChange={e=>void change("PATCH",{user_id:admin.user_id,role:e.target.value})}>{roles.map(role=><option key={role} value={role}>{role.replaceAll("_"," ")}</option>)}</select><button className="admin-warn-button" disabled={busy} onClick={()=>void change("DELETE",{user_id:admin.user_id})}>Remove role</button></article>)}{error&&<p role="alert">{error}</p>}</section>;
+}

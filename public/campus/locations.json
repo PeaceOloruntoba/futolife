@@ -381,6 +381,105 @@
    "verification": "unverified",
    "implementation": "not-started",
    "notes": "Zones to be identified individually."
+  },
+  {
+   "id": "saat",
+   "name": "SAAT Building",
+   "category": "academic",
+   "world": null,
+   "verification": "unverified",
+   "implementation": "not-started",
+   "notes": "Expansion POI from the v0.2 inventory; exact building and position need confirmation."
+  },
+  {
+   "id": "seset-area",
+   "name": "SESET area",
+   "category": "academic",
+   "world": null,
+   "verification": "unverified",
+   "implementation": "not-started",
+   "notes": "Expansion POI from the v0.2 inventory; exact building and position need confirmation."
+  },
+  {
+   "id": "sobs-area",
+   "name": "SOBS area",
+   "category": "academic",
+   "world": null,
+   "verification": "unverified",
+   "implementation": "not-started",
+   "notes": "Expansion POI from the v0.2 inventory; exact building and position need confirmation."
+  },
+  {
+   "id": "soht-area",
+   "name": "SOHT area",
+   "category": "academic",
+   "world": null,
+   "verification": "unverified",
+   "implementation": "not-started",
+   "notes": "Expansion POI from the v0.2 inventory; exact building and position need confirmation."
+  },
+  {
+   "id": "sops-area",
+   "name": "SOPS area",
+   "category": "academic",
+   "world": null,
+   "verification": "unverified",
+   "implementation": "not-started",
+   "notes": "Expansion POI from the v0.2 inventory; exact building and position need confirmation."
+  },
+  {
+   "id": "slit-maritime-area",
+   "name": "SLIT / Maritime Building area",
+   "category": "academic",
+   "world": null,
+   "verification": "unverified",
+   "implementation": "not-started",
+   "notes": "Expansion POI from the v0.2 inventory; confirm current name, building and position."
+  },
+  {
+   "id": "tetfund-hostels",
+   "name": "TETFund Hostels",
+   "category": "accommodation",
+   "world": null,
+   "verification": "unverified",
+   "implementation": "not-started",
+   "notes": "Expansion POI from the v0.2 inventory; current status and position need confirmation."
+  },
+  {
+   "id": "ndic-hostel",
+   "name": "NDIC Hostel",
+   "category": "accommodation",
+   "world": null,
+   "verification": "unverified",
+   "implementation": "not-started",
+   "notes": "Expansion POI from the v0.2 inventory; current status and position need confirmation."
+  },
+  {
+   "id": "old-seet-roundabout",
+   "name": "Old SEET Roundabout / nearby junction",
+   "category": "navigation",
+   "world": null,
+   "verification": "unverified",
+   "implementation": "not-started",
+   "notes": "Keep separate from Football Roundabout until it is confirmed whether these are distinct places."
+  },
+  {
+   "id": "bukka-9",
+   "name": "Bukka 9, Umuchima",
+   "category": "off-campus",
+   "world": null,
+   "verification": "unverified",
+   "implementation": "not-started",
+   "notes": "Off-campus future extension; not placed inside the campus boundary."
+  },
+  {
+   "id": "sekani-mall",
+   "name": "Sekani Mall, Eziobodo",
+   "category": "off-campus",
+   "world": null,
+   "verification": "unverified",
+   "implementation": "not-started",
+   "notes": "Off-campus future extension; not placed inside the campus boundary."
   }
  ],
  "offCampus": [

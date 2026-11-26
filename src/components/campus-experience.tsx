@@ -63,6 +63,15 @@ export default function CampusExperience() {
     return campusLocations.filter((item) => !term || `${item.name} ${item.category}`.toLowerCase().includes(term));
   }, [campusLocations, query]);
 
+  const worldPlaceCatalog = useMemo(() => campusLocations.map((place) => ({
+    id: place.id,
+    name: place.name,
+    category: place.category,
+    position_status: place.position_status ?? "unverified",
+    local_x: place.local_x,
+    local_z: place.local_z,
+  })), [campusLocations]);
+
   const plottedLocations = useMemo(() => {
     const positioned = campusLocations.filter((place) => typeof place.local_x === "number" && Number.isFinite(place.local_x) && typeof place.local_z === "number" && Number.isFinite(place.local_z));
     if (!positioned.length) return [];
@@ -125,6 +134,10 @@ export default function CampusExperience() {
     const channel=supabase?.channel("campus-location-updates").on("postgres_changes",{event:"*",schema:"public",table:"campus_locations"},()=>void refreshLocations()).subscribe();
     return () => { active=false;if(channel&&supabase)void supabase.removeChannel(channel); };
   }, []);
+
+  useEffect(() => {
+    worldFrame.current?.contentWindow?.postMessage({ type: "futo:campus-locations", places: worldPlaceCatalog }, window.location.origin);
+  }, [worldPlaceCatalog]);
 
   useEffect(() => {
     let active = true;
@@ -332,11 +345,11 @@ export default function CampusExperience() {
   },[profile?.id]);
 
   useEffect(()=>{
-    const controlled=new Set(["w","a","s","d","shift","arrowleft","arrowright","arrowup","arrowdown"]);
+    const controlled=new Set(["w","a","s","d","shift","arrowleft","arrowright","arrowup","arrowdown","enter"," "]);
     const forward=(down:boolean)=>(event:KeyboardEvent)=>{
-      if(event.target instanceof HTMLElement&&event.target.closest("input,textarea,select,[contenteditable='true']"))return;
+      if(event.target instanceof HTMLElement&&event.target.closest("input,textarea,select,button,a,[contenteditable='true']"))return;
       const key=event.key.toLowerCase();if(!controlled.has(key))return;
-      if(key.startsWith("arrow"))event.preventDefault();
+      if(key.startsWith("arrow")||key==="enter"||key===" ")event.preventDefault();
       worldFrame.current?.contentWindow?.postMessage({type:"futo:key",key,down},window.location.origin);
     };
     const down=forward(true),up=forward(false);
@@ -361,8 +374,9 @@ export default function CampusExperience() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!active || !user) return;
       setEmail(user.email ?? null);
-      const { data: role } = await supabase.from("user_roles").select("role").eq("user_id", user.id).eq("role", "admin").maybeSingle();
-      if (active) setIsAdmin(Boolean(role));
+      const { data: role } = await supabase.from("user_roles").select("role").eq("user_id", user.id).limit(1);
+      if (active) setIsAdmin(Boolean(role?.length));
+      if (role?.length) { window.location.assign("/admin/dashboard"); return; }
       const metadataName = user.user_metadata?.display_name;
       if (typeof metadataName === "string") setProfileNameDraft(metadataName);
       const response = await fetch("/api/profile", { cache: "no-store" });
@@ -375,13 +389,13 @@ export default function CampusExperience() {
       if (!active) return;
       setEmail(session?.user.email ?? null);
       if (!session) { setProfile(null); setIsAdmin(false); setNearbyPlayers([]); setPresenceStatus("offline"); }
-      else void supabase.from("user_roles").select("role").eq("user_id", session.user.id).eq("role", "admin").maybeSingle().then(({ data }) => { if (active) setIsAdmin(Boolean(data)); });
+      else void supabase.from("user_roles").select("role").eq("user_id", session.user.id).limit(1).then(({ data }) => { if (active) { setIsAdmin(Boolean(data?.length)); if(data?.length)window.location.assign("/admin/dashboard"); } });
     });
     return () => { active = false; subscription.unsubscribe(); };
   }, []);
 
   return <main className="campus">
-    <iframe ref={worldFrame} className="world" src="/campus/index.html" title="Interactive FUTO campus prototype" allow="fullscreen" onLoad={()=>worldFrame.current?.contentWindow?.postMessage({type:"futo:nearby-players",players:nearbyPlayers},window.location.origin)}/>
+    <iframe ref={worldFrame} className="world" src="/campus/index.html" title="Interactive FUTO campus prototype" allow="fullscreen" onLoad={()=>{worldFrame.current?.contentWindow?.postMessage({type:"futo:nearby-players",players:nearbyPlayers},window.location.origin);worldFrame.current?.contentWindow?.postMessage({type:"futo:campus-locations",places:worldPlaceCatalog},window.location.origin);}}/>
     <Link href="/" className="campus-brand"><span className="brand-mark">F</span><span><b>FUTO LIFE</b><small>Explore your campus</small></span></Link>
     <button className={`dock-menu-toggle${menuOpen?" active":""}`} onClick={()=>setMenuOpen(v=>!v)} aria-expanded={menuOpen} aria-label={menuOpen?"Close campus menu":"Open campus menu"}><span>{menuOpen?"×":"☰"}</span><b>{menuOpen?"Close":"Menu"}</b></button>
     <aside className={`experience-dock${menuOpen?" drawer-open":""}`} aria-label="Campus menu">
@@ -409,7 +423,8 @@ export default function CampusExperience() {
     {selectedPlayerId&&selectedPlayerLoading&&!selectedPlayer&&<div className="player-profile-backdrop"><section className="player-profile-dialog panel" role="dialog" aria-modal="true"><p>Loading player profile…</p></section></div>}
     {selectedPlayerId&&!selectedPlayerLoading&&!selectedPlayer&&<div className="player-profile-backdrop"><section className="player-profile-dialog panel" role="dialog" aria-modal="true"><header className="map-header"><h2>Profile unavailable</h2><button className="secondary map-close" onClick={()=>setSelectedPlayerId(null)} aria-label="Close player profile">×</button></header><p>This profile is no longer available to campus explorers.</p></section></div>}
     {mapOpen && <div className="map-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setMapOpen(false); }}><section className="map-dialog panel" role="dialog" aria-modal="true" aria-labelledby="map-title">
-      <header className="map-header"><div><div className="eyebrow">Campus map</div><h2 id="map-title">Places with saved positions</h2></div><button className="secondary map-close" onClick={() => setMapOpen(false)} aria-label="Close campus map">×</button></header>
+      <header className="map-header"><div><div className="eyebrow">Campus map · {campusLocations.length} listed places</div><h2 id="map-title">Known places and positions</h2></div><button className="secondary map-close" onClick={() => setMapOpen(false)} aria-label="Close campus map">×</button></header>
+      <p className="map-caveat">{plottedLocations.length} places have saved local positions. The rest remain searchable below with their names, but need a confirmed map position before they can be shown as pins or used for navigation.</p>
       <div className="schematic-map" role="img" aria-label="Schematic map showing campus locations that have saved local positions">
         <span className="north-marker" aria-hidden="true">N ↑</span>
         {plottedLocations.map(({ place, left, top }) => <button key={place.id} className={`map-marker status-${place.position_status ?? "unverified"}${selected?.id===place.id?" selected": ""}`} style={{ left: `${left}%`, top: `${top}%` }} onClick={() => { chooseLocation(place); setMapOpen(false); setDirectoryOpen(true); if(window.matchMedia("(max-width:640px)").matches)setMenuOpen(true); }} aria-label={`${place.name}, ${place.position_status === "provisional" ? "estimated position" : place.position_status === "verified" ? "verified position" : "unverified position"}`} title={place.name}>{place.image_url?<img className="map-marker-photo" src={place.image_url} alt=""/>:<span className="map-marker-dot"/>}<span className="map-marker-name">{place.name}</span></button>)}
@@ -419,7 +434,7 @@ export default function CampusExperience() {
       {roadDraft && <section className="road-draft-card" aria-label="Provisional campus road trace preview"><div className="road-draft-heading"><div><span className="eyebrow">MASTER PLAN TRACE · REVIEW REQUIRED</span><h3>Draft campus road network</h3></div><span className="badge status-badge-provisional">12 provisional roads</span></div><DraftRoadMap roads={roadDraft.roads} playerPosition={currentWorldPosition}/><p className="map-caveat">{roadDraft.transform?.warning ?? "Road traces are provisional."} The road trace and live player dot share the prototype coordinate frame. Saved-place pins remain separate until their positions are reviewed.</p></section>}
       {campusLocations.some((place) => typeof place.local_x !== "number" || !Number.isFinite(place.local_x) || typeof place.local_z !== "number" || !Number.isFinite(place.local_z)) && <div className="unmapped-section"><h3>Not placed on this map yet</h3><div className="unmapped-list">{campusLocations.filter((place) => typeof place.local_x !== "number" || !Number.isFinite(place.local_x) || typeof place.local_z !== "number" || !Number.isFinite(place.local_z)).map((place) => <button key={place.id} className="unmapped-place" onClick={() => { chooseLocation(place); setMapOpen(false); setDirectoryOpen(true); if(window.matchMedia("(max-width:640px)").matches)setMenuOpen(true); }}><span>{place.name}</span><span className="loc-meta">Position needed</span></button>)}</div></div>}
     </section></div>}
-    {accountOpen && <AccountDialog email={email} profile={profile} initialName={profileNameDraft} initialMessage={authNotice} initialReferralCode={initialReferralCode} redirectTo={authReturnTo||"/"} onClose={() => setAccountOpen(false)} onSignedIn={(userEmail, savedProfile) => { setEmail(userEmail); setProfile(savedProfile); setProfileNameDraft(""); setAuthNotice(""); setInitialReferralCode(""); setAccountOpen(false); if(userEmail&&authReturnTo)window.location.assign(authReturnTo); }} />}
+    {accountOpen && <AccountDialog email={email} profile={profile} initialName={profileNameDraft} initialMessage={authNotice} initialReferralCode={initialReferralCode} redirectTo={authReturnTo||"/"} onClose={() => setAccountOpen(false)} onSignedIn={(userEmail, savedProfile) => { setEmail(userEmail); setProfile(savedProfile); setProfileNameDraft(""); setAuthNotice(""); setInitialReferralCode(""); setAccountOpen(false); if(userEmail){const authClient=createClient();if(authClient)void authClient.auth.getUser().then(async({data:{user}})=>{if(!user)return;const {data}=await authClient.from("user_roles").select("role").eq("user_id",user.id).limit(1);window.location.assign(data?.length?"/admin/dashboard":authReturnTo||"/");});} }} />}
   </main>;
 }
 

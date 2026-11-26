@@ -144,8 +144,8 @@ Implemented WhatsApp-style message interactions in the conversation view:
 
 ### Rollout steps
 
-1. Preview the linked Supabase migration: `npx supabase@latest db push --dry-run --linked`.
-2. Apply it to the linked project: `npx supabase@latest db push --linked`.
+1. Preview pending Supabase migrations: `npx supabase@latest db push --dry-run --remote`.
+2. Apply them to the linked project: `npx supabase@latest db push --remote`.
 3. Deploy the app after the migration completes. Verify using two accounts: edit/delete own messages, reply by action and swipe, toggle reactions, and confirm other conversation members receive realtime updates.
 
 TypeScript check (`npx tsc --noEmit`) passes. Full functional testing remains pending.
@@ -168,7 +168,7 @@ TypeScript check (`npx tsc --noEmit`) passes. Full functional testing remains pe
 - Message actions now offer **Delete for me** for received messages. The sender can choose **Delete for me** or **Delete for everyone**; edit remains available only on the sender’s own text messages.
 - Added `supabase/migrations/202611080002_message_delete_for_me.sql` with a private per-profile hidden-message table, RLS, a membership-checked `hide_my_message` RPC, audit event, and Realtime publication.
 - Hidden messages are filtered from the current conversation and conversation previews and stay hidden for that user after reload or on another device. Delete-for-everyone continues to replace the message with the shared deletion notice.
-- Apply both pending chat migrations with `npx supabase@latest db push --dry-run --linked`, then `npx supabase@latest db push --linked`.
+- Apply both pending chat migrations with `npx supabase@latest db push --dry-run --remote`, then `npx supabase@latest db push --remote`.
 
 ## Latest update — photo-first campus wayfinding (2026-11-08)
 
@@ -213,3 +213,41 @@ TypeScript check (`npx tsc --noEmit`) passes. Full functional testing remains pe
 - Movement uses private Realtime Broadcast at 15 updates per second while opt-in presence remains the membership/privacy signal. The world interpolates remote positions at a faster rate and the large name plates are now small clickable head badges.
 - Clicking a player badge opens a profile card, with a photo lightbox. Accepted friends can open their existing full community direct chat in a campus overlay; non-friends are sent to the community friend/request flow.
 - After the already applied `202611090001_game_economy_and_challenges.sql`, apply `202611090002_campus_realtime_presence.sql`, `202611100001_campus_vehicle_fleet.sql`, and `202611100002_expand_campus_shuttle_fleet.sql` before testing live presence and transport. Try with two authenticated accounts and sufficient bike/shuttle tickets. Transport coordinates and the building loop are still provisional; movement broadcasts are for display only, never authoritative reward or fare validation.
+
+## Latest update — place labels and current location (2026-11-10)
+
+- Improved the 3D place-label contrast and text sizing. The location chip now identifies the closest modeled place, estimates distance, and marks temporary building identities and positions as uncertain.
+- The app sends saved place coordinates into the 3D world, where positioned places get a colored marker and a label that distinguishes verified, approximate, and unverified positions. Existing scene labels remain in place.
+- Expanded the searchable place catalog to include the remaining v0.2 campus POI candidates and the two listed off-campus destinations. Unpositioned places stay labeled as needing a position; no coordinates were inferred from the un-georeferenced master-plan raster or blank POI templates.
+- Updated the campus map dialog to show total listed places and how many have saved local positions. Apply `202611100003_seed_campus_place_catalog.sql` after the existing location inventory seed to add the same candidate catalog to Supabase.
+
+## Latest update — Opportunities publishing, community submissions and AdSense readiness (2026-11-16)
+
+- Reviewed the supplied FUTO Life Opportunities product brief. Its core requirements are public browsing, verified opportunity records, professional editorial articles, a staff CMS, and login before continuing to an external application. The brief's phased plan places external submissions later; the owner clarified that both staff and signed-in users should be able to submit now, so community submissions enter a private review queue and cannot publish themselves.
+- The repo already contained public `/opportunities`, `/opportunities/[slug]`, and `/articles` layouts, category search/filtering, source and application links, and opportunity login return behavior. This update connects those surfaces to the new CMS schema, adds `/articles/[slug]` and community-submission entry points, and preserves FUTO Life's role as a discovery service rather than the opportunity provider.
+- Added `/opportunities/submit` for authenticated users to submit an opportunity or an editorial article. Every public submission is `pending_review`, is visible only to its author and authorized reviewers, and cannot mark itself featured or verified. Staff must review and publish it.
+- Routed the existing CMS component at `/opportunities/admin` for the `opportunities_admin` role. It supports staff sign-in, category creation/edit/removal, opportunity and article editing, draft/review/publish/archive states, and review of community submissions. Platform admins remain authorized to use this CMS through `public.is_admin()`; `/admin` now links directly to it. Existing `/admin` continues to handle platform account/post moderation and campus administration.
+- Added migration `supabase/migrations/202611160001_opportunities_publishing.sql` for CMS roles, categories, opportunities, articles, public read policies, private-submission policies, and URL validation. Public visitors can read published items without signing in.
+- The repo already included `scripts/seed-opportunities-admin.mjs` and `npm run seed:opportunities-admin`; the seeder now searches all auth-user pages before creating the account. Set `OPPORTUNITIES_ADMIN_PASSWORD` and `SUPABASE_SERVICE_ROLE_KEY` in local `.env`, then run it after applying the migration. It creates or updates the confirmed `opportunities@futolife.app` account and assigns its CMS role; it never prints or stores the password in source control. The current `.env` does not contain those two keys, so the seed has not been run.
+- Hardened the existing configurable AdSense slot loader to initialize on script readiness. The current placement is limited to `/opportunities` and opportunity detail pages; editorial pages and all other app areas do not load the AdSense script or show ads. Set `NEXT_PUBLIC_ADSENSE_CLIENT` and `NEXT_PUBLIC_ADSENSE_OPPORTUNITY_SLOT` to activate it. No publisher ID or slot ID was provided, so ads remain disabled. AdSense requires site ownership verification and review/approval before ads can serve; configure ads.txt and consent/privacy messaging as applicable. Updated the privacy and terms pages with advertising, consent, and submissions disclosures.
+- The migration seeds a visibly labeled, private draft opportunity for dashboard setup. It uses `example.org` placeholder links and must be replaced with verified details before publishing; it is not a public listing.
+- Rollout: inspect migration state, preview and apply the migration to Supabase, add the service role key and chosen admin password to local `.env`, run `npm run seed:opportunities-admin`, then configure AdSense IDs after the site is connected and approved. Follow Google's [site connection and review instructions](https://support.google.com/adsense/answer/7584263) and [ads.txt guide](https://support.google.com/adsense/answer/12171612). Do not commit `.env` or expose the service role key in a `NEXT_PUBLIC_` variable.
+- Verification: `npx tsc --noEmit` passes. Supabase migration, account seeding, production deployment, AdSense approval, and end-to-end browser review are still pending.
+
+## Follow-up — opportunity-only advertising and starter draft (2026-11-17)
+
+- Removed AdSense placements and script loading from `/articles` and `/articles/[slug]`; ads load only on the `/opportunities` directory and `/opportunities/[slug]` pages. There is one configurable ad unit shared across those pages, and ads stay off when either required env value is blank.
+- Added one idempotent starter record to `202611160001_opportunities_publishing.sql`: a clearly labeled internship sample with `draft` status and placeholder `example.org` links. It is visible only to authorized staff until replaced and reviewed.
+- AdSense account setup uses the root domain `futolife.app`; AdSense does not accept a path such as `/opportunities` as a site entry. Ad placements can still be limited in the app to the opportunities routes.
+- A future ad-free tier can gate the shared ad component using a server-verified membership entitlement. No payment, subscription, or premium access logic exists yet.
+
+## Follow-up — unified role-based admin workspace (2026-11-17)
+
+- Consolidated administration under `/admin`. The workspace navigation exposes Dashboard, Users, Opportunity, Community, Campus, Activities, and Settings according to the signed-in admin's database roles. `/admin` redirects to `/admin/dashboard`; the former `/opportunities/admin` path redirects to `/admin/opportunity`.
+- Added roles `super_admin`, `opportunities_admin`, `community_admin`, and `platform_admin`. The migration converts existing `admin` role rows to `super_admin`, preserves the current `admin@futolife.com` bootstrap account and its planned `admin@futolife.app` address, and scopes campus, community moderation, profile, referral, and activity policies. Each account may have one module role; the super-admin role remains reserved for the bootstrap account and is not assigned through the role UI.
+- Opportunities admins can access Opportunity, Dashboard, and Activities; community admins can access Community, Users, Dashboard, and Activities; platform admins can access Campus, Settings, Dashboard, Activities, and ordinary-user management; super admins can access all modules. Activities remain read-only. The server layout and section page enforce these scopes, and the migration applies the corresponding database restrictions.
+- Added invitation endpoints for regular users and module admins. Platform admins can invite ordinary users; super admins can invite users and module admins. Invitees receive a password setup link. Admin role invitations and role changes are presented under Settings and are super-admin-only. Configure `SUPABASE_SERVICE_ROLE_KEY` server-side for invitations and role administration; never expose it with a `NEXT_PUBLIC_` name.
+- Community and platform admins can list and edit ordinary user profiles, including name, department, account type, year, alumni set, and suspension state. Community admins can moderate posts regardless of report count; reports remain in the moderation history after a post is removed.
+- Admin sign-in and invite callbacks route to `/admin/dashboard`; admin accounts are redirected away from `/explore` and `/community`. Regular users continue to their requested destination.
+- The migration is local and has not been applied. Before deployment, inspect remote migration state and preview/apply `202611170001_admin_roles_workspace.sql`. Verify the bootstrap account after the owner changes its email, and configure the service role key before using invitations.
+- Static TypeScript check (`npx tsc --noEmit`) passes. Live Supabase migration, invitation delivery, role policy verification, and browser review remain pending.
