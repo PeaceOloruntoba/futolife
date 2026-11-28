@@ -18,6 +18,6 @@ export default async function AdminSectionPage({ params }: { params: Promise<{ s
   if (!canAccessSection(roles, section as AdminSection)) redirect("/admin/dashboard");
   if (section === "opportunity") return <OpportunitiesAdmin />;
   if (section === "applications") return <OpportunityApplyClicks />;
-  const module = ({ dashboard:"dashboard", users:"users", community:"posts", campus:"places", activities:"activity", settings:"settings" } as const)[section as Exclude<AdminSection,"opportunity">];
+  const module = ({ dashboard:"dashboard", users:"users", community:"posts", campus:"places", activities:"activity", settings:"settings" } as const)[section as Exclude<AdminSection,"opportunity" | "applications">];
   return <AdminDashboard adminEmail={user.email ?? "Administrator"} initialSection={module} canManageRoles={roles.includes("super_admin")} canInviteUsers={roles.some(r=>["super_admin","platform_admin"].includes(r))} summaryScopes={{ campus:roles.some(r=>["super_admin","platform_admin"].includes(r)), users:roles.some(r=>["super_admin","platform_admin","community_admin"].includes(r)), community:roles.some(r=>["super_admin","community_admin"].includes(r)) }} />;
 }
