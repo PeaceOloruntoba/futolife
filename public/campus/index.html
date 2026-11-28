@@ -64,6 +64,20 @@
 </div></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script><script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
 <script>
+// Array.prototype.at is newer than the Safari/iOS baseline targeted by this page.
+if (!Array.prototype.at) {
+  Object.defineProperty(Array.prototype, 'at', {
+    configurable: true,
+    value: function (index) {
+      var position = Number(index) || 0;
+      position = position < 0 ? Math.ceil(position) : Math.floor(position);
+      if (position < 0) position += this.length;
+      return position < 0 || position >= this.length ? undefined : this[position];
+    }
+  });
+}
+</script>
+<script>
 const $=id=>document.getElementById(id);
 function toast(t){const e=$('toast');e.textContent=t;e.style.display='block';clearTimeout(toast.t);toast.t=setTimeout(()=>e.style.display='none',2000)}
 let R;try{R=new THREE.WebGLRenderer({canvas:$('gl'),antialias:true})}catch(e){document.body.insertAdjacentHTML('afterbegin','<p style="padding:30px">WebGL is not available in this browser, so the 3D prototype cannot run here.</p>');throw e}
